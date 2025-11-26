@@ -14,16 +14,16 @@ import dj_database_url
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Local development kosam .env nundi values load avuthayi.
-# Railway lo normal env variables nundi directly tiskuntundi.
+# Railway / Render lo system env variables nundi direct ga thesukuntundi.
 load_dotenv(BASE_DIR / ".env")
 
 # -------------------------------------------------------------------
 # CORE SECURITY / DEBUG
 # -------------------------------------------------------------------
-# SECRET_KEY: production lo .env / Railway env lo compulsory ga set cheyyi
+# SECRET_KEY: production lo env lo compulsory set cheyyi
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-prod")
 
-# DEBUG: .env / Railway env lo DEBUG=true/false
+# DEBUG: env lo DEBUG=true/false
 DEBUG = os.getenv("DEBUG", "true").lower() == "true"
 
 # ALLOWED_HOSTS: comma-separated list from env
@@ -35,9 +35,7 @@ ALLOWED_HOSTS = [h.strip() for h in raw_hosts.split(",") if h.strip()]
 # e.g. CSRF_TRUSTED_ORIGINS=https://offerzone-production.up.railway.app
 _csrf_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")
 if _csrf_env:
-    CSRF_TRUSTED_ORIGINS = [
-        x.strip() for x in _csrf_env.split(",") if x.strip()
-    ]
+    CSRF_TRUSTED_ORIGINS = [x.strip() for x in _csrf_env.split(",") if x.strip()]
 else:
     CSRF_TRUSTED_ORIGINS = []
 
@@ -45,8 +43,8 @@ else:
 # -------------------------------------------------------------------
 # EMAIL (OTP / NOTIFICATIONS) - all from env
 # -------------------------------------------------------------------
-# Local dev lo: console backend use cheyyi
-# Prod lo: smtp backend set cheyyi (e.g. Gmail)
+# Local dev: console backend
+# Prod: smtp backend (gmail etc.)
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND",
     "django.core.mail.backends.console.EmailBackend",
@@ -90,7 +88,7 @@ ROOT_URLCONF = "offerzone.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],  # templates/ folder use cheyyalo ante
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -106,9 +104,8 @@ WSGI_APPLICATION = "offerzone.wsgi.application"
 
 
 # -------------------------------------------------------------------
-# DATABASE (SQLite for local, Postgres/other for deploy)
+# DATABASE (SQLite for local, Postgres etc. for deploy)
 # -------------------------------------------------------------------
-# Railway / Render lo DATABASE_URL env set chesthe automatic ga adhi use avuthundi.
 DATABASES = {
     "default": dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
