@@ -199,10 +199,14 @@ else:
 # ----------------- 🚀 DEPLOY / PRODUCTION (Render/Railway etc.) --------------
 DEBUG = False
 
-ALLOWED_HOSTS = ["offerzone.onrender.com"]
+ALLOWED_HOSTS = [
+    "offerzone-production.up.railway.app",
+    "localhost",
+    "127.0.0.1",
+]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://offerzone.onrender.com",
+    "https://offerzone-production.up.railway.app",
 ]
 
 CSRF_COOKIE_SECURE = True
