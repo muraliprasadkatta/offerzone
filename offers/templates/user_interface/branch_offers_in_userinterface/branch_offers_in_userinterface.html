@@ -1,0 +1,699 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>{{ branch.name }} • Offers • OfferZone</title>
+
+  <style>
+    :root { --bg:#0b1020; --card:#11183a; --border:#273164; --text:#e8ecff; --muted:#b9c4ff; --prim:#4c74ff; }
+
+    *{ box-sizing:border-box }
+    body{ margin:0; font-family:system-ui, Arial, sans-serif; background:var(--bg); color:var(--text) }
+    a{ color:#c5d0ff; text-decoration:none } a:hover{ opacity:.9 }
+
+    header{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 18px; background:var(--card);
+      border-bottom:1px solid var(--border);
+      position:sticky; top:0; z-index:10;
+    }
+    header .brand{ font-weight:700; letter-spacing:.3px }
+    header .right{ display:flex; gap:12px; align-items:center }
+
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      padding:8px 14px; border-radius:12px;
+      border:1px solid var(--border);
+      background:var(--prim); color:#fff;
+      font-weight:600; cursor:pointer; font-size:14px;
+    }
+    .btn.outline{ background:transparent; color:var(--text) }
+
+    .wrap{ max-width:980px; margin:20px auto; padding:0 16px }
+    .card{
+      background:var(--card); border:1px solid var(--border);
+      border-radius:16px; padding:16px;
+      box-shadow:0 10px 30px rgba(0,0,0,.25);
+    }
+
+    .crumbs{ font-size:12px; color:var(--muted); margin-bottom:8px }
+    .crumbs a{ color:var(--muted) }
+
+    .branch-hero{
+      display:flex; flex-wrap:wrap; gap:16px;
+      align-items:flex-start; justify-content:space-between;
+      margin-bottom:16px;
+    }
+    .branch-main{ display:flex; flex-direction:column; gap:6px; max-width:70% }
+    .branch-name{ font-size:20px; font-weight:700 }
+    .branch-meta{ font-size:13px; color:var(--muted); display:flex; gap:8px; flex-wrap:wrap }
+
+    .badge{
+      display:inline-flex; align-items:center;
+      padding:3px 8px; border-radius:999px;
+      border:1px solid var(--border);
+      font-size:11px; color:var(--muted);
+    }
+    .badge.green{ color:#98f7c2; border-color:#237a4a; background:#0d2619 }
+    .badge.red{ color:#ffb3b3; border-color:#8b2b2b; background:#341515 }
+
+    .hero-cta{ display:flex; flex-direction:column; gap:8px; align-items:flex-end; min-width:160px }
+
+    .filter-row{ margin-bottom:10px; display:flex; flex-wrap:wrap; gap:8px }
+    .chip{
+      display:inline-flex; align-items:center;
+      padding:6px 10px; border-radius:999px;
+      font-size:12px; border:1px solid var(--border);
+      background:#0e1a48; color:var(--muted); cursor:pointer;
+    }
+    .chip.active{ background:var(--prim); color:#fff; border-color:var(--prim) }
+
+    .offer-list{ display:flex; flex-direction:column; gap:10px }
+    .offer-card{
+      background:#0f1640; border:1px solid var(--border);
+      border-radius:14px; padding:12px 14px;
+      display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:8px;
+    }
+    .offer-title{ font-weight:600; font-size:15px; margin-bottom:2px }
+    .offer-sub{ font-size:13px; color:var(--muted) }
+    .offer-tags{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px }
+    .offer-meta{ font-size:11px; color:var(--muted); margin-top:4px }
+
+    .offer-cta{
+      display:flex; flex-direction:column; gap:6px;
+      align-items:flex-end; justify-content:center; min-width:130px;
+    }
+    .offer-cta .btn{ padding-inline:10px; font-size:13px }
+
+    .info-strip{
+      margin-top:20px; font-size:12px; color:var(--muted);
+      display:flex; gap:16px; flex-wrap:wrap;
+    }
+    .info-step{ display:flex; gap:6px; align-items:flex-start; max-width:220px }
+    .info-step-num{
+      width:18px; height:18px; border-radius:999px;
+      border:1px solid var(--border);
+      display:flex; align-items:center; justify-content:center;
+      font-size:11px; margin-top:2px;
+    }
+
+    footer.nav{
+      position:sticky; bottom:0; background:var(--card);
+      border-top:1px solid var(--border); margin-top:24px;
+      z-index:20; 
+    }
+    .tabs{ display:grid; grid-template-columns:repeat(4,1fr); }
+    .tab{ padding:10px 8px; text-align:center; color:var(--muted); font-size:13px }
+    .tab.active{ color:#fff; border-bottom:2px solid var(--prim) }
+
+    /* milestones */
+    .milestone-row{
+      margin-top:10px; padding-top:8px;
+      border-top:1px dashed var(--border);
+      display:flex; flex-wrap:wrap; gap:12px;
+      font-size:12px; color:var(--muted);
+    }
+    .milestone-block{
+      min-width:140px; max-width:none;
+      flex:1; display:flex; flex-direction:column; gap:4px;
+    }
+    .milestone-label{
+      font-size:11px; text-transform:uppercase;
+      letter-spacing:.05em; opacity:.8;
+    }
+    .milestone-main{ font-size:13px }
+    .milestone-pills{ display:flex; flex-wrap:wrap; gap:6px }
+    .badge.pill{
+      background:#0e1a48; border-color:#273164;
+      font-size:11px; padding-inline:10px;
+    }
+
+    /* VISIT PREVIEW */
+    .mini-cal-row{
+      margin-top:8px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+
+    .mini-cal-grid{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(60px, 1fr));
+      gap:8px;
+      width:100%;
+    }
+
+    /* default 1–6 show; 7+ hide */
+    .mini-cal-grid .mini-box:nth-child(n+7){
+      display:none;
+    }
+    .mini-cal-grid.expanded .mini-box:nth-child(n+7){
+      display:flex;
+    }
+
+    /* Square boxes – white cards */
+    .mini-box{
+      position:relative;
+      width:100%;
+      aspect-ratio:1/1;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,0.12);
+      font-size:13px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#11183a;
+      background:#ffffff;
+      box-shadow:0 4px 10px rgba(0,0,0,0.25);
+      overflow:hidden;
+    }
+
+    /* visit number badge in each box */
+    .mini-num{
+      position:absolute;
+      right:6px;
+      bottom:4px;
+      font-size:11px;
+      font-weight:600;
+      color:#11183a;
+      z-index:3;
+    }
+
+    /* main milestone – big gift filling inner white box */
+    .mini-box-main{
+      color:#1c0c16;
+      border-color:#ffdfa3;
+      box-shadow:0 0 0 2px rgba(255,223,163,0.7), 0 0 24px rgba(255,223,163,0.7);
+      background:radial-gradient(circle at 0 0, #ffe8c7, #ffb6a3 45%, #f58b7b 80%);
+      position:relative;
+    }
+    /* white inner box outline */
+    .mini-box-main::before{
+      content:"";
+      position:absolute;
+      inset:12%;
+      border-radius:14px;
+      border:3px solid rgba(255,255,255,0.96);
+      box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);
+      z-index:1;
+    }
+    /* exact same size as white box – gift inside */
+    .mini-box-main::after{
+      content:"🎁";
+      position:absolute;
+      inset:18%;
+      border-radius:12px;
+      background:linear-gradient(145deg, #ffda7b, #ff8b8b);
+      box-shadow:0 8px 18px rgba(0,0,0,0.25);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:30px;
+      z-index:2;
+    }
+
+    /* extra milestones – BIG happy star */
+    .mini-box-extra{
+      border:none;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(255,255,255,0.8), transparent 60%),
+        linear-gradient(135deg, #fef3c7, #bfdbfe);
+      box-shadow:0 0 0 2px rgba(96,165,250,0.7), 0 0 20px rgba(59,130,246,0.6);
+      position:relative;
+      overflow:hidden;
+    }
+    .mini-box-extra::before{
+      content:"⭐";
+      position:absolute;
+      left:50%;
+      top:45%;
+      transform:translate(-50%, -50%);
+      font-size:30px;
+      text-shadow:0 0 12px rgba(251,191,36,0.9);
+      z-index:1;
+    }
+    .mini-box-extra::after{
+      content:"😊";
+      position:absolute;
+      left:10px;
+      bottom:8px;
+      font-size:13px;
+      z-index:2;
+      opacity:0.95;
+    }
+
+    /* locked / after last milestone when non-repeat */
+    .mini-box-locked{
+      opacity:0.55;
+      border-style:dashed;
+      background:repeating-linear-gradient(
+        135deg,
+        #f4f4f4,
+        #f4f4f4 6px,
+        #e4e4e4 6px,
+        #e4e4e4 10px
+      );
+    }
+    .mini-box-locked::after{
+      content:"🔒";
+      position:absolute;
+      top:6px;
+      left:6px;
+      font-size:13px;
+      opacity:0.9;
+    }
+
+    .mini-toggle-row{
+      margin-top:4px;
+      text-align:center;
+    }
+    .mini-toggle-btn{
+      border:none;
+      background:transparent;
+      color:var(--muted);
+      font-size:11px;
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      cursor:pointer;
+      padding:2px 8px;
+      border-radius:999px;
+    }
+    .mini-toggle-btn:hover{
+      background:rgba(255,255,255,0.04);
+    }
+    .mini-toggle-arrow{
+      font-size:10px;
+      line-height:1;
+      display:inline-block;
+      transition:transform .2s ease;
+    }
+    .mini-cal-grid.expanded + .mini-toggle-row .mini-toggle-arrow{
+      transform:rotate(180deg);
+    }
+
+    @media (max-width:640px){
+      .branch-main{ max-width:100% }
+      .hero-cta{ align-items:flex-start }
+      .offer-card{ grid-template-columns:minmax(0,1fr); }
+      .offer-cta{ align-items:flex-start }
+      .milestone-row{ flex-direction:column; }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="brand">OfferZone</div>
+    <div class="right">
+      <a class="btn outline" href="#">Profile</a>
+      <a href="{% url 'offers:user_logout' %}">Sign out</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+
+    <section class="card branch-animation-card">
+      COMMING SOON: Branch animation or image can go here.
+      <br><br><br><br>
+      DON'T FORGOT TO SUBSCRIBE MY YOUTUBE CHANNEL
+    </section>
+
+    <div class="crumbs">
+      <a href="{% url 'offers:user_home' %}">Home</a> ·
+      <span>Branches</span> ·
+      <span>{{ branch.name }}</span>
+    </div>
+
+    <!-- Branch hero -->
+    <section class="card branch-hero">
+      <div class="branch-main">
+        <div class="branch-name">{{ branch.name }}</div>
+        <div class="branch-meta">
+          {% if branch.latitude and branch.longitude %}
+            <span>📍 {{ branch.latitude }}, {{ branch.longitude }}</span>
+          {% endif %}
+          {% if is_open_now %}
+            <span class="badge green">Open now</span>
+          {% else %}
+            <span class="badge red">Closed</span>
+          {% endif %}
+        </div>
+        <div class="branch-meta">
+          <span>{{ active_offer_count }} active offers at this branch</span>
+        </div>
+      </div>
+
+      <div class="hero-cta">
+        <button class="btn outline" type="button" data-open="#scanModal">
+          Scan counter QR
+        </button>
+        <a class="btn" href="#">
+          View today’s menu
+        </a>
+      </div>
+    </section>
+
+    <!-- Offers list -->
+    <section class="card" style="margin-top:14px">
+      <div class="filter-row">
+        <button class="chip active" type="button">All</button>
+        <button class="chip" type="button">Combos</button>
+        <button class="chip" type="button">Free Treat eligible</button>
+        <button class="chip" type="button">Expiring soon</button>
+      </div>
+
+      {% if offers %}
+        <div class="offer-list">
+          {% for o in offers %}
+            <article class="offer-card">
+              <div>
+                <div class="offer-title">{{ o.title }}</div>
+                {% if o.subtitle %}
+                  <div class="offer-sub">{{ o.subtitle }}</div>
+                {% endif %}
+
+                <div class="offer-tags">
+                  {% if o.category %}<span class="badge">{{ o.category }}</span>{% endif %}
+                </div>
+
+                <div class="offer-meta">
+                  {% if o.valid_till %}
+                    Valid till {{ o.valid_till|date:"d M, Y" }}
+                  {% else %}
+                    Valid on selected days
+                  {% endif %}
+                  {% if o.min_bill_amount %}
+                    · Min bill ₹{{ o.min_bill_amount }}
+                  {% endif %}
+                  {% if o.max_uses_per_user %}
+                    · {{ o.max_uses_per_user }} per user
+                  {% endif %}
+                </div>
+
+                {# ---- main milestone + mini calendar + extra milestones ---- #}
+                {% if o.nth or o.extra_nths %}
+                  <div class="milestone-row">
+
+                    {% if o.nth %}
+                      <div class="milestone-block">
+                        <div class="milestone-label">MAIN MILESTONE</div>
+                        <div class="milestone-main">
+                          Free on every
+                          <strong>
+                            {{ o.nth }}<sup>
+                              {% if o.nth == 1 %}st
+                              {% elif o.nth == 2 %}nd
+                              {% elif o.nth == 3 %}rd
+                              {% else %}th
+                              {% endif %}
+                            </sup>
+                          </strong>
+                          visit
+                          {% if o.repeat %}
+                            <span class="badge">Repeats</span>
+                          {% else %}
+                            <span class="badge">One-time</span>
+                          {% endif %}
+                        </div>
+                      </div>
+                    {% endif %}
+
+                    {% if o.extra_nths %}
+                      <div class="milestone-block">
+                        <div class="milestone-label">EXTRA MILESTONES</div>
+                        <div class="milestone-pills">
+                          {% for n in o.extra_nths %}
+                            <span class="badge pill">
+                              {{ n }}<sup>
+                                {% if n == 1 %}st
+                                {% elif n == 2 %}nd
+                                {% elif n == 3 %}rd
+                                {% else %}th
+                                {% endif %}
+                              </sup> visit
+                            </span>
+                          {% endfor %}
+                        </div>
+                      </div>
+                    {% endif %}
+
+                    <div class="milestone-block">
+                      <div class="mini-cal-row">
+                        <div class="milestone-label">VISIT PREVIEW</div>
+
+                        {% with double_nth=o.nth|add:o.nth %}
+                        <div class="mini-cal-grid">
+                          
+                          {# 1 #}
+                          <div class="mini-box
+                            {% if o.nth and 1 == o.nth and o.nth <= 12 %}
+                              mini-box-main
+                            {% elif o.nth and o.repeat and double_nth <= 12 and 1 == double_nth %}
+                              mini-box-main
+                            {% elif o.extra_nths and 1 in o.extra_nths %}
+                              mini-box-extra
+                            {% elif o.nth and not o.repeat and o.nth <= 12 and 1 > o.nth %}
+                              mini-box-locked
+                            {% endif %}
+                          "><span class="mini-num">1</span></div>
+
+                          {# 2 #}
+                          <div class="mini-box
+                            {% if o.nth and 2 == o.nth and o.nth <= 12 %}
+                              mini-box-main
+                            {% elif o.nth and o.repeat and double_nth <= 12 and 2 == double_nth %}
+                              mini-box-main
+                            {% elif o.extra_nths and 2 in o.extra_nths %}
+                              mini-box-extra
+                            {% elif o.nth and not o.repeat and o.nth <= 12 and 2 > o.nth %}
+                              mini-box-locked
+                            {% endif %}
+                          "><span class="mini-num">2</span></div>
+
+                          {# 3 #}
+                          <div class="mini-box
+                            {% if o.nth and 3 == o.nth and o.nth <= 12 %}
+                              mini-box-main
+                            {% elif o.nth and o.repeat and double_nth <= 12 and 3 == double_nth %}
+                              mini-box-main
+                            {% elif o.extra_nths and 3 in o.extra_nths %}
+                              mini-box-extra
+                            {% elif o.nth and not o.repeat and o.nth <= 12 and 3 > o.nth %}
+                              mini-box-locked
+                            {% endif %}
+                          "><span class="mini-num">3</span></div>
+
+                          {# 4 #}
+                          <div class="mini-box
+                            {% if o.nth and 4 == o.nth and o.nth <= 12 %}
+                              mini-box-main
+                            {% elif o.nth and o.repeat and double_nth <= 12 and 4 == double_nth %}
+                              mini-box-main
+                            {% elif o.extra_nths and 4 in o.extra_nths %}
+                              mini-box-extra
+                            {% elif o.nth and not o.repeat and o.nth <= 12 and 4 > o.nth %}
+                              mini-box-locked
+                            {% endif %}
+                          "><span class="mini-num">4</span></div>
+
+                          {# 5 #}
+                          <div class="mini-box
+                            {% if o.nth and 5 == o.nth and o.nth <= 12 %}
+                              mini-box-main
+                            {% elif o.nth and o.repeat and double_nth <= 12 and 5 == double_nth %}
+                              mini-box-main
+                            {% elif o.extra_nths and 5 in o.extra_nths %}
+                              mini-box-extra
+                            {% elif o.nth and not o.repeat and o.nth <= 12 and 5 > o.nth %}
+                              mini-box-locked
+                            {% endif %}
+                          "><span class="mini-num">5</span></div>
+
+                          {# 6 #}
+                          <div class="mini-box
+                            {% if o.nth and 6 == o.nth and o.nth <= 12 %}
+                              mini-box-main
+                            {% elif o.nth and o.repeat and double_nth <= 12 and 6 == double_nth %}
+                              mini-box-main
+                            {% elif o.extra_nths and 6 in o.extra_nths %}
+                              mini-box-extra
+                            {% elif o.nth and not o.repeat and o.nth <= 12 and 6 > o.nth %}
+                              mini-box-locked
+                            {% endif %}
+                          "><span class="mini-num">6</span></div>
+
+                          {# 7 #}
+                          <div class="mini-box
+                            {% if o.nth and 7 == o.nth and o.nth <= 12 %}
+                              mini-box-main
+                            {% elif o.nth and o.repeat and double_nth <= 12 and 7 == double_nth %}
+                              mini-box-main
+                            {% elif o.extra_nths and 7 in o.extra_nths %}
+                              mini-box-extra
+                            {% elif o.nth and not o.repeat and o.nth <= 12 and 7 > o.nth %}
+                              mini-box-locked
+                            {% endif %}
+                          "><span class="mini-num">7</span></div>
+
+                          {# 8 #}
+                          <div class="mini-box
+                            {% if o.nth and 8 == o.nth and o.nth <= 12 %}
+                              mini-box-main
+                            {% elif o.nth and o.repeat and double_nth <= 12 and 8 == double_nth %}
+                              mini-box-main
+                            {% elif o.extra_nths and 8 in o.extra_nths %}
+                              mini-box-extra
+                            {% elif o.nth and not o.repeat and o.nth <= 12 and 8 > o.nth %}
+                              mini-box-locked
+                            {% endif %}
+                          "><span class="mini-num">8</span></div>
+
+                          {# 9 #}
+                          <div class="mini-box
+                            {% if o.nth and 9 == o.nth and o.nth <= 12 %}
+                              mini-box-main
+                            {% elif o.nth and o.repeat and double_nth <= 12 and 9 == double_nth %}
+                              mini-box-main
+                            {% elif o.extra_nths and 9 in o.extra_nths %}
+                              mini-box-extra
+                            {% elif o.nth and not o.repeat and o.nth <= 12 and 9 > o.nth %}
+                              mini-box-locked
+                            {% endif %}
+                          "><span class="mini-num">9</span></div>
+
+                          {# 10 #}
+                          <div class="mini-box
+                            {% if o.nth and 10 == o.nth and o.nth <= 12 %}
+                              mini-box-main
+                            {% elif o.nth and o.repeat and double_nth <= 12 and 10 == double_nth %}
+                              mini-box-main
+                            {% elif o.extra_nths and 10 in o.extra_nths %}
+                              mini-box-extra
+                            {% elif o.nth and not o.repeat and o.nth <= 12 and 10 > o.nth %}
+                              mini-box-locked
+                            {% endif %}
+                          "><span class="mini-num">10</span></div>
+
+                          {# 11 #}
+                          <div class="mini-box
+                            {% if o.nth and 11 == o.nth and o.nth <= 12 %}
+                              mini-box-main
+                            {% elif o.nth and o.repeat and double_nth <= 12 and 11 == double_nth %}
+                              mini-box-main
+                            {% elif o.extra_nths and 11 in o.extra_nths %}
+                              mini-box-extra
+                            {% elif o.nth and not o.repeat and o.nth <= 12 and 11 > o.nth %}
+                              mini-box-locked
+                            {% endif %}
+                          "><span class="mini-num">11</span></div>
+
+                          {# 12 #}
+                          <div class="mini-box
+                            {% if o.nth and 12 == o.nth and o.nth <= 12 %}
+                              mini-box-main
+                            {% elif o.nth and o.repeat and double_nth <= 12 and 12 == double_nth %}
+                              mini-box-main
+                            {% elif o.extra_nths and 12 in o.extra_nths %}
+                              mini-box-extra
+                            {% elif o.nth and not o.repeat and o.nth <= 12 and 12 > o.nth %}
+                              mini-box-locked
+                            {% endif %}
+                          "><span class="mini-num">12</span></div>
+                        </div>
+                        {% endwith %}
+
+                            <!-- 🟦 NEW BUTTON – outside mini-cal-grid, above toggle -->
+<!-- 🟦 NEW BUTTON – outside mini-cal-grid, above toggle -->
+<div style="text-align:center; margin-top:6px;">
+  <button class="btn"
+          style="padding:6px 14px; font-size:12px; border-radius:20px;"
+          data-open="#freeplateCalendarModal">
+    View full visit details
+  </button>
+</div>
+
+
+                        <div class="mini-toggle-row">
+                          <button class="mini-toggle-btn" type="button">
+                            <span class="mini-toggle-arrow">▼</span>
+                            <span class="mini-toggle-text">Show visit details</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                {% endif %}
+              </div>
+
+              <div class="offer-cta">
+                {% if o.display_price %}
+                  <div class="offer-title">₹{{ o.display_price }}</div>
+                {% endif %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="offer-list">
+          <div class="offer-card">
+            <div>
+              <div class="offer-title">No active offers at this branch</div>
+              <div class="offer-sub">Please check again later or try another location.</div>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="info-strip">
+        <div class="info-step">
+          <div class="info-step-num">1</div>
+          <div>Visit {{ branch.name }} branch and order your meal.</div>
+        </div>
+        <div class="info-step">
+          <div class="info-step-num">2</div>
+          <div>Scan the counter QR from this app to unlock the offer.</div>
+        </div>
+        <div class="info-step">
+          <div class="info-step-num">3</div>
+          <div>Show the redeemed offer screen at billing to apply discount.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="nav">
+    <div class="tabs">
+      <a class="tab" href="{% url 'offers:user_home' %}">Home</a>
+      <a class="tab active" href="#">Offers</a>
+      <a class="tab" href="#">Stamps</a>
+      <a class="tab" href="#">Account</a>
+    </div>
+  </footer>
+
+  {% include "user_interface/scan_modal/scan_modal.html" %}
+  {% include "user_interface/free_treat_calendar_modal.html" %}
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('.mini-toggle-btn').forEach(function(btn){
+        const row   = btn.closest('.mini-cal-row');
+        const grid  = row.querySelector('.mini-cal-grid');
+        const label = btn.querySelector('.mini-toggle-text');
+
+        btn.addEventListener('click', function(){
+          grid.classList.toggle('expanded');
+          if (grid.classList.contains('expanded')) {
+            label.textContent = 'Hide visit details';
+          } else {
+            label.textContent = 'Show visit details';
+          }
+        });
+      });
+    });
+  </script>
+</body>
+</html>

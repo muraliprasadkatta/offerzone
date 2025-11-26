@@ -1,0 +1,89 @@
+<!-- Universal Spinner Templates -->
+<div id="ozSpinnerTemplates" hidden>
+  <!-- Page/Modal blocking spinner -->
+  <div class="oz-spin oz-spin--page" role="status" aria-live="polite" aria-busy="true">
+    <div class="oz-spin__wheel" aria-hidden="true"></div>
+    <div class="oz-spin__msg">Loading…</div>
+  </div>
+
+  <!-- Inline/Section spinner -->
+  <div class="oz-spin oz-spin--inline" role="status" aria-live="polite" aria-busy="true">
+    <div class="oz-spin__wheel" aria-hidden="true"></div>
+    <div class="oz-spin__msg">Loading…</div>
+  </div>
+
+  <!-- Button spinner (use inside buttons) -->
+  <span class="oz-spin oz-spin--btn" aria-hidden="true">
+    <span class="oz-spin__wheel"></span>
+  </span>
+</div>
+
+<style>
+    :root{
+  --spin-arc: #4c74ff;      /* brand */
+  --spin-track: rgba(76,116,255,.25);
+  --spin-speed: 1.25s;      /* rotation period */
+  --spin-size-page: 56px;
+  --spin-size-inline: 28px;
+  --spin-size-btn: 16px;
+}
+
+/* Core */
+.oz-spin{ display:inline-flex; flex-direction:column; align-items:center; gap:10px; }
+.oz-spin__wheel{
+  width: var(--spin-size-inline); height: var(--spin-size-inline);
+  border-radius:50%;
+  border: 3px solid var(--spin-track);
+  border-top-color: var(--spin-arc);
+  animation: ozSpin var(--spin-speed) linear infinite;
+}
+.oz-spin__msg{ font-size: 14px; color:#6673a5; }
+
+/* Variants */
+.oz-spin--page{
+  position:absolute; inset:0; display:grid; place-items:center;
+  background: rgba(255,255,255,.6); backdrop-filter: blur(2px);
+}
+.oz-spin--page .oz-spin__wheel{
+  width: var(--spin-size-page); height: var(--spin-size-page);
+  border-width: 6px;
+}
+
+.oz-spin--inline .oz-spin__wheel{
+  width: var(--spin-size-inline); height: var(--spin-size-inline);
+  border-width: 4px;
+}
+
+.oz-spin--btn .oz-spin__wheel{
+  width: var(--spin-size-btn); height: var(--spin-size-btn);
+  border-width: 2px; margin-right: 8px;
+}
+
+/* Motion */
+@keyframes ozSpin { from{ transform: rotate(0)} to{ transform: rotate(360deg)} }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .oz-spin__wheel{ animation: none; border-top-color: var(--spin-track); }
+}
+
+</style>
+
+
+<script>
+window.OZSpin = {
+  mount(container, variant="inline", msg="Loading…"){
+    const tpl = document.querySelector('#ozSpinnerTemplates .oz-spin--'+(variant==="page"?"page":"inline"));
+    if(!tpl || !container) return null;
+    const node = tpl.cloneNode(true);
+    node.querySelector('.oz-spin__msg')?.textContent = msg || 'Loading…';
+    container.setAttribute('aria-busy','true');
+    container.appendChild(node);
+    return node;
+  },
+  unmount(container, node){
+    if(node?.parentNode) node.parentNode.removeChild(node);
+    container?.removeAttribute?.('aria-busy');
+  }
+};
+</script>

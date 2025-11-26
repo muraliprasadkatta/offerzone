@@ -1,0 +1,317 @@
+<!-- ===== QR Generation Modal (with Branch + ShortID chips) ===== -->
+<div id="qrcodeModal" class="oz-modal" aria-hidden="true" role="dialog" aria-modal="true">
+  <div class="oz-card" role="document">
+    <div class="oz-head">
+      <div>
+        <strong id="qrTitle">Branch · QR</strong>
+        <!-- NEW: identity chips row -->
+<!-- NEW: identity chips row (single source of truth) -->
+<div class="qr-meta" aria-live="polite">
+  <span class="chip" id="qrMetaBranch" title="Branch">—</span>
+  <span class="chip" id="qrMetaUID" title="Branch UID">UID: ----</span>
+  <span class="chip" id="qrMetaTag" title="Short Tag">#----</span>
+  <span class="chip dev" id="qrMetaTTL" title="Rotating TTL">Rotating • TTL 03:00</span>
+</div>
+
+
+      </div>
+      <a href="#" class="oz-close" data-close aria-label="Close">✕</a>
+    </div>
+
+    <div class="oz-body qr-body">
+      <!-- Left: QR (mobile: sticky) -->
+      <div class="qr-left">
+        <div class="qr-box" id="qrCanvasHolder" aria-live="polite" aria-label="QR area"></div>
+
+        <div class="qr-count">
+          <span>Expires in:</span> <strong id="qrCountdown">03:00</strong>
+        </div>
+
+        <div class="qr-actions">
+          <button type="button" class="btn" id="qrRefresh">Refresh QR</button>
+        </div>
+      </div>
+
+      <div class="qr-pin" aria-live="polite">
+        <div class="label">Manual PIN</div>
+        <div class="value">
+          <strong id="qrPin">————</strong>  <!-- 4-digit placeholder -->
+        </div>
+        <small class="muted">If camera fails, customer can enter this 4-digit PIN on their phone.</small>
+      </div>
+
+
+
+        <div class="qr-help">
+          <p><strong>How to use:</strong></p>
+          <ol>
+            <li>Ask the customer to open their phone camera.</li>
+            <li>They scan this QR and see the redeem screen.</li>
+            <li>They tap <em>Confirm &amp; Redeem</em>.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <div class="oz-foot">
+      <button class="btn outline" data-close>Close</button>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Shell (desktop as-is) */
+#qrcodeModal[aria-hidden="true"]{ display:none !important; }
+#qrcodeModal{ position:fixed; inset:0; display:grid; place-items:center; background:rgba(0,0,0,.68); z-index:9999; }
+#qrcodeModal .oz-card{
+  width:min(880px,96vw); max-height:92vh; background:#fff; color:#1b2249;
+  border:1px solid #e3e9ff; border-radius:14px; box-shadow:0 18px 48px rgba(27,34,73,.08);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+#qrcodeModal .oz-head, #qrcodeModal .oz-foot{
+  background:#fff; flex:0 0 auto; padding:12px 16px; display:flex; align-items:center; justify-content:space-between;
+  border-bottom:1px solid #e3e9ff;
+}
+#qrcodeModal .oz-foot{ border-top:1px solid #e3e9ff; border-bottom:none; justify-content:flex-end; gap:10px; }
+
+/* NEW: identity chips */
+.qr-meta{ display:flex; gap:8px; margin-top:6px; flex-wrap:wrap; }
+.qr-meta .chip{
+  display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border:1px solid #e3e9ff;
+  border-radius:999px; font-size:12px; color:#47507a; background:#f7f9ff;
+}
+.qr-meta .chip.dev{ background:#fff7f0; border-color:#ffd7b8; color:#8a4a00; }
+
+.qr-body{ padding:16px; overflow:auto; display:grid; grid-template-columns: 1fr 1fr; gap:18px; }
+.qr-left{ display:flex; flex-direction:column; align-items:center; gap:12px; }
+.qr-box{
+  width:260px; height:260px; border:1px dashed #cfd8ff; border-radius:12px;
+  display:grid; place-items:center; background:#f8faff;
+}
+.qr-box img{ width:240px; height:240px; image-rendering:pixelated; }
+.qr-count{ font-weight:700; font-size:16px; }
+.qr-actions{ display:flex; gap:10px; }
+
+.qr-right{ display:flex; flex-direction:column; gap:14px; }
+.qr-pin .label{ font-weight:700; margin-bottom:6px; }
+.qr-pin .value{ display:flex; align-items:center; gap:10px; }
+.qr-help p{ margin:0 0 8px; }
+.qr-help .muted, .qr-pin .muted{ color:#6b7280; font-size:12px; }
+
+#qrcodeModal .btn{
+  background:#4c74ff; color:#fff; border:1px solid #3e63e6;
+  padding:10px 14px; border-radius:10px; font-weight:600; cursor:pointer;
+}
+#qrcodeModal .btn.outline{ background:#fff; color:#1b2249; border:1px solid #d6defc; }
+
+.qr-pin .value strong#qrPin {
+  letter-spacing: 0.25em;  /* try 0.2–0.3em to taste */
+}
+
+/* Mobile: QR sticky */
+@media (max-width:720px){
+  .qr-body{ grid-template-columns:1fr; }
+  .qr-right{ order:2; }
+  .qr-left{
+    position:sticky; top:8px;
+    z-index:1;
+    background:linear-gradient(#fff 60%, rgba(255,255,255,0));
+    padding-bottom:6px;
+  }
+  .qr-box{ width:min(320px, 86vw); height:min(320px, 86vw); }
+  .qr-box img{ width:calc(100% - 20px); height:calc(100% - 20px); }
+  .qr-count{ font-size:15px; }
+}
+@media (prefers-reduced-motion:reduce){ #qrcodeModal{ transition:none; } }
+</style>
+
+<script>
+/* Config */
+window.OZQR = {
+  MODAL_ID: 'qrcodeModal',
+  START_URL: '/qrg/start',
+  flags: { SHOW_DEBUG: true },      // set to false to hide TTL chip later
+  state: { countdown:180, tickTimer:null, payload:'', pin:'', branch:'—', desk:'—', tag:'----', uid:'', seed:'' }
+
+};
+</script>
+
+<script>
+/* DOM helpers + renderers */
+(() => {
+  const OZ = window.OZQR, S = OZ.state;
+  OZ.$ = (s)=>document.querySelector(s);
+  OZ.setText=(s,t)=>{const e=OZ.$(s); if(e) e.textContent=t;};
+
+  // Base36 + 2-char checksum from branch id (or name fallback)
+  function shortTag({id, name}){
+    function b36(n){ if(!n) return "0"; const c="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"; let x=Math.abs(n|0), o=""; while(x){o=c[x%36]+o; x=(x/36)|0;} return o; }
+    const base = id ? b36(id) : (String(name||"").length? b36([...String(name)].reduce((a,ch)=>a+ch.charCodeAt(0),0)) : "0");
+    const src = String(id||name||"-");
+    let h=0; for(let i=0;i<src.length;i++){ h=(h*131 + src.charCodeAt(i))>>>0; }
+    const chk = b36(h).padStart(2,'0').slice(0,2);
+    return (base+chk).toUpperCase();
+  }
+
+  // Stable short tag from UID (public_id)
+  function shortTagFromUID(uid){
+    if(!uid) return '----';
+    // tiny FNV-ish hash → base36 6 chars
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < uid.length; i++) {
+      h ^= uid.charCodeAt(i);
+      h = (h * 16777619) >>> 0;
+    }
+    const c = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let o = "", x = h >>> 0;
+    for (let i = 0; i < 6; i++) { o = c[x % 36] + o; x = Math.floor(x / 36); }
+    return o;
+  }
+
+
+  OZ.setOpen=(open)=>{const m=OZ.$('#'+OZ.MODAL_ID); if(!m) return; m.setAttribute('aria-hidden',open?'false':'true'); document.body.classList.toggle('modal-open',!!open);};
+
+  OZ.renderHead = () => {
+    OZ.setText('#qrTitle', (S.branch || 'Branch') + ' · QR');
+    OZ.setText('#qrMetaBranch', S.branch || '—');
+    OZ.setText('#qrMetaUID', 'UID: ' + (S.uid || '----'));   // ⬅️ NEW
+    OZ.setText('#qrMetaTag', '#'+(S.tag || '----'));
+    OZ.setText('#qrMetaDesk', 'Desk: '+(S.desk || '—'));
+    const ttlChip = OZ.$('#qrMetaTTL');
+    if(ttlChip) ttlChip.style.display = (window.OZQR.flags?.SHOW_DEBUG ? '' : 'none');
+  };
+
+
+  OZ.renderQR=()=>{
+    const holder=OZ.$('#qrCanvasHolder'); if(!holder||!S.payload) return;
+    const url='https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=0&data='+encodeURIComponent(S.payload)+'&t='+Date.now();
+    holder.innerHTML=`<img alt="QR" width="240" height="240" src="${url}">`;
+  };
+
+  OZ.renderPIN = () => {
+    const raw = String(S.pin || '').match(/\d{4}/)?.[0] || '';
+    // 4-digit PIN, display as "12 34"
+    OZ.setText('#qrPin', raw || '————');
+  };
+
+
+  const mmss=s=>`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  OZ.updateCountdown=()=>{
+    OZ.setText('#qrCountdown', mmss(S.countdown));
+    if(window.OZQR.flags?.SHOW_DEBUG){ OZ.setText('#qrMetaTTL', 'Rotating • TTL '+mmss(S.countdown)); }
+  };
+  OZ.stopTimer=()=>{ if(S.tickTimer){ clearInterval(S.tickTimer); S.tickTimer=null; } };
+  OZ.startTimer=()=>{ OZ.stopTimer(); OZ.updateCountdown(); S.tickTimer=setInterval(()=>{ S.countdown--; OZ.updateCountdown(); if(S.countdown<=0) OZ.refresh(); },1000); };
+ 
+  // 👇 make it available to the other IIFE
+  window.__oz_shortTagFromUID = shortTagFromUID;
+
+
+})();
+</script>
+
+<script>
+/* API (mint/refresh) */
+(() => {
+  const OZ = window.OZQR, S = OZ.state;
+  const tagFromUID = window.__oz_shortTagFromUID || ((u)=>'----');
+
+  function parseSeed(seed){
+    const out={}; 
+    try{
+      if(seed && seed.includes('://')){
+        const qp = seed.split('://')[1];           // "branch=XYZ123&desk=A1"
+        const usp = new URLSearchParams(qp);
+        const b = usp.get('branch');               // this is public_id now
+        if (b) out.branchPid = String(b);          // keep as string
+        const d = usp.get('desk');
+        if (d) out.desk = d;
+      }
+    }catch(_){}
+    return out;
+  }
+
+
+  OZ.mintFromServer=async(seed='')=>{
+    const params = parseSeed(seed);
+    const url = new URL(OZ.START_URL, location.origin);
+    if(params.branchPid) url.searchParams.set('branch', params.branchPid); // pass UID to server
+    if(params.desk)      url.searchParams.set('desk', params.desk);
+
+    const res = await fetch(url.toString(), { method:'GET', credentials:'same-origin', headers:{Accept:'application/json'} });
+    const ct = res.headers.get('content-type')||''; if(!ct.includes('application/json')) throw new Error('Non-JSON');
+    const data = await res.json(); if(!res.ok || data.ok===false) throw new Error(data.error || ('HTTP '+res.status));
+
+    S.payload   = data.payload || '';
+    S.pin       = data.pin || '';   // ← IKKADA CHANGE
+    S.countdown = Math.max(30, parseInt(data.expires_in ?? 180, 10));
+    S.desk      = data.desk || params.desk || '—';
+
+    // try to read UID from server (optional), else fallback to seed
+    S.uid = (data.branch_public_id || data.uid || params.branchPid || '').toString();
+
+    // Branch label + tag
+    const label = (data.branch || '').toString();
+    if(label.includes('#')){
+      S.branch = label.replace(/\s*·\s*#.*$/,'').trim();
+      S.tag    = label.split('#').pop().trim();
+    } else {
+      S.branch = label || '—';
+      S.tag    = (data.branch_tag || '').toString().trim();
+      if(!S.tag){
+        // derive short tag from UID (best) else from name
+        S.tag = S.uid ? tagFromUID(S.uid) : tagFromUID(S.branch);
+      }
+    }
+
+    OZ.renderHead(); OZ.renderQR(); OZ.renderPIN();
+
+  };
+
+  OZ.mintLocally=(seed='')=>{
+    const params = parseSeed(seed);
+    S.payload   = seed || (location.origin + '/offers/local-demo');
+    S.pin       = '';                 // no PIN in local demo
+    S.countdown = 180;
+    S.branch    = 'demo-branch';
+    S.uid       = params.branchPid || 'DEMOUID1';
+    S.tag       = tagFromUID(S.uid);
+    S.desk      = params.desk || 'A1';
+    OZ.renderHead(); OZ.renderQR(); OZ.renderPIN();
+  };
+
+
+  OZ.build = async (seed='') => {
+  S.seed = seed || S.seed || '';
+  try { await OZ.mintFromServer(S.seed); }
+  catch(e){ console.warn('[QR] fallback local mint:', e); OZ.mintLocally(S.seed); }
+  OZ.startTimer();
+  };
+
+  OZ.refresh = async () => { OZ.stopTimer(); await OZ.build(S.seed); };
+
+})();
+</script>
+
+<script>
+/* Events + auto-open persistence */
+(() => {
+  const OZ = window.OZQR;
+  OZ.AUTO={OPEN_KEY:'ozqr_open', SEED_KEY:'ozqr_seed'};
+
+  OZ.saveOpenState=(seed='')=>{ try{ sessionStorage.setItem(OZ.AUTO.OPEN_KEY,'1'); if(seed) sessionStorage.setItem(OZ.AUTO.SEED_KEY,seed);}catch(_){ } };
+  OZ.clearOpenState=()=>{ try{ sessionStorage.removeItem(OZ.AUTO.OPEN_KEY); sessionStorage.removeItem(OZ.AUTO.SEED_KEY);}catch(_){ } };
+
+  document.addEventListener('click',(e)=>{
+    const openEl=e.target.closest('[data-open="#'+OZ.MODAL_ID+'"]');
+    if(openEl){ e.preventDefault(); const seed=openEl.getAttribute('data-qr')||''; OZ.saveOpenState(seed); OZ.build(seed).then(()=>OZ.setOpen(true)); return; }
+    const closeEl=e.target.closest('[data-close]'); if(closeEl && closeEl.closest('#'+OZ.MODAL_ID)){ e.preventDefault(); OZ.clearOpenState(); OZ.setOpen(false); window.OZQR.stopTimer?.(); }
+  });
+
+  document.getElementById('qrRefresh')?.addEventListener('click',(e)=>{ e.preventDefault(); OZ.refresh(); });
+
+  async function autoOpenIfNeeded(){ if(sessionStorage.getItem(OZ.AUTO.OPEN_KEY)!=='1') return; const seed=sessionStorage.getItem(OZ.AUTO.SEED_KEY)||''; await OZ.build(seed); OZ.setOpen(true); }
+  document.addEventListener('DOMContentLoaded', autoOpenIfNeeded);
+  window.addEventListener('pageshow', (e)=>{ if(e.persisted) autoOpenIfNeeded(); });
+})();
+</script>

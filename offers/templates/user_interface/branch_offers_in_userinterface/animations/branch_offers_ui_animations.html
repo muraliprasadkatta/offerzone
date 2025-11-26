@@ -1,0 +1,642 @@
+{# DO NOT put <html>, <head>, <body> in this file #}
+
+<style>
+/* scope everything to the wrapper card */
+.branch-animation-card {
+    padding: 0;
+    overflow: hidden;
+}
+
+/* outer shell */
+.branch-animation-card .scene-shell {
+    width: 100%;
+    border-radius: 20px;
+    padding: 14px 16px 16px;
+    background: radial-gradient(circle at top, #1f2446 0, #0b1020 55%, #050712 100%);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 18px 40px rgba(0,0,0,0.6);
+    position: relative;
+}
+
+/* header */
+.branch-animation-card .scene-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.branch-animation-card .scene-title {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.branch-animation-card .scene-sub {
+    font-size: 12px;
+    color: #9ba3d4;
+}
+
+.branch-animation-card .scene-tag {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(0,0,0,0.35);
+    color: #d1d6ff;
+}
+
+/* stage – common bg both desktop & mobile */
+.branch-animation-card .stage {
+    margin-top: 6px;
+    padding: 16px 14px;
+    border-radius: 16px;
+    background: radial-gradient(circle at top, #2a3158 0%, #0b1020 60%);
+    border: 1px solid rgba(255,255,255,0.12);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.branch-animation-card .char {
+    width: 32%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.branch-animation-card .label {
+    text-align: center;
+    font-size: 12px;
+}
+
+.branch-animation-card .label span {
+    display: block;
+    font-size: 11px;
+    color: #9ba3c6;
+}
+
+/* generic figure */
+.branch-animation-card .figure {
+    width: 96px;
+    height: 120px;
+    position: relative;
+}
+
+/* subtle halo behind characters */
+.branch-animation-card .char .figure {
+    background: radial-gradient(circle at center,
+        rgba(255,255,255,0.06),
+        rgba(0,0,0,0) 70%
+    );
+    padding: 6px;
+    border-radius: 20px;
+}
+
+/* ground shadow */
+.branch-animation-card .figure::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -2px;
+    transform: translateX(-50%);
+    width: 58px;
+    height: 14px;
+    border-radius: 999px;
+    background: radial-gradient(circle at 50% 0, rgba(0,0,0,0.55), transparent 70%);
+    opacity: 0.8;
+}
+
+/* HEAD – base shape */
+.branch-animation-card .head {
+    width: 46px;
+    height: 46px;
+    border-radius: 999px;
+    margin: 0 auto;
+    background: radial-gradient(circle at 30% 20%, #fff7e9, #f3c79b 55%, #e69c69 85%);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.65);
+    position: relative;
+    z-index: 2;
+}
+
+/* waiter face */
+.branch-animation-card .head-waiter::before {
+    content: "";
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #262626;
+    box-shadow: -9px 0 0 #262626, 9px 0 0 #262626;
+}
+
+.branch-animation-card .head-waiter::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 26px;
+    width: 16px;
+    height: 11px;
+    border-radius: 0 0 11px 11px;
+    border-bottom: 2px solid rgba(180, 90, 70, 0.95);
+    transform: translateX(-50%);
+}
+
+/* small cap for waiter */
+.branch-animation-card .head-waiter-cap {
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 16px;
+    border-radius: 18px 18px 10px 10px;
+    background: linear-gradient(135deg, #161826, #101220);
+    box-shadow: 0 6px 10px rgba(0,0,0,0.6);
+    z-index: 1;
+}
+
+/* customer face */
+.branch-animation-card .head-customer {
+    background: radial-gradient(circle at 30% 15%, #fff8ea, #f3c79b 55%, #e69c69 85%);
+}
+
+.branch-animation-card .head-customer::before {
+    content: "";
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #262626;
+    box-shadow: -8px 0 0 #262626, 8px 0 0 #262626;
+}
+
+.branch-animation-card .head-customer::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 26px;
+    width: 18px;
+    height: 11px;
+    border-radius: 0 0 11px 11px;
+    border-bottom: 2px solid rgba(175, 90, 70, 0.95);
+    transform: translateX(-50%);
+}
+
+/* BODY base */
+.branch-animation-card .body {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 44px;
+    width: 56px;
+    height: 46px;
+    border-radius: 20px;
+    z-index: 2;
+}
+
+/* legs */
+.branch-animation-card .legs {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 90px;
+    display: flex;
+    gap: 5px;
+    z-index: 2;
+}
+
+.branch-animation-card .legs span {
+    width: 11px;
+    height: 24px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #3f4168, #1e213a);
+}
+
+/* ===== CHAIRS (customer target) ===== */
+.branch-animation-card .customer-chair {
+    position: absolute;
+    left: 50%;
+    bottom: 10px;
+    transform: translateX(-50%);
+    width: 48px;
+    height: 18px;
+    border-radius: 10px 10px 6px 6px;
+    background: linear-gradient(180deg, #2c3453, #131525);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.7);
+    z-index: 1;
+}
+
+.branch-animation-card .customer-chair-back {
+    position: absolute;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    width: 42px;
+    height: 18px;
+    border-radius: 8px 8px 4px 4px;
+    background: linear-gradient(180deg, #333a5c, #191c32);
+}
+
+/* waiter outfit */
+.branch-animation-card .body-waiter {
+    background: linear-gradient(180deg, #20243f, #111323);
+    border-radius: 20px 20px 14px 14px;
+    box-shadow: 0 10px 18px rgba(0,0,0,0.7);
+    overflow: hidden;
+}
+
+.branch-animation-card .body-waiter::before {
+    content: "";
+    position: absolute;
+    inset: 6px 10px;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #ffffff, #f2f2f8);
+    opacity: 0.9;
+}
+
+.branch-animation-card .body-waiter::after {
+    content: "";
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 10px;
+    height: 14px;
+    border-radius: 6px;
+    background: #222542;
+}
+
+/* tray + plate in waiter hand */
+.branch-animation-card .waiter-tray {
+    position: absolute;
+    right: -20px;
+    top: 6px;
+    width: 44px;
+    height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #f6d8a0, #c6863c);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.6);
+}
+
+.branch-animation-card .waiter-tray::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: -10px;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 10px;
+    border-radius: 999px;
+    background: radial-gradient(circle at 50% 0%, #ffffff, #f0e0cc 60%, #d4c0a7 100%);
+}
+
+/* small arm under tray */
+.branch-animation-card .waiter-arm {
+    position: absolute;
+    right: 6px;
+    top: 20px;
+    width: 20px;
+    height: 7px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #e9b17e, #c88653);
+}
+
+/* customer outfit – formal suit */
+.branch-animation-card .body-customer {
+    background: linear-gradient(180deg, #253157, #151a33);
+    border-radius: 20px 20px 14px 14px;
+    box-shadow: 0 10px 18px rgba(0,0,0,0.7);
+    overflow: hidden;
+}
+
+.branch-animation-card .body-customer::before {
+    content: "";
+    position: absolute;
+    inset: 6px 10px;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #f9f9ff 0, #dde0ff 75%);
+    clip-path: polygon(50% 0, 100% 30%, 100% 100%, 0 100%, 0 30%);
+}
+
+.branch-animation-card .tie {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 7px;
+    height: 16px;
+    background: linear-gradient(180deg, #ff6a6a, #b02035);
+    border-radius: 3px;
+}
+
+/* waving arm */
+.branch-animation-card .customer-arm {
+    position: absolute;
+    right: -2px;
+    top: 20px;
+    width: 24px;
+    height: 7px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #253157, #151a33);
+    transform-origin: left center;
+}
+
+/* table in the middle */
+.branch-animation-card .table-zone {
+    width: 36%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.branch-animation-card .table-top {
+    width: 72%;
+    height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #f4d29a, #d39a55);
+    position: relative;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.75);
+}
+
+/* plate + glow */
+.branch-animation-card .center-plate {
+    position: absolute;
+    top: -11px;
+    left: 63%; /* customer side */
+    transform: translateX(-50%);
+    width: 42px;
+    height: 12px;
+    border-radius: 999px;
+    background: radial-gradient(circle at 50% 0%, #ffffff, #f2e2cf 60%, #ddc2a5 100%);
+}
+
+.branch-animation-card .plate-glow {
+    position: absolute;
+    inset: 12px -26px 0;
+    border-radius: 999px;
+    background: radial-gradient(circle at 50% 0, rgba(255, 204, 128, 0.7), transparent 70%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.branch-animation-card .table-leg {
+    width: 10px;
+    height: 26px;
+    border-radius: 999px;
+    margin-top: 2px;
+    background: linear-gradient(180deg, #d39a55, #6b4a28);
+}
+
+.branch-animation-card .table-base {
+    width: 42%;
+    height: 5px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #433836, #1f1714);
+    box-shadow: 0 6px 14px rgba(0,0,0,0.8);
+}
+
+.branch-animation-card .table-label {
+    font-size: 11px;
+    color: #9ba3c6;
+}
+
+/* SINGLE MOBILE BLOCK – compress bommalu & center */
+@media (max-width: 640px) {
+
+  .branch-animation-card .scene-shell {
+    padding: 10px 10px 12px;
+  }
+
+  .branch-animation-card .stage {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 8px 12px;
+  }
+
+  .branch-animation-card .char,
+  .branch-animation-card .table-zone {
+    width: auto;
+  }
+
+  /* reset any layout shifts on mobile */
+  .branch-animation-card #customerBlock {
+    margin-left: 0;
+  }
+
+  .branch-animation-card #tableBlock {
+    margin-right: 0;
+  }
+
+  /* figures smaller on mobile */
+  .branch-animation-card .figure {
+    transform: scale(0.8);
+    transform-origin: center top;
+  }
+
+  .branch-animation-card .scene-title {
+    font-size: 14px;
+  }
+
+  .branch-animation-card .scene-sub {
+    font-size: 11px;
+  }
+}
+</style>
+
+<div class="scene-shell">
+    <div class="scene-header">
+        <div>
+            <div class="scene-title">Restaurant Live Scene</div>
+            <div class="scene-sub">
+                Right side nundi customer nadusthu vasthadu, left side nundi waiter food tho vasthadu.
+            </div>
+        </div>
+        <div class="scene-tag">GSAP · Dull Motion</div>
+    </div>
+
+    <div class="stage">
+        <!-- LEFT: WAITER -->
+        <div class="char" id="waiterBlock">
+            <div class="figure">
+                <div class="head head-waiter">
+                    <div class="head-waiter-cap"></div>
+                </div>
+                <div class="body body-waiter">
+                    <div class="waiter-arm"></div>
+                    <div class="waiter-tray"></div>
+                </div>
+                <div class="legs">
+                    <span></span><span></span>
+                </div>
+            </div>
+            <div class="label">
+                Waiter
+                <span>Food carrying from kitchen</span>
+            </div>
+        </div>
+
+        <!-- CENTER: TABLE -->
+        <div class="table-zone" id="tableBlock">
+            <div class="table-top">
+                <div class="center-plate"></div>
+                <div class="plate-glow"></div>
+            </div>
+            <div class="table-leg"></div>
+            <div class="table-base"></div>
+            <div class="table-label">Table</div>
+        </div>
+
+        <!-- RIGHT: CUSTOMER + CHAIR -->
+        <div class="char" id="customerBlock">
+            <div class="figure">
+                <div class="customer-chair" id="customerChair">
+                    <div class="customer-chair-back"></div>
+                </div>
+                <div class="head head-customer"></div>
+                <div class="body body-customer">
+                    <div class="tie"></div>
+                    <div class="customer-arm"></div>
+                </div>
+                <div class="legs">
+                    <span></span><span></span>
+                </div>
+            </div>
+            <div class="label">
+                Customer
+                <span>Walking in formal suit</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    // initial positions (slightly smaller offset so table over-cross avvakunda)
+    gsap.set("#waiterBlock",   { x: -110, opacity: 0 });
+    gsap.set("#customerBlock", { x: 110,  opacity: 0 });
+    gsap.set(".center-plate",  { opacity: 0, y: -8, scale: 0.4, transformOrigin: "50% 50%" });
+
+    const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+
+    // scene fade in
+    tl.from(".branch-animation-card .scene-shell", {
+        duration: 0.7,
+        opacity: 0,
+        y: 24
+    });
+
+    // 1) Customer walk in
+    tl.to("#customerBlock", {
+        duration: 1.2,
+        x: 0,
+        opacity: 1,
+        ease: "power2.out"
+    }, "-=0.1");
+
+    // 2) Chair slide + sit
+    tl.to("#customerChair", {
+        duration: 0.5,
+        x: 12,
+        ease: "sine.inOut"
+    }, "-=0.1");
+
+    tl.to("#customerBlock .figure", {
+        duration: 0.5,
+        y: 8,
+        ease: "sine.inOut"
+    }, "<");
+
+    tl.to("#customerChair", {
+        duration: 0.5,
+        x: 0,
+        ease: "sine.inOut"
+    }, "-=0.1");
+
+    // 3) Waiter walk in
+    tl.to("#waiterBlock", {
+        duration: 1.2,
+        x: 0,
+        opacity: 1,
+        ease: "power2.out"
+    }, "-=0.1");
+
+    // 4) Tray tilt + plate appear on table
+    tl.to(".waiter-tray", {
+        duration: 0.45,
+        rotation: -10,
+        transformOrigin: "left center",
+        ease: "sine.inOut"
+    }, "-=0.2");
+
+    tl.to(".center-plate", {
+        duration: 0.6,
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        ease: "back.out(1.6)"
+    }, "<0.05");
+
+    tl.to(".waiter-tray", {
+        duration: 0.45,
+        rotation: 0,
+        ease: "sine.inOut"
+    });
+
+    // 5) Waiter bow + move slightly back (not fully off-screen, so table daggara ne untadu)
+    tl.to("#waiterBlock .figure", {
+        duration: 0.45,
+        y: 6,
+        ease: "sine.inOut",
+        yoyo: true,
+        repeat: 1
+    }, "-=0.2");
+
+    tl.to("#waiterBlock", {
+        duration: 0.8,
+        x: -60,
+        opacity: 0.95,
+        ease: "power2.inOut"
+    });
+
+    // 6) Plate glow
+    tl.to(".plate-glow", {
+        duration: 0.8,
+        opacity: 0.7,
+        ease: "sine.out"
+    }, "-=0.6")
+    .to(".plate-glow", {
+        duration: 1.4,
+        opacity: 0,
+        ease: "sine.in"
+    });
+
+    // idle motion – only after story
+    tl.call(() => {
+        gsap.to("#customerBlock", {
+            y: -4,
+            duration: 3,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut"
+        });
+        gsap.to("#tableBlock", {
+            y: -2,
+            duration: 3.6,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut"
+        });
+    });
+});
+</script>

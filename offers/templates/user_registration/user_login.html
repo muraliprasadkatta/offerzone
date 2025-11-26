@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>User Sign in</title>
+<style>
+  :root{
+    --bg:#0b1020; --card:#11183a; --border:#273164;
+    --muted:#b9c4ff; --text:#e8ecff; --prim:#4c74ff; --hint:#93a3ff;
+  }
+
+  html, body{ height:100%; margin:0; background:var(--bg); color:var(--text); }
+  *{ box-sizing:border-box }
+  body{ font-family:system-ui, Arial, sans-serif; }
+
+  /* center card */
+  .wrap{
+    min-height:100svh;
+    display:flex; align-items:center; justify-content:center;
+    padding:24px;
+  }
+  .card{
+    width:min(420px, 100%);
+    margin-inline:auto;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:16px; padding:22px;
+    box-shadow:0 10px 30px rgba(0,0,0,.25);
+  }
+
+  h1{ margin:0 0 12px; font-size:22px; }
+  .step-title{ color:var(--muted); font-size:13px; margin-bottom:6px; }
+  .field{ display:flex; flex-direction:column; gap:6px; margin:12px 0; }
+
+  label{ font-size:13px; color:var(--muted); }
+  input[type="email"], input[type="text"]{
+    padding:12px; border:1px solid var(--border); border-radius:10px;
+    background:#0e1533; color:#fff; outline:none;
+  }
+  input:focus{ border-color:var(--prim); }
+
+  .btn{
+    width:100%; padding:12px; border:0; border-radius:10px;
+    background:var(--prim); color:#fff; font-weight:700; cursor:pointer;
+  }
+  .btn[disabled]{ opacity:.6; cursor:not-allowed; }
+  .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .row .btn{ flex:1 1 48%; min-width:0; }
+
+  /* === OTP: single source of truth === */
+  .otp-box{
+    --g: 10px;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr)); /* fully shrinkable */
+    gap: var(--g);
+    width: 100%;
+    align-items: center;
+    justify-items: center;
+  }
+/* OTP inputs — square, visible */
+.otp-box input{
+  width: 100%;
+  max-width: 48px;             /* cap on large screens */
+  aspect-ratio: 1 / 1;         /* perfect square */
+  min-width: 0;
+  padding: 0;                   /* no extra height */
+  text-align: center;
+  font-size: 20px;
+  letter-spacing: .4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #0e1533;
+  color: #fff;
+  outline: none;
+  appearance: textfield;        /* avoid odd styles on mobile */
+}
+
+
+.otp-box input{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Roboto Mono", monospace;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  direction: ltr;
+  /* (sizing properties from the block above remain here too) */
+}
+
+
+.otp-box input:focus{ border-color: var(--prim); }
+
+  /* optional: a tad smaller on very tiny phones */
+@media (max-width: 380px){
+  .otp-box input{ max-width: 42px; font-size: 18px; }
+}
+  /* misc */
+  .hint{ margin-top:8px; font-size:12px; color:var(--hint); opacity:.95; }
+  .msg{ margin:8px 0; color:#ff9aa2; font-size:13px; }
+  .links{ display:grid; gap:8px; margin-top:14px; }
+  .links a{ color:#bfc9ff; text-decoration:none; font-size:13px; }
+  .links a:hover{ text-decoration:underline; }
+  .divider{ border:0; border-top:1px solid var(--border); margin:14px 0; opacity:.9; }
+  .hidden{ display:none; }
+</style>
+
+
+</head>
+<body>
+  <div class="wrap">
+    <!-- STEP FORM (Email → OTP). Adjust action URLs later -->
+    <form class="card" id="user-otp-form" method="post" action="#" onsubmit="return false;">
+      {% csrf_token %}
+      <h1>User sign in</h1>
+      {% if messages %}{% for m in messages %}<div class="msg">{{ m }}</div>{% endfor %}{% endif %}
+
+      <!-- Step 1: Enter Email -->
+      <div id="step-email">
+        <div class="step-title">Step 1 of 2</div>
+        <div class="field">
+          <label for="id_email">Email address</label>
+          <input id="id_email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" required>
+        </div>
+        <button class="btn" id="btn-send-otp" type="button">Get OTP</button>
+        <div class="hint">We’ll email a 6-digit code to verify it’s you.</div>
+      </div>
+
+      <!-- Step 2: Verify OTP -->
+      <div id="step-otp" class="hidden" aria-hidden="true">
+        <div class="step-title">Step 2 of 2</div>
+        <div class="field">
+          <label>Enter 6-digit code</label>
+            <div class="otp-box" id="otp-box">
+              <input type="tel" inputmode="numeric" pattern="[0-9]" maxlength="1" autocomplete="one-time-code" aria-label="Digit 1">
+              <input type="tel" inputmode="numeric" pattern="[0-9]" maxlength="1" aria-label="Digit 2">
+              <input type="tel" inputmode="numeric" pattern="[0-9]" maxlength="1" aria-label="Digit 3">
+              <input type="tel" inputmode="numeric" pattern="[0-9]" maxlength="1" aria-label="Digit 4">
+              <input type="tel" inputmode="numeric" pattern="[0-9]" maxlength="1" aria-label="Digit 5">
+              <input type="tel" inputmode="numeric" pattern="[0-9]" maxlength="1" aria-label="Digit 6">
+            </div>
+
+        </div>
+
+        <div class="row">
+          <button class="btn" id="btn-verify" type="button">Verify & Sign in</button>
+          <button class="btn right" id="btn-change" type="button" style="background:#2c3e7a">Change email</button>
+        </div>
+        <div class="hint">
+          Didn’t get the code? <button id="btn-resend" type="button" style="background:none;border:0;color:#bfc9ff;text-decoration:underline;cursor:pointer;padding:0">Resend</button>
+          <span id="resend-timer" class="hint"></span>
+        </div>
+      </div>
+
+      <hr class="divider">
+      <div class="links">
+        <a href="{% url 'offers:admin_login' %}">admin sign-in</a>
+        <a href="{% url 'offers:branch_login' %}" id="link-branch">Branch Login</a>
+        <!-- Optional: Add password login fallback -->
+        <!-- <a href="/login">Use password instead</a> -->
+      </div>
+
+      <!-- Carry next param forward if present -->
+      {% if request.GET.next %}<input type="hidden" name="next" value="{{ request.GET.next|urlencode }}">{% endif %}
+    </form>
+  </div>
+
+  <script>
+  document.getElementById('link-branch').addEventListener('click', function (e) {
+    e.preventDefault();
+    location.replace(this.href);   // ← no history entry
+  });
+</script>
+
+  <script>
+    // Pure front-end UX only (no real API calls here)
+    (function(){
+      const form = document.getElementById("user-otp-form");
+      const stepEmail = document.getElementById("step-email");
+      const stepOtp = document.getElementById("step-otp");
+      const emailInput = document.getElementById("id_email");
+      const btnSend = document.getElementById("btn-send-otp");
+      const btnVerify = document.getElementById("btn-verify");
+      const btnChange = document.getElementById("btn-change");
+      const btnResend = document.getElementById("btn-resend");
+      const timerEl = document.getElementById("resend-timer");
+      const otpInputs = Array.from(document.querySelectorAll("#otp-box input"));
+
+      let countdown = 0, timerId = null;
+
+      function showOtpStep(){
+        stepEmail.classList.add("hidden");
+        stepOtp.classList.remove("hidden");
+        stepOtp.setAttribute("aria-hidden","false");
+        otpInputs[0].focus();
+        startResendTimer(30); // 30s UI timer
+      }
+
+      function showEmailStep(){
+        stepOtp.classList.add("hidden");
+        stepOtp.setAttribute("aria-hidden","true");
+        stepEmail.classList.remove("hidden");
+        emailInput.focus();
+        stopTimer();
+      }
+
+      function startResendTimer(sec){
+        countdown = sec;
+        btnResend.disabled = true;
+        updateTimer();
+        timerId = setInterval(()=>{
+          countdown--;
+          updateTimer();
+          if (countdown <= 0) {
+            stopTimer();
+            timerEl.textContent = "";
+            btnResend.disabled = false;
+          }
+        }, 1000);
+      }
+      function stopTimer(){ if (timerId){ clearInterval(timerId); timerId=null; } }
+      function updateTimer(){ timerEl.textContent = ` (wait ${countdown}s)`; }
+
+      // OTP input auto-advance
+      otpInputs.forEach((inp, idx) => {
+        inp.addEventListener("input", (e) => {
+          // keep only ASCII digits (0-9). Other scripts like Telugu/Arabic are dropped.
+          const v = (e.target.value || "").replace(/[^0-9]/g, "").slice(0,1);
+          e.target.value = v;
+          if (v && idx < otpInputs.length - 1) otpInputs[idx + 1].focus();
+        });
+        inp.addEventListener("keydown", (e) => {
+          if (e.key === "Backspace" && !e.target.value && idx > 0) otpInputs[idx - 1].focus();
+        });
+        // Optional: distribute a pasted 6-digit code
+        inp.addEventListener("paste", (e) => {
+          const t = (e.clipboardData.getData("text") || "").replace(/[^0-9]/g, "");
+          if (!t) return;
+          e.preventDefault();
+          [...t.slice(0,6)].forEach((ch,i)=>{ if (otpInputs[idx+i]) otpInputs[idx+i].value = ch; });
+          const next = Math.min(idx + t.length, otpInputs.length - 1);
+          otpInputs[next].focus();
+        });
+      });
+
+
+      function getCsrf(){
+        return document.querySelector('input[name=csrfmiddlewaretoken]')?.value || "";
+    }
+
+
+      btnSend.addEventListener("click", async ()=>{
+        const email = emailInput.value.trim();
+        if (!email) { alert("Please enter your email."); return; }
+
+        btnSend.disabled = true;
+        try{
+          const res = await fetch("{% url 'offers:otp_send' %}", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": getCsrf(),
+              "Accept": "application/json",
+            },
+            body: JSON.stringify({ email })
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+          // success → go to OTP step
+          showOtpStep();
+        }catch(err){
+          alert("Send failed: " + err.message);
+        }finally{
+          btnSend.disabled = false;
+        }
+      });
+
+
+      btnVerify.addEventListener("click", async ()=>{
+        const email = emailInput.value.trim();
+        const code  = otpInputs.map(i=>i.value).join("");
+        if (!email) { alert("Missing email"); return; }
+        if (code.length !== 6) { alert("Enter the 6-digit code."); return; }
+
+        btnVerify.disabled = true;
+        try{
+          const res = await fetch("{% url 'offers:otp_verify' %}", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": getCsrf(),
+              "Accept": "application/json",
+            },
+            body: JSON.stringify({ email, code, next: "{{ request.GET.next|default:'' }}" })
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+          window.location.replace(data.next || "{% url 'offers:user_home' %}");
+        }catch(err){
+          alert("Verify failed: " + err.message);
+        }finally{
+          btnVerify.disabled = false;
+        }
+      });
+
+
+      btnChange.addEventListener("click", showEmailStep);
+      btnResend.addEventListener("click", ()=>{
+        if (btnResend.disabled) return;
+        // TODO: POST to /auth/otp/send again
+        startResendTimer(30);
+      });
+    })();
+  </script>
+</body>
+</html>

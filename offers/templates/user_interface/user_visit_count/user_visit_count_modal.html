@@ -1,0 +1,383 @@
+<!-- offers/templates/user_interface/user_visit_count/user_visit_count_modal.html -->
+
+<style>
+
+  /* FULL-SCREEN OVERLAY for this page */
+  #visitCountModal.ozm{
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15,23,42,0.96);  /* dark dim background */
+    z-index: 50;
+    overscroll-behavior: contain;
+  }
+
+  @media (max-width: 640px){
+    #visitCountModal.ozm{
+      background: #020617;  /* mobile: pure dark */
+      align-items: stretch;
+      justify-content: stretch;
+    }
+  }
+
+  /* Visit Count Modal – scoped styles */
+  #visitCountModal .ozm__dialog{
+    width: min(420px, 94vw);
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    border-radius: 18px;
+    overflow: hidden;
+    background: radial-gradient(circle at top left, rgba(80,120,255,0.25), transparent 55%),
+                radial-gradient(circle at bottom right, rgba(0,200,140,0.20), transparent 55%),
+                var(--card, #090f2b);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 20px 55px rgba(0,0,0,0.6);
+  }
+
+  /* ... (mee existing styles below unchanged) ... */
+
+  /* Visit Count Modal – scoped styles */
+  #visitCountModal .ozm__dialog{
+    width: min(420px, 94vw);
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    border-radius: 18px;
+    overflow: hidden;
+    background: radial-gradient(circle at top left, rgba(80,120,255,0.25), transparent 55%),
+                radial-gradient(circle at bottom right, rgba(0,200,140,0.20), transparent 55%),
+                var(--card, #090f2b);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 20px 55px rgba(0,0,0,0.6);
+  }
+
+  #visitCountModal .ozm__head{
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    background: linear-gradient(90deg, rgba(17,24,58,0.94), rgba(17,24,58,0.8));
+  }
+
+  #visitCountModal .ozm__head strong{
+    font-size: 15px;
+    font-weight: 700;
+    color: #e4ebff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .visit-tag{
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    background: rgba(34,197,94,0.16);
+    color: #bbf7d0;
+    border: 1px solid rgba(34,197,94,0.4);
+  }
+
+  .visit--pin .visit-tag{
+    background: rgba(59,130,246,0.18);
+    color: #bfdbfe;
+    border-color: rgba(59,130,246,0.55);
+  }
+
+  .visit--upload .visit-tag{
+    background: rgba(16,185,129,0.16);
+    color: #a7f3d0;
+    border-color: rgba(16,185,129,0.5);
+  }
+
+  #visitCountModal .ozm__close{
+    border-radius: 999px;
+    width: 32px;
+    height: 32px;
+    border: 1px solid rgba(148,163,184,0.5);
+    background: rgba(15,23,42,0.8);
+    color: #cbd5f5;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  #visitCountModal .ozm__body{
+    padding: 16px 16px 10px;
+    overflow-y: auto;
+    color: #e2e8f0;
+    font-size: 14px;
+  }
+
+  .visit-section-title{
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .visit-section-sub{
+    font-size: 12px;
+    opacity: 0.8;
+    margin-bottom: 14px;
+  }
+
+  .visit-hint{
+    font-size: 11px;
+    opacity: 0.75;
+    margin-top: 6px;
+  }
+
+  .visit-list{
+    margin: 6px 0 12px;
+    padding-left: 18px;
+    font-size: 13px;
+    opacity: 0.95;
+  }
+
+  .visit-field{
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .visit-label{
+    font-size: 12px;
+    opacity: 0.8;
+  }
+
+  .oz-input{
+    width: 100%;
+    padding: 9px 11px;
+    border-radius: 11px;
+    border: 1px solid rgba(148,163,184,0.55);
+    background: rgba(15,23,42,0.9);
+    color: #e5edff;
+    font-size: 14px;
+    outline: none;
+  }
+  .oz-input:focus{
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 1px rgba(96,165,250,0.6);
+  }
+
+  .visit-actions{
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .btn-primary{
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    background: linear-gradient(135deg, #2563eb, #22c55e);
+    color: #f9fafb;
+    box-shadow: 0 12px 30px rgba(37,99,235,0.45);
+  }
+  .btn-primary:active{
+    transform: translateY(1px);
+    box-shadow: 0 6px 18px rgba(37,99,235,0.35);
+  }
+
+  #visitCountModal .ozm__foot{
+    padding: 10px 14px 14px;
+    border-top: 1px solid rgba(148,163,184,0.3);
+    background: radial-gradient(circle at top, rgba(15,23,42,0.9), rgba(15,23,42,0.96));
+  }
+
+  .btn-ghost{
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(148,163,184,0.6);
+    background: transparent;
+    color: #e5e7eb;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .oz-status{
+    margin-top: 8px;
+    font-size: 12px;
+  }
+
+  @media (max-width: 640px){
+    #visitCountModal .ozm__dialog{
+      width: 100vw;
+      height: 100svh;
+      max-height: 100svh;
+      border-radius: 0;
+    }
+    #visitCountModal .ozm__head{
+      padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    }
+    #visitCountModal .ozm__body{
+      padding: 16px 16px 8px;
+    }
+    .visit-section-title{
+      font-size: 15px;
+    }
+  }
+</style>
+
+
+
+<div id="visitCountModal" class="ozm show {{ visit_class }}" aria-hidden="false">
+  <div class="ozm__dialog" role="dialog" aria-modal="true">
+    <div class="ozm__head">
+      <strong>
+        {{ branch_name }}
+        {% if visit_unit == "qr_pin" %}
+          <span class="visit-tag">PIN mode</span>
+        {% elif visit_unit == "qr_screenshot" %}
+          <span class="visit-tag">Screenshot mode</span>
+        {% endif %}
+      </strong>
+      <button type="button" class="ozm__close" aria-label="Close" onclick="closeVisitCountModal()">✕</button>
+    </div>
+
+    <div class="ozm__body">
+      {% if visit_unit == "qr_pin" %}
+        <!-- PIN FLOW (WAITER VERIFICATION) -->
+        <div class="visit-section">
+          <div class="visit-section-title">Enter Branch PIN</div>
+          <div class="visit-section-sub">
+            Ask the waiter / staff to enter the 4-digit PIN to confirm this visit.
+          </div>
+
+          <div class="visit-field">
+            <label for="vcPinInput" class="visit-label">Staff PIN</label>
+            <input id="vcPinInput"
+                   class="oz-input"
+                   type="number"
+                   maxlength="4"
+                   inputmode="numeric"
+                   placeholder="••••">
+            <p class="visit-hint">This helps us verify visits without bill photos in premium restaurants.</p>
+          </div>
+
+          <div class="visit-actions">
+            <button id="vcPinSubmit" class="btn-primary">
+              Verify &amp; Count Visit
+            </button>
+          </div>
+
+          <div id="vcPinStatus" class="oz-status" style="display:none;"></div>
+        </div>
+
+      {% elif visit_unit == "qr_screenshot" %}
+        <!-- SCREENSHOT UPLOAD (BILL / PAYMENT) -->
+        <div class="visit-section">
+          <div class="visit-section-title">Upload Bill Screenshot</div>
+          <div class="visit-section-sub">
+            Upload a clear image so we can verify your visit at this branch.
+          </div>
+
+          <ul class="visit-list">
+            <li>Restaurant bill screenshot</li>
+            <li>UPI / card payment screenshot</li>
+            <li>Screenshot showing reference ID &amp; amount</li>
+          </ul>
+
+          <div class="visit-field">
+            <label for="vcScreenshot" class="visit-label">Choose image</label>
+            <input id="vcScreenshot" type="file" accept="image/*" class="oz-input">
+            <p class="visit-hint">Make sure text is readable. Blurry images may get rejected.</p>
+          </div>
+
+          <div class="visit-actions">
+            <button id="vcUploadBtn" class="btn-primary">
+              Upload &amp; Count Visit
+            </button>
+          </div>
+
+          <div id="vcUploadStatus" class="oz-status" style="display:none;"></div>
+        </div>
+
+      {% else %}
+        <!-- Fallback summary (old / debug) -->
+        <div class="visit-section">
+          <div class="visit-section-title">Visit Summary</div>
+          <div class="visit-section-sub">
+            Latest visit details for this branch.
+          </div>
+          <p><b>Total Visits:</b> {{ total_visits }}</p>
+          <p><b>Today's Visits:</b> {{ today_visits }}</p>
+          <p><b>Last Visit:</b> {{ last_visit }}</p>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="ozm__foot">
+      <button type="button" class="btn-ghost" onclick="closeVisitCountModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function closeVisitCountModal(){
+    const m = document.getElementById('visitCountModal');
+    if(!m) return;
+    m.classList.remove('show');
+    setTimeout(() => m.remove(), 300);
+}
+
+/* =========================== */
+/*  PIN FLOW (frontend only)   */
+/* =========================== */
+const pinBtn   = document.getElementById('vcPinSubmit');
+const pinInput = document.getElementById('vcPinInput');
+const pinStatus= document.getElementById('vcPinStatus');
+
+pinBtn?.addEventListener('click', async () => {
+    let pin = (pinInput?.value || "").replace(/\D/g, "").slice(0,4);
+
+    if(!/^\d{4}$/.test(pin)){
+        pinStatus.style.display = 'block';
+        pinStatus.className = 'oz-status err';
+        pinStatus.textContent = 'Enter a valid 4-digit PIN.';
+        return;
+    }
+
+    pinStatus.style.display = 'block';
+    pinStatus.className = 'oz-status ok';
+    pinStatus.textContent = 'Verifying…';
+    // TODO: hook to backend
+});
+
+/* ================================ */
+/*  SCREENSHOT UPLOAD (frontend)    */
+/* ================================ */
+const uploadBtn    = document.getElementById('vcUploadBtn');
+const fileInput    = document.getElementById('vcScreenshot');
+const uploadStatus = document.getElementById('vcUploadStatus');
+
+uploadBtn?.addEventListener('click', () => {
+    if(!fileInput?.files?.length){
+        uploadStatus.style.display = 'block';
+        uploadStatus.className = 'oz-status err';
+        uploadStatus.textContent = 'Please select a screenshot.';
+        return;
+    }
+
+    uploadStatus.style.display = 'block';
+    uploadStatus.className = 'oz-status ok';
+    uploadStatus.textContent = 'Uploading…';
+    // TODO: hook to backend
+});
+</script>
+  

@@ -1,0 +1,211 @@
+{# homepage/create_offers_modal.html #}
+
+<div id="offerModal" class="oz-modal" aria-hidden="true" role="dialog" aria-modal="true">
+  <div class="oz-modal-card" role="document">
+    <div class="oz-modal-head">
+      <strong>Create Offer</strong>
+      <a href="#" class="oz-close" data-close aria-label="Close">✕</a>
+    </div>
+
+    <!-- PRESET TILES -->
+    <div class="oz-preset-grid">
+      <!-- 1) Free Plate → open second modal -->
+      <a href="#" class="oz-preset" data-open="#freeplateModal">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.8"/>
+          <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/>
+        </svg>
+        <span class="oz-preset-title">Free Plate</span>
+        <small class="oz-preset-sub">Free item</small>
+      </a>
+
+      <!-- 2) Discount (placeholder) -->
+      <button type="button" class="oz-preset">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M19 5L5 19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.8"/>
+          <circle cx="16" cy="16" r="2.5" stroke="currentColor" stroke-width="1.8"/>
+        </svg>
+        <span class="oz-preset-title">Discount</span>
+        <small class="oz-preset-sub">Flat %</small>
+      </button>
+
+      <!-- 3) Free Cup Coffee (placeholder) -->
+      <button type="button" class="oz-preset">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M4 10h11v3a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5v-3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M15 10h2a3 3 0 0 1 0 6h-1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M7 4c0 1 .8 1.2.8 2s-.8 1-.8 2M10 4c0 1 .8 1.2.8 2s-.8 1-.8 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        <span class="oz-preset-title">Free Cup Coffee</span>
+        <small class="oz-preset-sub">Free beverage</small>
+      </button>
+    </div>
+
+    <div class="oz-actions" style="margin-top:12px">
+      <a href="#" class="oz-btn ghost" data-close>Close</a>
+    </div>
+  </div>
+</div>
+
+
+{% include "homepage/complementary_offer_modal.html" %}
+
+<style>
+  .oz-modal{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.55);z-index:50}
+  .oz-modal.open{display:grid}
+  .oz-modal-card{
+    width:min(520px,92vw);
+    background:#11183a;
+    border:1px solid #273164;
+    border-radius:16px;
+    box-shadow:0 20px 60px rgba(0,0,0,.35);
+    padding:16px 16px 18px
+  }
+  .oz-modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .oz-close{
+    background:#0e1533;
+    border:1px solid #2a376b;
+    border-radius:8px;
+    color:#bfc9ff;
+    padding:6px 10px;
+    text-decoration:none
+  }
+
+  .oz-preset-grid{display:grid;gap:12px;grid-template-columns:repeat(3,1fr);margin-top:6px}
+  .oz-preset{
+    display:grid;
+    place-content:center;
+    gap:8px;
+    aspect-ratio:1/1;
+    background:#0e1533;
+    border:1px solid #2a376b;
+    border-radius:14px;
+    color:#e8ecff;
+    cursor:pointer;
+    transition:transform .06s,border-color .2s,box-shadow .2s;
+    text-decoration:none
+  }
+  .oz-preset:hover{border-color:#4c74ff}
+  .oz-preset:active{transform:translateY(1px)}
+  .oz-preset svg{width:32px;height:32px;margin-inline:auto}
+  .oz-preset-title{font-weight:700}
+  .oz-preset-sub{color:#b9c4ff;opacity:.9}
+
+  .oz-preset.selected{
+    outline:2px solid #4c74ff;
+    box-shadow:0 0 0 3px rgba(76,116,255,.25) inset
+  }
+
+  @media (max-width:520px){
+    .oz-preset-grid{grid-template-columns:repeat(2,1fr)}
+  }
+  @media (max-width:360px){
+    .oz-preset-grid{grid-template-columns:1fr}
+  }
+
+  .oz-btn{
+    background:#4c74ff;
+    color:#fff;
+    border:0;
+    border-radius:10px;
+    padding:10px 14px;
+    font-weight:600;
+    cursor:pointer
+  }
+  .oz-btn.ghost{
+    background:#0e1533;
+    color:#bfc9ff;
+    border:1px solid #2a376b
+  }
+  .oz-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:6px}
+
+  /* optional: body lock when modal open */
+  body.modal-open{overflow:hidden}
+</style>
+
+<script>
+(function () {
+  const offerModal = document.getElementById('offerModal');
+  if (!offerModal) return;
+
+  const baseUrl  = location.pathname + location.search;
+  const HASH     = '#offerModal';
+
+  const openBtns  = document.querySelectorAll('[data-open="#offerModal"], [data-open="offerModal"]');
+  const closeBtns = offerModal.querySelectorAll('[data-close], .oz-close');
+
+  function showOffer(fromPopState) {
+    offerModal.classList.add('open');
+    offerModal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+
+    // manual open appude history lo entry push cheyyi
+    if (!fromPopState && window.history && history.pushState) {
+      history.pushState({ offerModal: true }, '', baseUrl + HASH);
+    }
+  }
+
+  function hideOffer(fromPopState) {
+    offerModal.classList.remove('open');
+    offerModal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+
+    // manual ga close chesinappudu → back button la behave avvali
+    if (!fromPopState && window.history) {
+      // hash currently #offerModal unte matrame back cheyyi
+      if (location.hash === HASH && history.length > 1) {
+        history.back();
+      }
+    }
+  }
+
+  // ---- OPEN (buttons) ----
+  openBtns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      showOffer(false);
+    });
+  });
+
+  // ---- CLOSE (buttons inside modal) ----
+  closeBtns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      hideOffer(false);
+    });
+  });
+
+  // ---- backdrop click ----
+  offerModal.addEventListener('click', (e) => {
+    if (e.target === offerModal) {
+      e.preventDefault();
+      hideOffer(false);
+    }
+  });
+
+  // ---- ESC key → close, URL kuda base ki tirigi vellali ----
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && offerModal.classList.contains('open')) {
+      hideOffer(false);
+    }
+  });
+
+  // ---- Back / forward button handling ----
+  window.addEventListener('popstate', () => {
+    if (location.hash === HASH) {
+      // URL lo #offerModal undi → modal open unte undali
+      showOffer(true);
+    } else {
+      // hash lekapothe → modal close avvali
+      hideOffer(true);
+    }
+  });
+
+  // ---- Page first load lo hash already unte (#offerModal) ----
+  if (location.hash === HASH) {
+    showOffer(true);
+  }
+})();
+</script>

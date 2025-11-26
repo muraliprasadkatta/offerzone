@@ -1,0 +1,114 @@
+<!-- NAME CAPTURE MODAL (lightweight) -->
+<div id="ozNameModal" style="position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.45);z-index:2000">
+  <div style="width:min(420px,92vw);background:#11183a;border:1px solid #273164;border-radius:16px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.35)">
+    <strong style="display:block;font-size:18px;margin-bottom:6px">What should we call you?</strong>
+    <p style="margin:0 0 12px;color:#b9c4ff">This helps us personalize your offers.</p>
+
+    <form id="ozNameForm" onsubmit="return false;">
+      {% csrf_token %}
+      <label style="display:flex;flex-direction:column;gap:6px;margin:8px 0 12px">
+        <span>Display name</span>
+        <input id="ozDisplayName" type="text" maxlength="40" placeholder="e.g., Murali"
+               style="padding:12px;border-radius:12px;border:1px solid #273164;background:#0f1640;color:#e8ecff;outline:none">
+      </label>
+
+      <div style="display:flex;gap:10px">
+        <button id="ozSaveBtn" type="submit"
+                style="flex:1;padding:10px 14px;border-radius:12px;border:1px solid #273164;background:#4c74ff;color:#fff;font-weight:600;cursor:pointer">
+          Save
+        </button>
+        <button id="ozSkipBtn" type="button"
+                style="flex:1;padding:10px 14px;border-radius:12px;border:1px solid #273164;background:transparent;color:#e8ecff;cursor:pointer">
+          Skip
+        </button>
+      </div>
+      <small style="color:#9fb0ff;display:block;margin-top:8px">You can change this later in Account &amp; Help.</small>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---- server flag & elements ----
+  const NEED_NAME = {{ need_name|yesno:"true,false" }};   // from view context
+  const modal    = document.getElementById("ozNameModal");
+  const form     = document.getElementById("ozNameForm");
+  const input    = document.getElementById("ozDisplayName");
+  const skipBtn  = document.getElementById("ozSkipBtn");
+  const saveBtn  = document.getElementById("ozSaveBtn");
+  const SEEN_KEY = "oz_name_seen_v1";
+
+  // optional debug – remove later
+  console.log("NEED_NAME =", NEED_NAME, "seen =", localStorage.getItem(SEEN_KEY));
+
+  function openModal(){
+    if (!modal) return;
+    modal.style.display = "grid";
+    setTimeout(()=> input && input.focus(), 50);
+  }
+  function closeModal(){
+    if (!modal) return;
+    modal.style.display = "none";
+    localStorage.setItem(SEEN_KEY, "1");
+  }
+
+  // Show when server says needed & we haven't shown this session
+  if (NEED_NAME) { openModal(); }
+
+
+  // Close on Skip
+  if (skipBtn) {
+    skipBtn.addEventListener("click", closeModal);
+  }
+
+  // Close on ESC (accessibility)
+  document.addEventListener("keydown", (e)=>{
+    if (e.key === "Escape" && modal && modal.style.display !== "none") closeModal();
+  });
+
+  // Helper: get CSRF token
+  function getCSRF(){
+    const el = document.querySelector('input[name=csrfmiddlewaretoken]');
+    return el ? el.value : "";
+  }
+
+  if (form) {
+    form.addEventListener("submit", async (e)=>{
+      e.preventDefault();
+      const name = (input?.value || "").trim();
+      if (name.length < 2) { input && input.focus(); return; }
+
+      saveBtn && (saveBtn.disabled = true);
+
+      try{
+        const res = await fetch("{% url 'offers:save_display_name' %}", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCSRF(),
+            "Accept": "application/json",
+          },
+          body: JSON.stringify({ display_name: name })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+        // Update greetings instantly
+        const h1 = document.querySelector("h1");
+        if (h1) h1.textContent = `Welcome, ${name} 👋`;
+
+        // Prefer a dedicated span: <span id="helloName">Hello :</span>
+        const hello = document.getElementById("helloName");
+        if (hello) hello.textContent = `Hello : ${name}`;
+
+        closeModal();
+      }catch(err){
+        alert("Couldn’t save name: " + err.message);
+      }finally{
+        saveBtn && (saveBtn.disabled = false);
+      }
+    });
+  }
+})();
+</script>

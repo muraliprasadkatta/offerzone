@@ -1,0 +1,615 @@
+
+<!-- Scan Modal (re-usable include) -->
+<style>
+  /* ===== Scan-specific styles only ===== */
+  /* (pulled from your page; unchanged) */
+
+  /* html5-qrcode overrides */
+  #qr-reader{width:100%;max-width:none!important;margin:0;height:100%;}
+  #qr-reader video{width:100%!important;height:100%!important;display:block;object-fit:cover;border-radius:0!important;filter:contrast(1.06) saturate(1.05);}
+  #qr-reader .qr-shaded-region{background:rgba(11,16,32,.55)!important}
+  #qr-reader .qr-canvas-holder .scan-region-highlight{border-color:#e6f0ff!important}
+  #qr-reader .html5-qrcode-container{padding:0!important}
+
+  .ozm{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50;overscroll-behavior:contain}
+  .ozm.show{display:flex}
+  .ozm__dialog{  position: relative;max-height:92vh;display:flex;flex-direction:column;width:min(720px,94vw);background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.45);overflow:hidden}
+  .ozm__head{z-index: 20;top: 0;position: sticky;display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border)}
+  .ozm__close{pointer-events: auto;background:transparent;border:1px solid var(--border);color:var(--muted);width:36px;height:36px;border-radius:10px;cursor:pointer}
+  .ozm__body{padding:0;overflow:hidden;flex:1 1 auto;display:flex;flex-direction:column}
+  .qr-edge{width:100%;flex:1 1 auto;max-height:clamp(260px,58vh,700px);overflow:hidden;background:#000;position:relative}
+  .qr-form{flex:0 0 auto;padding:14px;border-top:1px solid var(--border)}
+  .oz-label{display:block;margin:8px 0 6px;color:var(--muted);font-size:12px}
+  .oz-input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:#0f1640;color:var(--text);font-weight:600}
+  .oz-sep{opacity:.6;text-align:center;margin:10px 0}
+  .oz-status{padding:.6rem .8rem;border-radius:8px;font-size:.95rem}
+  .oz-status.ok{background:#0d2914;color:#b7f3c7;border:1px solid #1f7a33}
+  .oz-status.err{background:#2a0d0d;color:#f3b7b7;border:1px solid #7a1f1f}
+
+  /* allow interaction on controls even though .scan-panel has pointer-events:none */
+.scan-panel .zoom-ctrl,
+.scan-panel .scan-title {
+  pointer-events: auto;
+}
+
+
+  /* overlay frame + dimmer + scan line + zoom controls */
+  .scan-panel{position:absolute;inset:0;z-index:5;pointer-events:none;opacity:1}
+  .scan-panel .frame{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(520px,86%);aspect-ratio:16/9;border-radius:16px;--padv:8%;--padh:5%;--lineH:2px}
+  .scan-panel .frame::before{content:"";position:absolute;inset:0;border-radius:inherit;--c:#10e129;background:
+    linear-gradient(var(--c),var(--c)) left top/42px 10px no-repeat,
+    linear-gradient(var(--c),var(--c)) left top/10px 42px no-repeat,
+    linear-gradient(var(--c),var(--c)) right top/42px 10px no-repeat,
+    linear-gradient(var(--c),var(--c)) right top/10px 42px no-repeat,
+    linear-gradient(var(--c),var(--c)) left bottom/42px 10px no-repeat,
+    linear-gradient(var(--c),var(--c)) left bottom/10px 42px no-repeat,
+    linear-gradient(var(--c),var(--c)) right bottom/42px 10px no-repeat,
+    linear-gradient(var(--c),var(--c)) right bottom/10px 42px no-repeat}
+  .scan-panel .dim-hole{position:absolute;inset:0;border-radius:inherit;pointer-events:none;box-shadow:0 0 0 200vmax rgba(0,0,0,.65)}
+  .scan-panel .frame::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);pointer-events:none}
+  .scan-panel .scan-scope{position:absolute;top:var(--padv);bottom:var(--padv);left:var(--padh);right:var(--padh);border-radius:12px;overflow:hidden;z-index:1}
+  .scan-panel .scan-scope::after{content:"";position:absolute;inset:0;background:radial-gradient(120% 120% at 50% 50%,rgba(255,255,255,.06),rgba(255,255,255,0) 70%);pointer-events:none}
+  .scan-panel .scan-line{position:absolute;left:0;right:0;top:0;height:var(--lineH);background:linear-gradient(90deg,rgba(150,210,255,0),rgba(180,235,255,1),rgba(150,210,255,0));box-shadow:0 0 12px rgba(180,235,255,.65),0 0 26px rgba(180,235,255,.45);animation:sweepY 2.6s ease-in-out infinite;will-change:top}
+  @keyframes sweepY{0%{top:0}50%{top:calc(100% - var(--lineH))}100%{top:0}}
+  .scan-title{position:absolute;left:50%;top:16px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;color:#cfe1ff;padding:8px 12px;z-index:6;min-width:220px;}
+  .scan-title__brand{font-weight:700;letter-spacing:.2px;font-size:13px}
+  .scan-title__sub{font-size:12px;opacity:.9}
+  .zoom-ctrl{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;z-index:6;display:flex;align-items:center;gap:10px;background:rgba(17,24,58,.9);border:1px solid var(--border);border-radius:12px;padding:8px 12px;width:min(420px,86%);box-shadow:0 8px 30px rgba(0,0,0,.35)}
+  .zoom-wrap{position:relative;display:flex;flex:1;align-items:center}
+  .zoom-bubble{position:absolute;left:50%;top:-28px;transform:translateX(-50%);background:rgba(17,24,58,.9);border:1px solid var(--border);color:#dbe6ff;font-weight:600;font-size:12px;padding:4px 8px;border-radius:8px;white-space:nowrap;pointer-events:none}
+  .zoom-ctrl input[type="range"]{flex:1;accent-color:#7ea3ff;height:4px}
+  .zoom-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:#0f1640;color:#e8ecff;font-size:18px;line-height:1;cursor:pointer}
+  .zoom-btn:active{transform:scale(.98)}
+  .zoom-btn{user-select:none; -webkit-user-select:none; touch-action:manipulation;}
+  .scan-caption{position:absolute;left:50%;transform:translateX(-50%);bottom:56px;color:#cfe1ff;opacity:.8;font-size:12px;background:rgba(17,24,58,.7);border:1px solid var(--border);padding:6px 10px;border-radius:8px}
+
+  @media (max-width:768px){
+    .ozm{background:#000}
+    .ozm__dialog{width:100vw;height:100svh;max-height:100svh;border:0;border-radius:0}
+    .ozm__head{position:sticky;top:0;z-index:2;padding-top:calc(12px + env(safe-area-inset-top,0px));background:rgba(17,24,58,.9);backdrop-filter:blur(6px)}
+    .qr-edge{flex:1 1 auto;max-height:none;height:100%}
+    .qr-form{padding:12px}
+    .scan-panel .frame{width:88vw;max-width:500px;aspect-ratio:10/9;border-radius:14px}
+    .scan-panel .frame::before{--c:#16e346;z-index:2;background:
+      linear-gradient(var(--c),var(--c)) left top/32px 2px no-repeat,
+      linear-gradient(var(--c),var(--c)) left top/2px 32px no-repeat,
+      linear-gradient(var(--c),var(--c)) right top/32px 2px no-repeat,
+      linear-gradient(var(--c),var(--c)) right top/2px 32px no-repeat,
+      linear-gradient(var(--c),var(--c)) left bottom/32px 2px no-repeat,
+      linear-gradient(var(--c),var(--c)) left bottom/2px 32px no-repeat,
+      linear-gradient(var(--c),var(--c)) right bottom/32px 2px no-repeat,
+      linear-gradient(var(--c),var(--c)) right bottom/2px 32px no-repeat;filter:drop-shadow(0 0 8px rgba(191,224,255,.45))}
+  }
+</style>
+
+<div id="scanModal" class="ozm" aria-hidden="true">
+  <div class="ozm__dialog">
+    <div class="ozm__head">
+      <strong>Scan Branch QR</strong>
+      <button class="ozm__close" type="button" id="scanCloseBtn">×</button>
+    </div>
+
+    <div class="ozm__body">
+      <div class="qr-edge">
+        <div id="qr-reader"></div>
+
+        <!-- overlay ABOVE video -->
+        <div class="scan-panel" aria-hidden="true">
+          <div class="frame">
+            <div class="scan-scope"><span class="scan-line"></span></div>
+            <span class="dim-hole" aria-hidden="true"></span>
+          </div>
+
+          <div class="scan-title">
+            <div class="scan-title__brand">OfferZone Scan</div>
+            <div class="scan-title__sub" id="scanStateText">Scanning…</div>
+          </div>
+
+          <div class="zoom-ctrl" role="group" aria-label="Camera zoom">
+            <button type="button" class="zoom-btn" id="zoomMinus" aria-label="Zoom out">−</button>
+            <div class="zoom-wrap">
+              <div class="zoom-bubble" id="zoomBubble">Zoom 1.0×</div>
+              <input type="range" id="zoomRange" min="1" max="2" step="0.01" value="1" />
+            </div>
+            <button type="button" class="zoom-btn" id="zoomPlus" aria-label="Zoom in">+</button>
+          </div>
+
+          <div class="scan-caption">Bring QR into view. Use zoom if needed.</div>
+        </div>
+      </div>
+
+<div class="qr-form">
+
+  <div class="oz-sep">or enter PIN</div>
+  <label class="oz-label" for="qrPinInput">Enter 4-digit PIN</label>
+  <input id="qrPinInput" class="oz-input" type="number" inputmode="numeric"
+        pattern="[0-9]*" maxlength="4" placeholder="1234" />
+
+
+  <button id="qrPinSubmit" class="btn" type="button"
+          style="width:100%;margin-top:10px">Verify PIN</button>
+
+  <div id="qrStatus" class="oz-status" style="display:none;margin-top:10px"></div>
+</div>
+
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const tile     = document.getElementById('tapToScan');
+  const modal    = document.getElementById('scanModal');
+  const closeBtn = document.getElementById('scanCloseBtn');
+  const statusEl = document.getElementById('qrStatus');
+
+  // PIN elements
+  const pinInput = document.getElementById('qrPinInput');
+  const pinBtn   = document.getElementById('qrPinSubmit');
+
+  const zoomRange    = document.getElementById('zoomRange');
+  const zoomMinus    = document.getElementById('zoomMinus');
+  const zoomPlus     = document.getElementById('zoomPlus');
+  const zoomBubble   = document.getElementById('zoomBubble');
+  const scanStateText = document.getElementById('scanStateText');
+
+  const SCAN_HASH = '#scan';
+  let scanPushed = false;
+  const isScanHash = () => location.hash === SCAN_HASH;
+
+  let _videoEl = null, _track = null, _hasOpticalZoom = false;
+  let _zoomMin = 1, _zoomMax = 2, _zoomStep = 0.01;
+  let _holdTimer = null, _repeatTimer = null, _wasHolding = false;
+  const HOLD_THRESHOLD = 300, REPEAT_EVERY = 65;
+  let _started = false;
+
+  function show(el, ok, msg){
+    if (!el) return;
+    el.style.display = 'block';
+    el.textContent   = msg;
+    el.className     = 'oz-status ' + (ok ? 'ok' : 'err');
+  }
+  function hide(el){
+    if (!el) return;
+    el.style.display = 'none';
+    el.textContent   = '';
+  }
+  function fmtZoom(v){
+    const n = Math.max(_zoomMin, Math.min(_zoomMax, Number(v || 1)));
+    return (Math.round(n * 10) / 10).toFixed(1) + '×';
+  }
+  function updateZoomUI(v){
+    if (zoomBubble) zoomBubble.textContent = 'Zoom ' + fmtZoom(v ?? zoomRange?.value ?? 1);
+  }
+  function setScanning(on){
+    if (scanStateText) scanStateText.textContent = on ? 'Scanning…' : 'Paused';
+  }
+
+  function revealOverlayOnce(){
+    const panel = document.querySelector('.scan-panel');
+    if (panel && !panel.classList.contains('ready')){
+      panel.classList.add('ready');
+      setupZoomControls();
+    }
+  }
+  function waitForVideoThenReveal(){
+    const root = document.getElementById('qr-reader');
+    const tryNow = () => {
+      const v = root?.querySelector('video');
+      if (!v) return false;
+      if (!v.paused && !v.seeking && v.readyState >= 2){
+        revealOverlayOnce();
+        return true;
+      }
+      v.addEventListener('playing',    revealOverlayOnce, { once:true });
+      v.addEventListener('loadeddata', revealOverlayOnce, { once:true });
+      return true;
+    };
+    if (tryNow()) return;
+    const mo = new MutationObserver(() => { if (tryNow()) mo.disconnect(); });
+    mo.observe(root, { childList:true, subtree:true });
+    setTimeout(() => { revealOverlayOnce(); mo.disconnect(); }, 800);
+  }
+
+  async function applyZoom(val){
+    if (!_videoEl) return;
+    if (_hasOpticalZoom && _track){
+      try{
+        await _track.applyConstraints({ advanced:[{ zoom:Number(val) }] })
+          .catch(() => _track.applyConstraints({ zoom:Number(val) }));
+        _videoEl.style.transform = '';
+      }catch{}
+    }else{
+      const s = Math.max(1, Number(val));
+      _videoEl.style.transformOrigin = '50% 50%';
+      _videoEl.style.transform       = `scale(${s})`;
+    }
+    updateZoomUI(val);
+  }
+  function nudge(dir){
+    const cur  = Number(zoomRange.value);
+    const step = Number(zoomRange.step || 0.01);
+    const next = Math.min(_zoomMax, Math.max(_zoomMin, cur + dir * step * 3));
+    zoomRange.value = next.toFixed(2);
+    applyZoom(next);
+    updateZoomUI(next);
+  }
+
+  function pickRearDevice(devs){  return devs.find(d => /back|rear|environment/i.test(d.label)); }
+  function pickFrontDevice(devs){ return devs.find(d => /front|user|face/i.test(d.label)); }
+
+  async function startWithDeviceId(qr, deviceId, onDecode){
+    const baseCfg = {
+      fps: 10,
+      aspectRatio: 1.777,
+      disableFlip: true,
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    };
+    return qr.start(deviceId, baseCfg, onDecode, () => {});
+  }
+
+  async function startWithFacingMode(qr, facingMode, onDecode){
+    const cameraCfg = { facingMode };
+    const baseCfg = {
+      fps: 10,
+      aspectRatio: 1.777,
+      disableFlip: true,
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    };
+    return qr.start(cameraCfg, baseCfg, onDecode, () => {});
+  }
+
+  async function preflightRear(){
+    try{
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { exact: "environment" } }, audio: false
+      });
+      stream.getTracks().forEach(t => t.stop());
+    }catch{}
+  }
+
+  async function startRearThenFront(qr, onDecode){
+    const markStarted = () => { _started = true; waitForVideoThenReveal(); };
+    const maybeShowError = (msg) => { if(!_started) show(statusEl, false, msg); };
+
+    await preflightRear();
+
+    try{
+      await startWithFacingMode(qr, { exact:"environment" }, onDecode);
+      markStarted(); return 'rear-facing';
+    }catch{}
+
+    try{
+      const devs = await Html5Qrcode.getCameras();
+      if (devs && devs.length){
+        const rear = pickRearDevice(devs);
+        if (rear){
+          await startWithDeviceId(qr, rear.id, onDecode);
+          markStarted(); return 'rear-device';
+        }
+      }
+    }catch{}
+
+    try{
+      const devs2 = await Html5Qrcode.getCameras().catch(() => null);
+      const front = devs2 && pickFrontDevice(devs2);
+      if (front){
+        await startWithDeviceId(qr, front.id, onDecode);
+        markStarted(); return 'front-device';
+      }
+    }catch{}
+
+    try{
+      await startWithFacingMode(qr, "user", onDecode);
+      markStarted(); return 'front-facing';
+    }catch(err){
+      maybeShowError("Camera not available — use PIN.");
+      throw err;
+    }
+  }
+
+  function startScanner(){
+    hide(statusEl);
+    setScanning(true);
+    _started = false;
+
+    if (!window.Html5Qrcode) return;
+
+    if (window.__qrInstance && typeof window.__qrInstance.clear === 'function'){
+      try{ window.__qrInstance.clear(); }catch{}
+      window.__qrInstance = null;
+    }
+
+    const qr = new Html5Qrcode("qr-reader");
+    const onDecode = (txt) => handlePayload(txt);
+
+    startRearThenFront(qr, onDecode)
+      .then(() => { window.__qrInstance = qr; })
+      .catch(() => {
+        try{ qr.clear(); }catch{}
+        window.__qrInstance = null;
+      });
+  }
+
+  function getCookie(name){
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+  }
+
+  function stopScanner(){
+    const qr = window.__qrInstance;
+    if (qr){
+      qr.stop()
+        .then(() => { try{ qr.clear(); }catch{} window.__qrInstance = null; })
+        .catch(() => { try{ qr.clear(); }catch{} window.__qrInstance = null; });
+    }else{
+      try{
+        const reader = document.getElementById('qr-reader');
+        reader && (reader.innerHTML = '');
+      }catch{}
+    }
+    if (_videoEl) _videoEl.style.transform = '';
+    if (zoomRange) zoomRange.value = 1;
+    const zb = document.getElementById('zoomBubble');
+    if (zb) zb.textContent = 'Zoom 1.0×';
+    endHold();
+  }
+
+  function openModal(opts = {}){
+    const { fromHash = false } = opts || {};
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    startScanner();
+    if (!fromHash && !scanPushed){
+      history.pushState({ ozScan:true }, '', SCAN_HASH);
+      scanPushed = true;
+    }
+  }
+  function closeModal(arg){
+    let force = false, fromPop = false;
+    if (typeof arg === 'boolean'){ force = arg; }
+    else if (typeof arg === 'object' && arg){
+      force   = !!arg.force;
+      fromPop = !!arg.fromPop;
+    }
+
+    try{ stopScanner(); }catch{}
+    if (force){
+      try{
+        const r = document.getElementById('qr-reader');
+        r && (r.innerHTML = '');
+      }catch{}
+    }
+
+    modal.classList.remove('show');
+    document.body.style.overflow = '';
+    hide(statusEl);
+    setScanning(false);
+
+    if (scanPushed && !fromPop){
+      scanPushed = false;
+      if (isScanHash()) history.back();
+    }
+  }
+
+  closeBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeModal(true);
+  });
+  window.addEventListener('popstate', () => {
+    if (modal.classList.contains('show')){
+      closeModal({ fromPop:true });
+      scanPushed = false;
+    } else if (isScanHash()){
+      openModal({ fromHash:true });
+      scanPushed = true;
+    } else {
+      scanPushed = false;
+    }
+  });
+  if (isScanHash()){
+    openModal({ fromHash:true });
+    scanPushed = true;
+  }
+
+  function startHold(dir){
+    _wasHolding = false;
+    nudge(dir);
+    _holdTimer = setTimeout(() => {
+      _wasHolding = true;
+      _repeatTimer = setInterval(() => nudge(dir), REPEAT_EVERY);
+    }, HOLD_THRESHOLD);
+  }
+  function endHold(){
+    if (_holdTimer){ clearTimeout(_holdTimer); _holdTimer = null; }
+    if (_repeatTimer){ clearInterval(_repeatTimer); _repeatTimer = null; }
+  }
+
+  function bindHold(btn, dir){
+    if (!btn) return;
+    btn.addEventListener('click', (e) => {
+      if (_wasHolding){
+        e.preventDefault();
+        _wasHolding = false;
+        return;
+      }
+      nudge(dir);
+    });
+    btn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      startHold(dir);
+    });
+    const mouseEnd = () => endHold();
+    btn.addEventListener('mouseup', mouseEnd);
+    btn.addEventListener('mouseleave', mouseEnd);
+    btn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      startHold(dir);
+    }, { passive:false });
+    const touchEnd = () => endHold();
+    btn.addEventListener('touchend', touchEnd);
+    btn.addEventListener('touchcancel', touchEnd);
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === ' ' || e.key === 'Enter'){
+        e.preventDefault();
+        startHold(dir);
+      }
+    });
+    btn.addEventListener('keyup', (e) => {
+      if (e.key === ' ' || e.key === 'Enter'){ endHold(); }
+    });
+  }
+
+  function setupZoomControls(){
+    const v = document.querySelector('#qr-reader video');
+    _videoEl = v || _videoEl;
+    try{
+      const t    = v?.srcObject?.getVideoTracks?.()[0];
+      const caps = t?.getCapabilities?.();
+      if (caps && 'zoom' in caps){
+        _track          = t;
+        _hasOpticalZoom = true;
+        _zoomMin        = caps.zoom.min ?? 1;
+        _zoomMax        = caps.zoom.max ?? 3;
+        _zoomStep       = caps.zoom.step ?? 0.1;
+      }
+    }catch{}
+    if (zoomRange){
+      zoomRange.min   = _zoomMin;
+      zoomRange.max   = _zoomMax;
+      zoomRange.step  = _zoomStep;
+      zoomRange.value = 1;
+      zoomRange.oninput = (e) => {
+        applyZoom(e.target.value);
+        updateZoomUI(e.target.value);
+      };
+    }
+    bindHold(zoomMinus, -1);
+    bindHold(zoomPlus,  +1);
+    applyZoom(1);
+    updateZoomUI(1);
+  }
+
+  window.addEventListener('blur', endHold);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) endHold();
+  });
+
+  // ===== Token helpers for SCAN only =====
+  async function seedToPayloadUrlIfNeeded(v){
+    v = String(v || '').trim();
+    if (/\/qrg\/(?:redeem|t)\//.test(v)) return v;
+    if (/^[A-Za-z0-9._\-=:]+$/.test(v) && (v.includes('.') || v.includes(':'))){
+      return location.origin + "/qrg/redeem/" + v;
+    }
+    if (v.startsWith("offerzone://")){
+      const qp  = v.split("://")[1];
+      const usp = new URLSearchParams(qp);
+      const branch = usp.get("branch") || "";
+      const desk   = usp.get("desk")   || "";
+      const url    = new URL("/qrg/start", location.origin);
+      if (branch) url.searchParams.set("branch", branch);
+      if (desk)   url.searchParams.set("desk", desk);
+      const res  = await fetch(url, { headers:{ Accept:"application/json" } });
+      const data = await res.json();
+      if (!res.ok || data.ok === false || !data.payload){
+        throw new Error(data.error || "Could not mint QR");
+      }
+      return data.payload;
+    }
+    return v;
+  }
+
+  function extractTokenFromUrl(u){
+    const m = String(u || "").match(/\/qrg\/(?:redeem|t)\/([^?#\s]+)/i);
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+
+  function onSuccess(token){
+    if (scanStateText) scanStateText.textContent = 'Verifying…';
+    window.location.replace(`/visit-count/?token=${encodeURIComponent(token)}`);
+  }
+
+  async function handlePayload(v){
+    try{
+      const resolved = await seedToPayloadUrlIfNeeded(v);
+      const token    = extractTokenFromUrl(resolved);
+      if (!token) throw new Error("No token found");
+      onSuccess(token);
+    }catch(err){
+      alert(err.message || "Scan failed. Please try again.");
+      openModal();
+    }
+  }
+
+  // Triggers
+  tile?.addEventListener('click', () => openModal());
+  tile?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' '){
+      e.preventDefault();
+      openModal();
+    }
+  });
+  document.getElementById('scanModal')?.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('scanModal')) closeModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('scanModal')?.classList.contains('show')){
+      closeModal();
+    }
+  });
+
+  // ===== PIN verify (only PIN) =====
+// ===== PIN verify (only PIN) =====
+  pinBtn?.addEventListener('click', async () => {
+    let pin = (pinInput?.value || '').trim();
+
+    // only digits, max 4
+    pin = pin.replace(/\D/g, '').slice(0, 4);
+
+    if (!/^\d{4}$/.test(pin)) {
+      show(statusEl, false, 'Enter a valid 4-digit PIN.');
+      return;
+    }
+
+    show(statusEl, true, 'Verifying PIN…');
+
+    try {
+      const res = await fetch('/qrg/pin-verify/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken') || ''
+        },
+        body: JSON.stringify({ pin })
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || data.ok === false) {
+        show(statusEl, false, data.error || 'PIN verification failed.');
+        return;
+      }
+
+      const next = data.next || '/visit-count/';
+      window.location.replace(next);
+    } catch (err) {
+      console.error('PIN verify error', err);
+      show(statusEl, false, 'Network error. Please try again.');
+    }
+  });
+
+  
+  pinInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter'){
+      e.preventDefault();
+      pinBtn?.click();
+    }
+  });
+
+})();
+</script>

@@ -1,0 +1,127 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Branch · Home</title>
+  <style>
+    :root{ --bg:#0b1020; --card:#11183a; --border:#273164; --text:#e8ecff; --muted:#b9c4ff; --prim:#4c74ff; }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    .wrap{min-height:100dvh;display:grid;grid-template-rows:auto 1fr;gap:18px}
+    .top{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--border);background:#0c1230}
+    .brand{font-weight:800;letter-spacing:.3px}
+    .badge{padding:4px 10px;border:1px solid var(--border);border-radius:999px;font-size:12px;color:#b9c4ff}
+    .main{padding:18px;display:grid;gap:16px;max-width:980px;margin:0 auto;width:100%}
+    .card{background:#11183a;border:1px solid var(--border);border-radius:14px;padding:16px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+    .btn{display:inline-block;background:var(--prim);color:white;text-decoration:none;border-radius:10px;padding:10px 14px;font-weight:700}
+    .muted{color:var(--muted);font-size:14px}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+  </style>
+
+  <!-- QR button = admin-style ghost pill, classes/ids untouched -->
+  <style>
+    /* Target ONLY the QR trigger using its data-open attribute */
+    a.btn[data-open="#qrcodeModal"]{
+      background:#eaf0ff;           /* light ghost */
+      color:#0b5cff;                 /* brand blue text */
+      border:1px solid #d8e2ff;
+      border-radius:14px;
+
+      display:inline-flex;           /* icon + label inline */
+      align-items:center;
+      gap:8px;
+      padding:10px 12px;
+
+      font-weight:800;
+      letter-spacing:.2px;
+      box-shadow:0 2px 0 rgba(0,0,0,.05) inset;
+    }
+    a.btn[data-open="#qrcodeModal"]:hover{
+      background:#dde7ff;
+    }
+    a.btn[data-open="#qrcodeModal"]:focus-visible{
+      outline:2px solid #cbd6ff; outline-offset:2px;
+    }
+    /* icon size ONLY inside QR button */
+    a.btn[data-open="#qrcodeModal"] svg{
+      width:18px; height:18px; display:block;
+    }
+    /* small screens keep same pill */
+    @media (max-width:520px){
+      a.btn[data-open="#qrcodeModal"]{ padding:9px 11px; border-radius:12px; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Top bar -->
+  <header class="top">
+    <div class="row" style="align-items:center">
+      <div class="brand">Branch Home</div>
+      <span class="badge">{{ request.session.branch_name|default:"—" }}</span>
+    </div>
+
+    <!-- right side: ONLY QR button (logout moved to bottom) -->
+    <div class="row">
+      <a class="btn btn--mini btn--icon btn--ghost"
+         href="#"
+         data-open="#qrcodeModal"
+         data-qr="offerzone://branch={{ branch.public_id|default:'' }}&desk={{ branch.default_desk|default:'A1' }}">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M7 3h3v2H7v3H5V5a2 2 0 0 1 2-2Zm7 0h3a2 2 0 0 1 2 2v3h-2V5h-3V3ZM5 16h2v3h3v2H7a2 2 0 0 1-2-2v-3Zm12 3v-3h2v3a2 2 0 0 1-2 2h-3v-2h3ZM8 8h8v8H8V8Z"/>
+        </svg>
+        qrcode
+      </a>
+    </div>
+  </header>
+
+  <!-- Body -->
+  <main class="main">
+
+    <section class="card">
+      <h2 style="margin:0 0 6px">Welcome 👋</h2>
+      <p class="muted">Logged in as: <b>{{ request.session.branch_name|default:"Branch" }}</b></p>
+
+      <div class="row" style="margin-top:10px">
+        <a class="btn" href="#">Orders</a>
+        <a class="btn" href="#">Staff</a>
+        <a class="btn" href="#">Settings</a>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h3 style="margin:0 0 6px">Today</h3>
+        <p class="muted">Quick numbers coming soon…</p>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 6px">Announcements</h3>
+        <p class="muted">No announcements.</p>
+      </div>
+    </section>
+
+    <!-- Bottom logout card -->
+    <section class="card" style="display:flex;justify-content:flex-end">
+      <a class="btn" href="{% url 'offers:branch_logout' %}">Logout</a>
+    </section>
+
+  </main>
+</div>
+
+{% include "offers/qr_generation/branch_qrcode_modal.html" %}
+
+</body>
+</html>
+
+<script>
+  // remove previous entry and trap back
+  history.replaceState(null, '', location.pathname);
+  history.pushState(null, '', location.pathname);
+  window.addEventListener('popstate', function () {
+    location.replace("{% url 'offers:branch_home' %}");
+  });
+</script>

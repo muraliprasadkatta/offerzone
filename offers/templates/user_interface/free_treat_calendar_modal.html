@@ -1,0 +1,660 @@
+<!-- Free treat calendar modal -->
+{% if free_plate_offer %}
+<div id="freeplateCalendarModal"
+     class="oz-modal"
+     aria-hidden="true"
+     data-start="{{ free_plate_offer.start_at|date:'Y-m-d' }}"
+     data-end="{{ free_plate_offer.end_at|date:'Y-m-d' }}"
+     data-nth="{{ free_plate_offer.nth|default_if_none:'' }}"
+     data-repeat="{% if free_plate_offer.repeat %}1{% else %}0{% endif %}"
+     data-extra-nths="{% if free_plate_offer.extra_nths %}{{ free_plate_offer.extra_nths|join:',' }}{% endif %}">
+
+  <div class="oz-modal__backdrop" data-close></div>
+
+  <div class="oz-modal__dialog">
+    <button type="button" class="oz-modal__close" data-close aria-label="Close">✕</button>
+
+    <!-- Calendar CARD -->
+    <div class="fp-cal-card">
+
+      <!-- Header -->
+      <div class="fp-cal-topbar">
+        <div class="fp-cal-top-title">
+
+          <!-- Month chips (one per month in offer range) -->
+          <div class="fp-cal-month-tabs"></div>
+
+          <!-- Dynamic active month label -->
+          <div class="fp-cal-sub">Free treat offer calendar</div>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="fp-cal-body">
+        <!-- Legend -->
+        <div class="fp-cal-legend">
+          <span class="fp-chip fp-chip--active">
+            <span class="fp-dot fp-dot--active"></span> Active days
+          </span>
+          <span class="fp-chip fp-chip--today">
+            <span class="fp-dot fp-dot--today"></span> Today
+          </span>
+        </div>
+
+        <!-- Date Range Display -->
+        {% if free_plate_offer.start_at or free_plate_offer.end_at %}
+          <div class="fp-cal-range">
+            {% if free_plate_offer.start_at %}
+              <span class="fp-cal-range-label">Active from</span>
+              <span class="fp-cal-range-date">{{ free_plate_offer.start_at|date:"d M Y" }}</span>
+            {% endif %}
+
+            {% if free_plate_offer.end_at %}
+              <span class="fp-cal-range-sep">to</span>
+              <span class="fp-cal-range-date">{{ free_plate_offer.end_at|date:"d M Y" }}</span>
+            {% else %}
+              <span class="fp-cal-range-sep">onwards</span>
+            {% endif %}
+          </div>
+        {% endif %}
+
+        <!-- All months (built by JS) -->
+        <div class="fp-cal-months"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endif %}
+
+<style>
+/* ===== Month Tabs ===== */
+.fp-cal-month-tabs{
+  display:flex;
+  gap:8px;
+  margin-bottom:6px;
+  overflow-x:auto;
+  padding-bottom:2px;
+}
+.fp-cal-month-tabs::-webkit-scrollbar{
+  height:4px;
+}
+.fp-cal-month-tabs::-webkit-scrollbar-thumb{
+  background:rgba(255,255,255,0.4);
+  border-radius:999px;
+}
+
+.fp-cal-month-tab{
+  padding:4px 12px;
+  font-size:13px;
+  border-radius:999px;
+  border:none;
+  background:rgba(255,255,255,0.25);
+  color:#fff;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.fp-cal-month-tab--active{
+  background:#fff;
+  color:#ef4444;
+}
+
+/* ===== Active Range Highlight (same old style) ===== */
+.fp-cal-cell--active-range{
+  background:#fee2e2 !important;
+  border-color:#ef4444 !important;
+  color:#b91c1c !important;
+  box-shadow:0 0 0 2px rgba(248,113,113,.55);
+}
+
+/* ===== Main gift nth visits (🎁) – overlay only ===== */
+.fp-cal-cell--gift{
+  position:relative;
+}
+.fp-cal-cell--gift::after{
+  content:"🎁";
+  position:absolute;
+  inset:26%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:22px;
+  z-index:2;
+}
+
+/* ===== Extra milestones (⭐ like mini-box-extra) ===== */
+.fp-cal-cell--extra{
+  position:relative;
+  border:none;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(255,255,255,0.8), transparent 60%),
+    linear-gradient(135deg, #fef3c7, #bfdbfe);
+  box-shadow:0 0 0 2px rgba(96,165,250,0.7), 0 0 20px rgba(59,130,246,0.6);
+  color:#1f2933;
+}
+.fp-cal-cell--extra::before{
+  content:"⭐";
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%, -55%);
+  font-size:24px;
+  text-shadow:0 0 10px rgba(251,191,36,0.9);
+  z-index:1;
+}
+.fp-cal-cell--extra::after{
+  content:"😊";
+  position:absolute;
+  left:8px;
+  bottom:6px;
+  font-size:13px;
+  z-index:2;
+  opacity:0.95;
+}
+
+/* ===== Range label style ===== */
+.fp-cal-range{
+  font-size:13px;
+  color:#7f1d1d;
+  background:#fff1f2;
+  border-radius:999px;
+  padding:6px 12px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  border:1px solid #fecaca;
+}
+.fp-cal-range-label{
+  font-weight:600;
+  text-transform:uppercase;
+  font-size:11px;
+}
+.fp-cal-range-sep{
+  opacity:.7;
+}
+.fp-cal-range-date{
+  font-weight:600;
+}
+
+/* ===== Modal basic ===== */
+.oz-modal{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:50; }
+.oz-modal.open{ display:flex !important; }
+.oz-modal__backdrop{ position:absolute; inset:0; background:rgba(15,23,42,0.65); }
+.oz-modal__dialog{
+  position:relative; 
+  z-index:1;
+  width:90vw; 
+  max-width:960px;
+  max-height:90vh;
+  display:flex; 
+  align-items:center; 
+  justify-content:center;
+}
+
+.oz-modal__close{
+  position:absolute; top:18px; right:24px;
+  background:transparent; border:none;
+  font-size:22px; cursor:pointer;
+}
+
+.fp-cal-card{
+  background:#fff7ed;
+  border-radius:28px;
+  width:100%;
+  max-height:90vh;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+
+.fp-cal-topbar{
+  background:#ef4444; color:white;
+  padding:18px 28px;
+  display:flex;
+  justify-content:flex-start;
+  align-items:center;
+}
+
+/* calendar area */
+.fp-cal-body{
+  padding:20px 24px 24px;
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+  color:#111827;
+  flex:1;
+  min-height:0;
+  overflow:auto;
+}
+
+.fp-chip{
+  background:white;
+  border:1px solid #fed7d7;
+  padding:4px 10px;
+  border-radius:999px;
+  font-size:12px;
+}
+.fp-dot{ width:10px; height:10px; border-radius:999px; display:inline-block; }
+.fp-dot--active{ background:#ef4444; }
+.fp-dot--today{ background:#10b981; }
+
+/* Month sections */
+.fp-cal-months{
+  display:flex;
+  flex-direction:column;
+  gap:20px;
+}
+
+.fp-cal-month{
+  padding:12px 10px 14px;
+  border-radius:16px;
+  background:#fff;
+  border:1px solid #fee2e2;
+}
+
+.fp-cal-month--active{
+  box-shadow:0 0 0 2px rgba(248,113,113,0.7);
+  border-color:#f97373;
+}
+
+.fp-cal-month-title{
+  font-weight:600;
+  font-size:14px;
+  margin-bottom:10px;
+  color:#b91c1c;
+}
+
+/* existing */
+.fp-cal-grid{
+  display:grid;
+  grid-template-columns:repeat(4, 1fr); /* mobile view – as it is */
+  gap:12px;
+}
+
+/* tablet & small laptop – 6 in a row */
+@media (min-width: 768px){
+  .fp-cal-grid{
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+/* big screens – 8 in a row */
+@media (min-width: 1024px){
+  .fp-cal-grid{
+    grid-template-columns: repeat(8, 1fr);
+  }
+}
+
+.fp-cal-cell{
+  aspect-ratio:1/1;
+  background:white;
+  border:1px solid #e5e7eb;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:18px;
+  font-weight:600;
+}
+.fp-cal-cell--today{
+  border:2px solid #34d399;
+}
+</style>
+
+<script>
+/* ===== Calendar Logic – stacked months, scroll + tabs sync + nth + extra milestones ===== */
+(function () {
+  const modal = document.getElementById("freeplateCalendarModal");
+  if (!modal) return;
+
+  const bodyEl   = modal.querySelector(".fp-cal-body");
+  const monthsEl = modal.querySelector(".fp-cal-months");
+  const tabsWrap = modal.querySelector(".fp-cal-month-tabs");
+  const subText  = modal.querySelector(".fp-cal-sub");
+
+  const startStr   = modal.getAttribute("data-start");
+  const endStr     = modal.getAttribute("data-end");
+  const nthStr     = modal.getAttribute("data-nth") || "";
+  const repeatStr  = modal.getAttribute("data-repeat") || "0";
+  const extraStr   = modal.getAttribute("data-extra-nths") || "";
+
+  const activeStart = startStr ? new Date(startStr + "T00:00:00") : null;
+  const activeEnd   = endStr   ? new Date(endStr   + "T23:59:59") : null;
+
+  const nth    = nthStr ? parseInt(nthStr, 10) : null;
+  const repeat = repeatStr === "1";
+
+  let extraVisits = [];
+  if (extraStr.trim() !== "") {
+    extraVisits = extraStr.split(",")
+      .map(s => parseInt(s.trim(), 10))
+      .filter(n => !isNaN(n) && n > 0);
+  }
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  // ---- Build array of months in offer range ----
+  let months = [];
+  let rangeStartDate = null;
+  let rangeEndDate   = null;
+
+  if (activeStart || activeEnd) {
+    rangeStartDate = activeStart || activeEnd;
+
+    if (activeEnd) {
+      rangeEndDate = activeEnd;
+    } else {
+      if (today >= rangeStartDate) {
+        rangeEndDate = today;
+      } else {
+        rangeEndDate = new Date(
+          rangeStartDate.getFullYear(),
+          rangeStartDate.getMonth(),
+          1
+        );
+      }
+    }
+
+    let cur = new Date(
+      rangeStartDate.getFullYear(),
+      rangeStartDate.getMonth(),
+      1
+    );
+    const last = new Date(
+      rangeEndDate.getFullYear(),
+      rangeEndDate.getMonth(),
+      1
+    );
+
+    while (cur <= last) {
+      months.push({
+        year:  cur.getFullYear(),
+        month: cur.getMonth()
+      });
+      cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+    }
+  } else {
+    rangeStartDate = today;
+    rangeEndDate   = today;
+    months.push({
+      year: today.getFullYear(),
+      month: today.getMonth()
+    });
+  }
+
+  if (months.length === 0) return;
+
+  // ---- Pre-compute Nth gift days (🎁) ----
+  const giftDays = new Set();
+
+  if (nth && nth > 0 && activeStart && rangeEndDate) {
+    let gift = new Date(activeStart);
+    gift.setDate(gift.getDate() + (nth - 1));
+    gift.setHours(0,0,0,0);
+
+    // Ensure we start from >= activeStart
+    while (gift < activeStart) {
+      gift.setDate(gift.getDate() + nth);
+    }
+
+    while (gift <= rangeEndDate) {
+      if (!activeEnd || gift <= activeEnd) {
+        giftDays.add(gift.toDateString());
+      }
+      if (!repeat) break;   // only first cycle
+      gift.setDate(gift.getDate() + nth);
+    }
+  }
+
+  // ---- Pre-compute extra milestone days (⭐) ----
+  const extraDays = new Set();
+
+  if (extraVisits.length && activeStart && rangeEndDate) {
+    extraVisits.forEach(v => {
+      const d = new Date(activeStart);
+      d.setDate(d.getDate() + (v - 1));
+      d.setHours(0,0,0,0);
+
+      if (d >= activeStart && d <= rangeEndDate && (!activeEnd || d <= activeEnd)) {
+        extraDays.add(d.toDateString());
+      }
+    });
+  }
+
+  // ---- Decide initial active month ----
+  let activeYear, activeMonth;
+
+  const inOfferRange = (date) => {
+    if (!activeStart) return false;
+    if (activeEnd) return date >= activeStart && date <= activeEnd;
+    return date >= activeStart;
+  };
+
+  if (activeStart && activeEnd && inOfferRange(today)) {
+    activeYear  = today.getFullYear();
+    activeMonth = today.getMonth();
+  } else if (activeStart && !activeEnd && today >= activeStart) {
+    activeYear  = today.getFullYear();
+    activeMonth = today.getMonth();
+  } else {
+    const last = months[months.length - 1];
+    activeYear  = last.year;
+    activeMonth = last.month;
+  }
+
+  // ---- Build month sections ----
+  function buildMonthHTML(year, month){
+    const firstOfMonth = new Date(year, month, 1);
+    const label = firstOfMonth.toLocaleString("en-US", {
+      month: "long",
+      year: "numeric"
+    });
+
+    const lastDate = new Date(year, month + 1, 0).getDate();
+    let cells = "";
+
+    for (let d = 1; d <= lastDate; d++) {
+      const cellDate = new Date(year, month, d);
+      cellDate.setHours(0,0,0,0);
+      const key = cellDate.toDateString();
+
+      const isToday =
+        cellDate.getTime() === today.getTime();
+
+      const inRange =
+        activeStart &&
+        (
+          (activeEnd && cellDate >= activeStart && cellDate <= activeEnd) ||
+          (!activeEnd && cellDate >= activeStart)
+        );
+
+      const isExtra = extraDays.has(key);
+      const isGift  = !isExtra && giftDays.has(key); // extra > gift priority
+
+      const cls = ["fp-cal-cell"];
+      if (isToday) cls.push("fp-cal-cell--today");
+      if (inRange) cls.push("fp-cal-cell--active-range");
+      if (isGift)  cls.push("fp-cal-cell--gift");
+      if (isExtra) cls.push("fp-cal-cell--extra");
+
+      cells += `<button class="${cls.join(" ")}">${d}</button>`;
+    }
+
+    return `
+      <section class="fp-cal-month"
+               data-year="${year}"
+               data-month="${month}">
+        <div class="fp-cal-month-title">${label}</div>
+        <div class="fp-cal-grid">
+          ${cells}
+        </div>
+      </section>
+    `;
+  }
+
+  monthsEl.innerHTML = months.map(m => buildMonthHTML(m.year, m.month)).join("");
+
+  // ---- Tabs ----
+  function renderTabs(){
+    let html = "";
+
+    months.forEach(({year, month}) => {
+      const d = new Date(year, month, 1);
+      const label = d.toLocaleString("en-US", { month: "short" }) + " " + year;
+      const isActive = (year === activeYear && month === activeMonth);
+
+      html += `
+        <button
+          class="fp-cal-month-tab ${isActive ? "fp-cal-month-tab--active" : ""}"
+          data-year="${year}"
+          data-month="${month}"
+        >
+          ${label}
+        </button>
+      `;
+    });
+
+    tabsWrap.innerHTML = html;
+
+    tabsWrap.querySelectorAll(".fp-cal-month-tab").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const y = parseInt(btn.dataset.year, 10);
+        const m = parseInt(btn.dataset.month, 10);
+        scrollToMonth(y, m);
+        setActiveMonth(y, m);
+      });
+    });
+  }
+
+  // ---- Active state ----
+  function setActiveMonth(year, month){
+    activeYear  = year;
+    activeMonth = month;
+
+    const sections = monthsEl.querySelectorAll(".fp-cal-month");
+    sections.forEach(sec => {
+      const y = parseInt(sec.getAttribute("data-year"), 10);
+      const m = parseInt(sec.getAttribute("data-month"), 10);
+      sec.classList.toggle("fp-cal-month--active", y === year && m === month);
+    });
+
+    tabsWrap.querySelectorAll(".fp-cal-month-tab").forEach(btn => {
+      const y = parseInt(btn.dataset.year, 10);
+      const m = parseInt(btn.dataset.month, 10);
+      btn.classList.toggle("fp-cal-month-tab--active", y === year && m === month);
+    });
+
+    const labelDate = new Date(year, month, 1);
+    const label = labelDate.toLocaleString("en-US", { month: "long", year: "numeric" });
+    if (subText) {
+      subText.textContent = "Showing " + label + " (offer days highlighted)";
+    }
+  }
+
+  function scrollToMonth(year, month){
+    const target = monthsEl.querySelector(
+      `.fp-cal-month[data-year="${year}"][data-month="${month}"]`
+    );
+    if (!target) return;
+
+    const bodyRect   = bodyEl.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+
+    const offset = targetRect.top - bodyRect.top + bodyEl.scrollTop;
+
+    bodyEl.scrollTo({
+      top: offset - 8,
+      behavior: "smooth"
+    });
+  }
+
+  // ---- IntersectionObserver: scroll-based active month ----
+  const io = new IntersectionObserver((entries) => {
+    let bestEntry = null;
+
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      if (!bestEntry || entry.intersectionRatio > bestEntry.intersectionRatio) {
+        bestEntry = entry;
+      }
+    });
+
+    if (bestEntry) {
+      const sec = bestEntry.target;
+      const y = parseInt(sec.getAttribute("data-year"), 10);
+      const m = parseInt(sec.getAttribute("data-month"), 10);
+
+      if (y !== activeYear || m !== activeMonth) {
+        setActiveMonth(y, m);
+      }
+    }
+  }, {
+    root: bodyEl,
+    threshold: 0.6
+  });
+
+  monthsEl.querySelectorAll(".fp-cal-month").forEach(sec => io.observe(sec));
+
+  // ---- Initial render ----
+  renderTabs();
+  setActiveMonth(activeYear, activeMonth);
+  scrollToMonth(activeYear, activeMonth);
+})();
+</script>
+
+<script>
+/* ===== Calendar Modal Open/Close with URL hash (no ESC) ===== */
+(function () {
+  const modalId    = "freeplateCalendarModal";
+  const MODAL_HASH = "#freeplateCalendar"; // hash = modal open state
+
+  function setOpen(open){
+    const m = document.getElementById(modalId);
+    if (!m) return;
+    m.classList.toggle("open", !!open);
+  }
+
+  // Hash → modal state sync
+  function syncModalWithHash() {
+    const shouldBeOpen = (window.location.hash === MODAL_HASH);
+    setOpen(shouldBeOpen);
+  }
+
+  document.addEventListener("click", function(e){
+    // OPEN: button with data-open="#freeplateCalendarModal"
+    const openTrigger = e.target.closest('[data-open="#freeplateCalendarModal"]');
+    if (openTrigger){
+      e.preventDefault();
+      // Only change hash; hashchange handler will actually open the modal
+      if (window.location.hash !== MODAL_HASH){
+        window.location.hash = MODAL_HASH;
+      } else {
+        setOpen(true); // already same hash, just ensure open
+      }
+      return;
+    }
+
+    // CLOSE: any element with [data-close] inside this modal
+    const closeTrigger = e.target.closest('[data-close]');
+    if (closeTrigger){
+      const box = closeTrigger.closest(".oz-modal");
+      if (box && box.id === modalId){
+        e.preventDefault();
+        // If our modal hash is active, go one step back in history
+        if (window.location.hash === MODAL_HASH){
+          history.back();          // triggers hashchange → close
+        } else {
+          setOpen(false);          // fallback
+        }
+      }
+    }
+  });
+
+  // On hash change (back/forward or manual change) → sync modal
+  window.addEventListener("hashchange", syncModalWithHash);
+
+  // On first load: if URL already has #freeplateCalendar → open modal
+  document.addEventListener("DOMContentLoaded", syncModalWithHash);
+})();
+</script>

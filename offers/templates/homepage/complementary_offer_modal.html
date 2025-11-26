@@ -1,0 +1,1570 @@
+<!-- SECOND MODAL: Complementary Offer form -->
+<div id="freeplateModal" class="freeplate-modal" aria-hidden="true" role="dialog" aria-modal="true">
+
+<div class="freeplate-modal__card freeplate-modal__card--fullscreen" role="document">
+    <div class="freeplate-modal__head freeplate-sticky--top">
+      <strong>Create Offer · Complementary Offer</strong>
+      <a href="#" class="freeplate-close" data-close="#freeplateModal" aria-label="Close">✕</a>
+    </div>
+
+    <form class="freeplate-form" action="#" method="post" onsubmit="return false;">
+        {% csrf_token %}
+
+      <!-- ===== ELIGIBILITY (VISITS) ===== -->
+      <fieldset class="freeplate-group">
+        <legend>Eligibility · Visits</legend>
+
+
+<div class="freeplate-2col">
+  <!-- WAS: one big label -->
+  <div class="freeplate-field">
+    <span>Counting start</span>
+    <select name="count_start">
+      <option value="user_registration" selected>User registration date</option>
+      <option value="campaign_start">Campaign start date</option>
+    </select>
+  </div>
+
+  <div class="freeplate-field freeplate-inline">
+    <input id="backfill" type="checkbox" name="backfill">
+    <label for="backfill">Backfill if user already crossed N</label>
+  </div>
+</div>
+
+        <div class="freeplate-2col">
+          <label class="freeplate-field">
+            <span>Start date & time</span>
+            <input type="datetime-local" name="start_at" required>
+          </label>
+
+          <label class="freeplate-field">
+            <span>End date & time</span>
+            <input type="datetime-local" name="end_at">
+          </label>
+        </div>
+  
+
+
+<div class="freeplate-2col">
+  <!-- split into number field + separate checkbox label -->
+  <div class="freeplate-field">
+    <span>Free on every Nth visit</span>
+    <!-- ✅ 6 as watermark/placeholder -->
+    <input
+      type="number"
+      name="nth"
+      min="1"
+      placeholder=" e.g.6"
+    >
+    <small class="freeplate-hint">6 ⇒ eligible on 6, 12, 18…</small>
+  </div>
+
+  <div class="freeplate-field freeplate-inline">
+    <input id="repeat" type="checkbox" name="repeat">
+    <label for="repeat">Repeat on 12th, 18th… (multiples of N)</label>
+  </div>
+</div>
+
+
+
+<div class="freeplate-2col">
+  <div class="freeplate-field">
+    <span>Extra milestones (optional)</span>
+
+    <div id="fpMilestones" class="bp">
+      <div class="bp-row">
+        <input
+          type="number"
+          name="extra_nths[]"
+          min="1"
+          placeholder="e.g. 9"
+        >
+        <button type="button" class="freeplate-btn bp-add" id="fpAddMilestone">
+          + Add
+        </button>
+      </div>
+
+      <small class="freeplate-hint">
+        Eg: 9, 13, 20… (later manam meaning decide chestham – free coffee, etc.)
+      </small>
+    </div>
+  </div>
+</div>
+
+
+          <div class="freeplate-2col">
+        <label class="freeplate-field">
+          <span>Visit unit</span>
+          <select name="visit_unit">
+            <!-- QR scan + screenshot upload -->
+            <option value="qr_screenshot" selected>
+              QR scan + screenshot upload
+            </option>
+
+            <!-- QR scan + PIN entry (waiter) -->
+            <option value="qr_pin">
+              QR scan + PIN at outlet
+            </option>
+          </select>
+        </label>
+
+
+          <label class="freeplate-field">
+            <span>De-dupe window</span>
+            <div class="freeplate-inline">
+              <input type="number" name="dedupe_value" min="1" value="1" style="width:90px">
+              <select name="dedupe_unit">
+                <option value="day" selected>day</option>
+                <option value="hour">hour</option>
+                <option value="minute">minute</option>
+              </select>
+            </div>
+            <small class="freeplate-hint">Within this window, multiple logins count as 1 visit.</small>
+          </label>
+        </div>
+      </fieldset>
+
+      <!-- ===== LIMITS & SCHEDULE ===== -->
+      <fieldset class="freeplate-group">
+        <legend>Limits & Schedule</legend>
+
+        <div class="freeplate-2col">
+          <label class="freeplate-field">
+            <span>Per-user redemption</span>
+            <select name="per_user_limit">
+              <option value="per_multiple" selected>Once per eligible multiple</option>
+              <option value="once">Once only (lifetime)</option>
+            </select>
+          </label>
+
+          <label class="freeplate-field">
+            <span>Claim expiry (hours)</span>
+            <input type="number" name="claim_expiry_hours" min="1" value="24">
+          </label>
+        </div>
+
+        <div class="freeplate-2col">
+          <label class="freeplate-field">
+            <span>Total campaign cap</span>
+            <input type="number" name="total_cap" min="0" value="0">
+            <small class="freeplate-hint">0 = unlimited</small>
+          </label>
+
+          <label class="freeplate-field">
+            <span>Daily cap (per outlet)</span>
+            <input type="number" name="daily_cap" min="0" value="0">
+            <small class="freeplate-hint">0 = unlimited</small>
+          </label>
+        </div>
+
+
+
+        <div class="freeplate-2col">
+          <label class="freeplate-field">
+            <span>Active hours (daily)</span>
+            <div class="freeplate-inline">
+              <input type="time" name="active_from">
+              <span>&nbsp;to&nbsp;</span>
+              <input type="time" name="active_to">
+            </div>
+            <small class="freeplate-hint">Leave empty for all day.</small>
+          </label>
+
+<!-- Eligible branches (replaces old text input) -->
+<div class="freeplate-field" id="branchPicker">
+  <span>Eligible branches</span>
+
+  <label class="freeplate-inline" style="margin-bottom:8px;">
+    <input type="checkbox" id="allBranches" name="all_branches">
+    <span>All branches</span>
+  </label>
+
+  <div class="branch-picker">
+    <div class="branch-picker__row">
+      <input id="branchSearch" type="text" placeholder="Search branches…" autocomplete="off" > 
+      <button type="button" id="btnAddBranch" class="freeplate-btn" style="margin-left:8px;">+ Add branch</button>
+    </div>
+
+    <div id="branchResults" class="branch-picker__dropdown" role="listbox" aria-label="Search results"></div>
+
+    <div id="branchChips" class="branch-picker__chips" aria-live="polite"></div>
+    <input type="hidden" name="branch_ids" id="branchIds">
+  </div>
+
+  <small class="freeplate-hint">Pick one or more. If you need a new branch, click “Add branch”.</small>
+</div>
+
+
+
+
+        </div>
+      </fieldset>
+
+<!-- ===== REDEMPTION (simplified — always QR + PIN) ===== -->
+<fieldset class="freeplate-group">
+  <legend>Redemption</legend>
+  <div class="freeplate-field">
+    <span>Mode</span>
+    <div class="freeplate-hint">
+      QR will be shown to the user and a short one-time PIN is also displayed as fallback.
+      (PIN auto-generated, short-lived, no admin input needed.)
+    </div>
+  </div>
+</fieldset>
+
+
+      <!-- ===== TARGETING ===== -->
+<!-- Targeting -->
+<fieldset class="freeplate-group">
+  <legend>Targeting</legend>
+  <div class="freeplate-2col">
+
+    <!-- User segment (normal field wrapper, NOT a label) -->
+    <div class="freeplate-field">
+      <span>User segment</span>
+      <select name="segment">
+        <option value="all" selected>All users</option>
+        <option value="new_30">New users (≤ 30 days)</option>
+        <option value="custom">Custom</option>
+      </select>
+    </div>
+
+    <!-- Exclude admin (only this label ties to this checkbox) -->
+    <div class="freeplate-field freeplate-inline">
+      <input id="exclude_admin" type="checkbox" name="exclude_admin" checked>
+      <label for="exclude_admin">Exclude admin / test accounts</label>
+    </div>
+
+  </div>
+
+
+</fieldset>
+
+
+      <div class="freeplate-preview">
+        <small class="freeplate-hint">Preview: with N=<strong>6</strong>, repeat ON → eligible on 6, 12, 18… (from registration; 1/day de-dupe).</small>
+      </div>
+
+      <div class="freeplate-actions freeplate-sticky--bottom">
+        <a href="#" class="freeplate-btn freeplate-btn--ghost" data-open="#offerModal">Back</a>
+        <button type="button" class="freeplate-btn" id="offerSaveBtn">Save</button>
+      </div>
+    </form>
+  </div>
+
+<!-- put this AFTER the closing </form> of the Complementary Offer form (or even at the end of body) -->
+<div id="branchAddModal" class="freeplate-modal" aria-hidden="true" role="dialog" aria-modal="true">
+  <div class="freeplate-modal__card" role="document">
+    <div class="freeplate-modal__head">
+      <strong>Add Branch</strong>
+    </div>
+    <a href="#" class="freeplate-close" data-close="#branchAddModal" aria-label="Close">✕</a>
+
+
+    <!-- Standalone form (NOT nested) -->
+<form id="branchAddForm" novalidate>
+  {% csrf_token %}
+  <div class="freeplate-form" style="padding:16px">
+    <label class="freeplate-field" for="newBranchName">
+      <span>Branch name</span>
+      <input type="text" id="newBranchName" name="name" required pattern="[a-z0-9]*"  title="Only lowercase letters and numbers (no spaces)">
+    </label>
+
+    <!-- ✅ New: Branch email -->
+    <label class="freeplate-field" for="newBranchEmail">
+      <span>Branch email (optional)</span>
+      <input type="email" id="newBranchEmail" name="email" placeholder="name@branch.com">
+    </label>
+  </div>
+
+      <!-- ✅ Manual coordinates (no geolocation) -->
+    <div class="freeplate-2col" style="margin-top:8px">
+      <label class="freeplate-field" for="newBranchLat">
+        <span>Latitude</span>
+        <input
+          type="number"
+          id="newBranchLat"
+          name="latitude"
+          inputmode="decimal"
+          placeholder="e.g., 17.385044"
+          step="0.000001"
+          min="-90"
+          max="90"
+        >
+        <small class="freeplate-hint">Range −90 to +90 (up to 6 decimals).</small>
+      </label>
+
+      <label class="freeplate-field" for="newBranchLon">
+        <span>Longitude</span>
+        <input
+          type="number"
+          id="newBranchLon"
+          name="longitude"
+          inputmode="decimal"
+          placeholder="e.g., 78.486671"
+          step="0.000001"
+          min="-180"
+          max="180"
+        >
+        <small class="freeplate-hint">Range −180 to +180 (up to 6 decimals).</small>
+      </label>
+    </div>
+
+
+  <div class="freeplate-actions">
+    <button type="button" class="freeplate-btn freeplate-btn--ghost" data-close="#branchAddModal">Cancel</button>
+    <button type="submit" class="freeplate-btn" id="branchSaveBtn">Save</button>
+  </div>
+</form>
+
+</div>
+</div>
+
+</div>
+<style>
+  .bp-invalid { border-color:#f77 !important; }
+  .bp-hint { display:block; margin-top:6px; font-size:12px; color:#ffb3b3; }
+</style>
+
+
+<style>
+.bp{ display:flex; flex-direction:column; gap:8px; }
+.bp-row{ display:flex; gap:8px; align-items:center; }
+.bp-row input{ flex:1 1 auto; padding:8px; }
+.bp-add{ white-space:nowrap; }
+
+.bp-chips{ display:flex; flex-wrap:wrap; gap:6px; }
+.bp-chip{ display:inline-flex; align-items:center; gap:8px; background:#eef2ff; padding:6px 10px; border-radius:999px; }
+.bp-chip b{ font-weight:700; color:#0b1020; }
+.bp-chip button{ border:none; background:transparent; cursor:pointer; font-weight:800; }
+
+.bp-menu{ position:relative; }
+.bp-menu[hidden]{ display:none; }
+.bp-menu > ul{
+  position:absolute; left:0; right:0; z-index:5;
+  background:#fff; border:1px solid #e9eef5; border-radius:8px;
+  box-shadow:0 8px 24px rgba(0,0,0,.08); margin:0; padding:6px 0; list-style:none;
+  max-height:220px; overflow:auto;
+}
+.bp-menu li{ padding:8px 12px; cursor:pointer; }
+.bp-menu li:hover{ background:#f5f7ff; }
+</style>
+
+<style>
+  /* ===== Branch Picker (clean) ===== */
+.branch-picker { position: relative; }
+
+/* search row */
+.branch-picker__row { display:flex; gap:8px; align-items:center; }
+#branchSearch{
+  flex:1 1 auto; width:100%;
+  padding:10px 12px; border:1px solid #d8dee9; border-radius:8px;
+  font-size:14px; color:#0b1020; background:#fff;
+}
+
+/* chips */
+.branch-picker__chips{
+  display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;
+}
+.branch-picker__chips .bp-chip{
+  display:inline-flex; align-items:center; gap:8px;
+  background:#eef2ff; color:#0b1020; font-weight:700;
+  padding:6px 10px; border-radius:999px;
+}
+.branch-picker__chips .bp-chip button{
+  border:0; background:transparent; cursor:pointer; font-weight:800; line-height:1;
+}
+
+/* dropdown */
+.branch-picker__dropdown{
+  position:absolute; top: calc(100% + 6px); left:0; right:0;
+  background:#ffffff; border:1px solid #e4e8f0; border-radius:10px;
+  box-shadow:0 12px 28px rgba(11,16,32,.12);
+  max-height:260px; overflow:auto; z-index:200; display:none; padding:6px 0;
+}
+.branch-picker__dropdown.open{ display:block; }
+
+/* items */
+.branch-picker__dropdown ul{ list-style:none; margin:0; padding:0; }
+.branch-picker__dropdown li{
+  padding:10px 12px; cursor:pointer; color:#0b1020; font-weight:600;
+}
+.branch-picker__dropdown li:hover,
+.branch-picker__dropdown li[aria-selected="true"]{
+  background:#eef2ff;
+}
+
+/* make sure the dropdown text never gets faded by parent styles */
+.branch-picker__dropdown, 
+.branch-picker__dropdown * { opacity:1 !important; }
+
+/* small helper button style (uses your existing .freeplate-btn base) */
+.freeplate-btn{
+  border:1px solid #d8dee9; background:#f7f9fc; border-radius:10px;
+  padding:8px 12px; font-weight:700; cursor:pointer;
+}
+.freeplate-btn:hover{ background:#eef2ff; }
+
+</style>
+
+
+<style>
+  /* === Complementary Offer Modal — Clean CSS === */
+
+/* Backdrop + visibility (single definition) */
+.freeplate-modal{
+  position: fixed; inset: 0;
+  display: none;                 /* hidden by default */
+  place-items: center;
+  background: rgba(0,0,0,.65);   /* dim overlay */
+  z-index: 60;                   /* above oz-modal */
+  overflow: auto;                /* allow page scroll inside overlay */
+  overscroll-behavior: contain;
+}
+.freeplate-modal.open,
+.freeplate-modal[aria-hidden="false"]{ display: grid; }
+
+/* Modal card: white bg, capped height, column layout */
+.freeplate-modal__card{
+  width: min(960px, 96vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #ffffff;           /* ← ensure not transparent */
+}
+
+/* Sticky header/footer helpers */
+.freeplate-sticky--top{ position: sticky; top: 0; z-index: 2; }
+.freeplate-sticky--bottom{ position: sticky; bottom: 0; z-index: 2; }
+
+/* Scroll area = form body */
+.freeplate-form{
+  flex: 1 1 auto;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 8px;
+}
+
+/* Inputs/selects general sizing */
+.freeplate-form input[type="number"],
+.freeplate-form input[type="text"],
+.freeplate-form input[type="datetime-local"],
+.freeplate-form input[type="time"],
+.freeplate-form select{
+  width: 100%;
+  min-width: 150px;
+  box-sizing: border-box;
+  padding: 8px;
+}
+
+/* Label block */
+.freeplate-field{ display: block; }
+
+/* --- Only FIRST fieldset → 2 columns layout --- */
+.freeplate-group:first-of-type{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+/* Flatten inner rows to flow into the grid */
+.freeplate-group:first-of-type > .freeplate-2col{ display: contents; }
+/* Fields fit their grid cell */
+.freeplate-group:first-of-type .freeplate-field{ width: 100%; }
+
+/* De-dupe inline controls side-by-side */
+.freeplate-group:first-of-type .freeplate-inline{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+.freeplate-group:first-of-type .freeplate-inline input[type="number"],
+.freeplate-group:first-of-type .freeplate-inline select{
+  width: auto !important; /* override global 100% */
+  flex: 0 0 auto;
+}
+.freeplate-group:first-of-type .freeplate-inline input[type="number"]{
+  min-width: 90px;
+  text-align: left;
+}
+.freeplate-group:first-of-type .freeplate-inline select{
+  min-width: 120px;
+}
+/* Headings inside each fieldset */
+.freeplate-group > legend{
+  font-weight: 700;
+  color: #0b1020;
+  background: #eef2ff;
+  padding: 6px 10px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+/* Field names (first <span> inside each .freeplate-field) */
+.freeplate-field > span:first-child{
+  display: block;
+  font-weight: 600;
+  color: #0b1020;        /* dark text on white card */
+  letter-spacing: .2px;
+  margin-bottom: 6px;    /* space above input */
+}
+
+/* Inline checkbox/controls: keep label text bold & aligned */
+.freeplate-field.freeplate-inline{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.freeplate-field.freeplate-inline > span{
+  font-weight: 600;
+  color: #0b1020;
+}
+
+.freeplate-field.freeplate-inline label{ cursor: pointer; }
+
+
+/* Hint text stays subtle */
+.freeplate-hint{
+  display: block;
+  color: #6b7280;
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+/* Field name titles – a tad bigger & bolder */
+.freeplate-field > span:first-child{
+  display:block;
+  font-weight:700;        /* was 600 */
+  font-size:16px;         /* highlight */
+  color:#0b1020;
+  letter-spacing:.2px;
+  margin-bottom:8px;
+}
+
+/* Any checkbox text inside a field – make it clear & not faded */
+.freeplate-field input[type="checkbox"] + span{
+  font-weight:600;
+  color:#0b1020;
+  opacity:1;              /* remove any faded look */
+}
+
+/* If you ever disable a checkbox, only then fade its text */
+.freeplate-field input[type="checkbox"]:disabled + span{
+  opacity:.5;
+}
+
+/* ✅ Checkbox label text — make it dark & bold */
+.freeplate-field input[type="checkbox"] + label,
+.freeplate-field.freeplate-inline label,
+.freeplate-check span {
+  font-weight: 600;
+  color: #0b1020;
+  opacity: 1;
+}
+
+/* 🚫 Only fade when checkbox is disabled */
+.freeplate-field input[type="checkbox"]:disabled + label {
+  opacity: .5;
+}
+
+/* Legend chip—slightly stronger contrast */
+.freeplate-group > legend{
+  font-weight:800;
+  color:#0b1020;
+  background:#e6ebff;     /* a bit darker than before */
+  padding:6px 12px;
+  border-radius:10px;
+}
+/* ===== Modal header: make links & title crisp ===== */
+.freeplate-modal__head{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:12px 16px;
+  background:#fff;                /* no transparency */
+  border-bottom:1px solid #e9eef5;
+}
+
+/* Title stronger */
+.freeplate-modal__head strong{
+  font-weight:800;
+  color:#0b1020;
+  letter-spacing:.2px;
+}
+
+/* Generic header links (Back & Close) */
+.freeplate-modal__head a{
+  color:#0b5cff;                  /* bright link */
+  font-weight:700;
+  text-decoration:none;
+  opacity:1;                      /* kill any inherited fade */
+}
+
+/* Back link → chip highlight */
+.freeplate-back{
+  display:inline-flex; align-items:center; gap:8px;
+  background:#eaf0ff;             /* soft blue tint */
+  color:#0b5cff;
+  padding:6px 10px;
+  border-radius:10px;
+  box-shadow:0 1px 0 rgba(0,0,0,.04);
+}
+.freeplate-back:hover{ background:#dfe7ff; }
+.freeplate-back:active{ background:#d4defe; }
+.freeplate-back:focus{ outline:2px solid #bcd0ff; outline-offset:2px; }
+
+/* Close (✕) clearer */
+.freeplate-close{
+  color:#0b1020;
+  font-weight:800;
+  padding:4px 8px;
+  border-radius:8px;
+}
+.freeplate-close:hover{ background:#f2f4f8; }
+.freeplate-close:focus{ outline:2px solid #cfd8ff; outline-offset:2px; }
+
+/* ===== Bottom bar: keep visible and highlight Back link ===== */
+.freeplate-actions{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:12px 16px;
+  background:#fff;                /* solid white */
+  border-top:1px solid #e9eef5;
+}
+
+.freeplate-btn{                    /* Save button (existing) */
+  font-weight:700;
+}
+
+/* Ghost Back in footer → same chip style */
+.freeplate-actions .freeplate-btn--ghost{
+  background:#eaf0ff;
+  color:#0b5cff;
+  font-weight:700;
+  border-radius:10px;
+  padding:8px 12px;
+  text-decoration:none;
+}
+.freeplate-actions .freeplate-btn--ghost:hover{ background:#dfe7ff; }
+.freeplate-actions .freeplate-btn--ghost:focus{ outline:2px solid #bcd0ff; outline-offset:2px; }
+
+/* Avoid visited links becoming dull */
+.freeplate-modal__head a:visited,
+.freeplate-actions a:visited{
+  color:#0b5cff;
+  opacity:1;
+}
+
+
+/* ==== Full-screen modal (edge-to-edge) ==== */
+.freeplate-modal{
+  place-items: stretch;           /* stretch card to full width */
+}
+
+.freeplate-modal__card--fullscreen{
+  width: 100vw;
+  height: 100vh;                  /* full height */
+  max-height: none;               /* remove earlier cap */
+  border-radius: 0;               /* no rounded corners */
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+
+/* Header & footer stay visible while body scrolls */
+.freeplate-modal__head,
+.freeplate-actions{
+  position: sticky;
+  left: 0; right: 0;
+  background: #fff;
+  z-index: 2;
+}
+
+/* Scrollable body */
+.freeplate-form{
+  flex: 1 1 auto;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;                  /* inner padding for content */
+}
+
+/* Safe-area padding for notch devices */
+@supports (padding: max(0px)) {
+  .freeplate-modal__head{ padding-top: max(12px, env(safe-area-inset-top)); }
+  .freeplate-actions{ padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+  .freeplate-modal__card--fullscreen{
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+
+/* --- Small screens --- */
+@media (max-width: 520px){
+  .freeplate-group:first-of-type{ grid-template-columns: 1fr; }
+  .freeplate-group:first-of-type .freeplate-inline{ flex-wrap: wrap; }
+  .freeplate-group:first-of-type .freeplate-inline select{
+    flex: 1 1 160px; /* dropdown can wrap to next line nicely */
+  }
+}
+
+</style>
+
+<!-- ✅ Complementary Offer: N + Extra milestones must stay within date range -->
+
+<script>
+(() => {
+  const startInput = document.querySelector('input[name="start_at"]');
+  const endInput   = document.querySelector('input[name="end_at"]');
+  const nthInput   = document.querySelector('input[name="nth"]');
+  const repeatCb   = document.getElementById('repeat');
+  const fpBlock    = document.getElementById('fpMilestones');
+  const addBtn     = document.getElementById('fpAddMilestone');
+
+  if (!startInput || !endInput || !nthInput || !fpBlock) return;
+
+  function getAllMilestones() {
+    return Array.from(
+      fpBlock.querySelectorAll('input[name="extra_nths[]"]')
+    );
+  }
+
+  // date range → max possible visits (days, inclusive)
+  function getMaxVisits() {
+    if (!startInput.value || !endInput.value) return null;
+
+    const s = new Date(startInput.value);
+    const e = new Date(endInput.value);
+    if (isNaN(s) || isNaN(e) || e < s) return null;
+
+    const diffMs  = e.getTime() - s.getTime();
+    const diffDay = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1; // inclusive
+    return diffDay > 0 ? diffDay : null;
+  }
+
+  // enable/disable Add button based on HOW MANY milestones we already have
+  function updateAddButton(max) {
+    if (!addBtn) return;
+    const currentCount = getAllMilestones().length;    // ❗ only milestones count
+    const shouldDisable = !max || currentCount >= max; // max == days in range
+    addBtn.disabled = shouldDisable;
+  }
+
+  // enable/disable whole block
+  function setDisabled(disabled) {
+    [nthInput, repeatCb, addBtn].forEach(el => {
+      if (!el) return;
+      el.disabled = disabled;
+      const field = el.closest('.freeplate-field');
+      if (field) field.classList.toggle('is-disabled', disabled);
+    });
+
+    getAllMilestones().forEach(inp => {
+      inp.disabled = disabled;
+    });
+  }
+
+  // clamp one input to [1, max]
+  function clampInputToMax(input, max) {
+    if (!input) return;
+    if (!max) {
+      input.removeAttribute('max');
+      return;
+    }
+    input.max = String(max);
+    if (!input.value) return;
+    let v = parseInt(input.value, 10);
+    if (isNaN(v) || v < 1) v = 1;
+    if (v > max) v = max;
+    input.value = v;
+  }
+
+  // attach change handler for individual inputs
+  // showError = true → small error if > max
+  function attachClamp(input, showError) {
+    if (!input) return;
+    input.addEventListener('change', () => {
+      const max = getMaxVisits();
+      if (!max) return;
+
+      let v = parseInt(input.value, 10);
+      if (isNaN(v) || v < 1) v = 1;
+
+      if (v > max) {
+        if (showError) {
+          alert(`You can't enter more than ${max} days for this date range.`);
+        }
+        v = max;
+      }
+
+      input.value = v;
+      input.max = String(max);
+    });
+  }
+
+
+  // add-row logic
+  function createMilestoneRow() {
+    const max = getMaxVisits();
+    if (max && getAllMilestones().length >= max) {
+      // already at max milestones for this date range
+      return;
+    }
+
+    const row = document.createElement('div');
+    row.className = 'bp-row';
+    row.innerHTML = `
+      <input
+        type="number"
+        name="extra_nths[]"
+        min="1"
+        placeholder="e.g. 13"
+      >
+      <button type="button" class="freeplate-btn bp-add" aria-label="Remove">×</button>
+    `;
+
+    const inp = row.querySelector('input[name="extra_nths[]"]');
+    const btn = row.querySelector('button');
+
+    attachClamp(inp);
+    btn.addEventListener('click', () => {
+      row.remove();
+      // after removing, re-enable Add if we dropped below the limit
+      updateAddButton(getMaxVisits());
+    });
+
+    const hint = fpBlock.querySelector('.freeplate-hint');
+    fpBlock.insertBefore(row, hint || null);
+
+    // apply current max immediately
+    if (max) clampInputToMax(inp, max);
+    updateAddButton(max);
+  }
+
+  if (addBtn) {
+    addBtn.addEventListener('click', () => {
+      createMilestoneRow();
+    });
+  }
+
+  // first (existing) milestone input also clamp
+  getAllMilestones().forEach(attachClamp);
+  // user changes Nth → still clamp to date range, but ONLY on user change
+  attachClamp(nthInput);
+
+  // called when dates change
+  function refreshState() {
+    const max = getMaxVisits();
+    const hasRange = !!max;
+
+    // enable/disable block
+    setDisabled(!hasRange);
+
+    // **IMPORTANT**: for Nth we only update max attr, we DON'T touch value
+    if (max)      nthInput.max = String(max);
+    else          nthInput.removeAttribute('max');
+
+    // milestones still fully clamped
+    getAllMilestones().forEach(inp => clampInputToMax(inp, max));
+
+    // update Add button state (how many milestone rows allowed)
+    updateAddButton(max);
+  }
+
+  // initial + listeners
+  refreshState();
+  startInput.addEventListener('change', refreshState);
+  endInput.addEventListener('change', refreshState);
+})();
+</script>
+
+
+<!-- date disable logic in calender -->
+
+<!-- date disable logic in calender -->
+<script>
+(() => {
+  // helper: 2-digit pad
+  const pad = (n) => String(n).padStart(2, "0");
+
+  // html datetime-local format: yyyy-MM-ddTHH:mm
+  function getNowLocalForDatetime() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = pad(d.getMonth() + 1);
+    const day = pad(d.getDate());
+    const h = pad(d.getHours());
+    const min = pad(d.getMinutes());
+    return `${y}-${m}-${day}T${h}:${min}`;
+  }
+
+  const startInput = document.querySelector('input[name="start_at"]');
+  const endInput   = document.querySelector('input[name="end_at"]');
+
+  if (!startInput || !endInput) return;
+
+  // current datetime
+  const minVal   = getNowLocalForDatetime();
+  const dayPart  = minVal.slice(0, 10);      // yyyy-MM-dd
+  const endOfDay = `${dayPart}T23:59`;       // same day 23:59
+
+  // --- set min and default values ---
+
+  // START: min = now, default = now (if empty)
+  startInput.min = minVal;
+  if (!startInput.value) {
+    startInput.value = minVal;
+    // inform other scripts (Nth/milestones) that value changed
+    startInput.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  // END: min = now, default = today 23:59 (if empty)
+  endInput.min = minVal;
+  if (!endInput.value) {
+    endInput.value = endOfDay;
+    endInput.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  // --- clamp helpers (prevent going before min) ---
+  function clampToMin(input) {
+    if (!input) return;
+    input.addEventListener("change", () => {
+      if (input.value && input.value < minVal) {
+        input.value = minVal;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+  }
+
+  clampToMin(startInput);
+  clampToMin(endInput);
+})();
+</script>
+
+
+<script>
+(function () {
+  const HASH    = '#freeplateModal';
+  const baseUrl = location.pathname + location.search;
+
+  const freeplateModal = document.getElementById('freeplateModal');
+  const branchAddModal = document.getElementById('branchAddModal');
+  if (!freeplateModal) return;
+
+  // ---------- helpers ----------
+  function bodyLockMaybe() {
+    const anyOpen = document.querySelector('.freeplate-modal.open');
+    document.body.classList.toggle('modal-open', !!anyOpen);
+  }
+
+  function setModalOpenById(target, open) {
+    const el = typeof target === 'string' ? document.querySelector(target) : target;
+    if (!el) return;
+    el.setAttribute('aria-hidden', open ? 'false' : 'true');
+    el.classList.toggle('open', !!open);
+    bodyLockMaybe();
+  }
+
+  window.FreeplateModals = { setOpen: setModalOpenById };
+
+  function showFreeplate(fromPopState) {
+    setModalOpenById(freeplateModal, true);
+
+    // manual open appude hash push cheyyi
+    if (!fromPopState && window.history && history.pushState) {
+      history.pushState({ freeplateModal: true }, '', baseUrl + HASH);
+    }
+  }
+
+  function hideFreeplate(fromPopState) {
+    setModalOpenById(freeplateModal, false);
+
+    // manual close appude → back button la behave avvali
+    if (!fromPopState && window.history && location.hash === HASH && history.length > 1) {
+      history.back();
+    }
+  }
+
+  // ---------- 1) Open freeplate modal (from Create Offer tile) ----------
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-open="#freeplateModal"], [data-open="freeplateModal"]');
+    if (!btn) return;
+
+    e.preventDefault();
+
+    // offerModal ni visual ga close cheyyi (history ni touch cheyyakunda)
+    const offerModal = document.getElementById('offerModal');
+    if (offerModal) {
+      offerModal.classList.remove('open');
+      offerModal.setAttribute('aria-hidden', 'true');
+    }
+
+    // form reset + defaults (nee existing logic)
+    const form = document.querySelector('.freeplate-form');
+    if (form) {
+      try { form.reset(); } catch (_) {}
+      window.FreeplateBranchPicker?.reset();
+
+      const startInput = form.querySelector('input[name="start_at"]');
+      const endInput   = form.querySelector('input[name="end_at"]');
+      if (startInput && endInput) {
+        const pad = (n) => String(n).padStart(2, '0');
+        const d   = new Date();
+        const y   = d.getFullYear();
+        const m   = pad(d.getMonth() + 1);
+        const day = pad(d.getDate());
+        const h   = pad(d.getHours());
+        const min = pad(d.getMinutes());
+
+        const minVal   = `${y}-${m}-${day}T${h}:${min}`;
+        const endOfDay = `${y}-${m}-${day}T23:59`;
+
+        startInput.min   = minVal;
+        endInput.min     = minVal;
+        startInput.value = minVal;
+        endInput.value   = endOfDay;
+
+        startInput.dispatchEvent(new Event('change', { bubbles: true }));
+        endInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+
+    showFreeplate(false);
+  });
+
+  // ---------- 2) Back button inside freeplate → history.back() ----------
+  document.addEventListener('click', (e) => {
+    const back = e.target.closest('.freeplate-actions [data-open="#offerModal"]');
+    if (!back) return;
+    e.preventDefault();
+
+    // history stack lo mundu #offerModal / base page undi
+    if (location.hash === HASH && history.length > 1) {
+      history.back();
+    } else {
+      // fallback: hashes lekunda direct ga switch cheyyali ante
+      hideFreeplate(true);
+      const offerModal = document.getElementById('offerModal');
+      if (offerModal) {
+        offerModal.classList.add('open');
+        offerModal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('modal-open');
+      }
+    }
+  });
+
+  // ---------- 3) Generic [data-close] (freeplate / branchAdd) ----------
+  document.addEventListener('click', (e) => {
+    const closeBtn = e.target.closest('[data-close]');
+    if (!closeBtn) return;
+
+    const sel   = closeBtn.getAttribute('data-close');
+    const modal = sel
+      ? document.querySelector(sel)
+      : closeBtn.closest('.freeplate-modal');
+
+    if (!modal) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (modal === freeplateModal) {
+      hideFreeplate(false);
+    } else {
+      setModalOpenById(modal, false); // branchAddModal etc
+    }
+  });
+
+  // ---------- 4) Backdrop click ----------
+  [freeplateModal, branchAddModal].forEach((modal) => {
+    if (!modal) return;
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        if (modal === freeplateModal) {
+          hideFreeplate(false);
+        } else {
+          setModalOpenById(modal, false);
+        }
+      }
+    });
+  });
+
+  // ---------- 5) ESC key ----------
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+
+    // freeplate open unte → hash respect cheyyali
+    if (freeplateModal.classList.contains('open')) {
+      hideFreeplate(false);
+      return;
+    }
+
+    // lekapothe inko freeplate-modal (branchAdd) open unte direct close
+    const other = document.querySelector('.freeplate-modal.open');
+    if (other && other !== freeplateModal) {
+      setModalOpenById(other, false);
+    }
+  });
+
+  // ---------- 6) popstate → URL hash to modal sync ----------
+  window.addEventListener('popstate', () => {
+    if (location.hash === HASH) {
+      // browser back/forward valla hash #freeplateModal aithe → open it
+      showFreeplate(true);
+    } else {
+      // vere hash / no hash → freeplate close
+      setModalOpenById(freeplateModal, false);
+    }
+  });
+
+  // ---------- 7) direct /deep link: ...#freeplateModal ----------
+  if (location.hash === HASH) {
+    showFreeplate(true);
+  }
+})();
+</script>
+
+<!-- qr manage script -->
+
+<script>
+  // static/js/qr.js
+(function () {
+  function renderQRImg(payload) {
+    var holder = document.getElementById('qrCanvasHolder');
+    if (!holder) return;
+    var data = payload || window.location.href;
+    var url =
+      'https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=0&data=' +
+      encodeURIComponent(data);
+
+    holder.innerHTML =
+      '<img alt="QR" width="180" height="180" src="' +
+      url +
+      '&t=' +
+      Date.now() +
+      '">';
+  }
+
+  // Optional public API
+  window.FreeplateQR = {
+    render: renderQRImg
+  };
+
+  // Auto hook: whenever a button opens #qrcodeModal, render QR
+  document.addEventListener('click', function (e) {
+    var openEl = e.target.closest('[data-open]');
+    if (!openEl) return;
+
+    var target = openEl.getAttribute('data-open');
+    if (target === '#qrcodeModal' || target === 'qrcodeModal') {
+      var payload = openEl.getAttribute('data-qr') || window.location.href;
+      // render *after* modal opens
+      setTimeout(function () {
+        renderQRImg(payload);
+      }, 0);
+    }
+  });
+})();
+</script>
+
+
+<!-- validation for branch name to prevent special charatcers -->
+
+<script>
+(() => {
+  const searchEl = document.getElementById('branchSearch');
+  const addBtn   = document.getElementById('btnAddBranch');
+
+  // If you have an input inside your “Add branch” modal, give it id="newBranchName"
+  const nameEl   = document.getElementById('newBranchName'); // may not exist yet
+
+  // allow only lowercase a-z and 0-9
+  const sanitize = v => v
+    .toLowerCase()        // auto lowercase
+    .replace(/\s+/g, '')  // remove spaces
+    .replace(/[^a-z0-9]/g, ''); // remove special chars
+
+  function attachCleaners(inputEl) {
+    if (!inputEl) return;
+
+    // block space key
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === ' ') e.preventDefault();
+    });
+
+    // live sanitize
+    inputEl.addEventListener('input', () => {
+      const before = inputEl.value;
+      const after  = sanitize(before);
+      if (before !== after) {
+        inputEl.value = after;
+        // optional invalid style if user tried bad chars
+        inputEl.classList.add('bp-invalid');
+      } else {
+        inputEl.classList.remove('bp-invalid');
+      }
+      // If you trigger search as they type, do it here:
+      // triggerBranchSearch(after);
+    });
+
+    // final cleanup on blur (handles paste)
+    inputEl.addEventListener('blur', () => {
+      inputEl.value = sanitize(inputEl.value);
+      inputEl.classList.remove('bp-invalid');
+    });
+  }
+
+  attachCleaners(searchEl);
+  attachCleaners(nameEl);
+
+  // If your “Add branch” modal is created dynamically, re-attach when opened
+  if (addBtn) {
+    addBtn.addEventListener('click', () => {
+      // wait a tick for modal DOM
+      setTimeout(() => {
+        const lateNameEl = document.getElementById('newBranchName');
+        attachCleaners(lateNameEl);
+      }, 0);
+    });
+  }
+
+  // Expose a helper if other scripts need the normalized value
+  window.normalizeBranchName = sanitize;
+})();
+</script>
+
+<!-- search box branch and add branch logic here entire script -->
+
+<script>
+(() => {
+  const API = {
+    search: "{% url 'offers:branches_search' %}",
+    create: "{% url 'offers:branches_create' %}",
+  };
+
+  const form          = document.querySelector('.freeplate-form');
+  const chipsEl       = document.getElementById('branchChips');
+  const searchEl      = document.getElementById('branchSearch');
+  const resultsEl     = document.getElementById('branchResults');
+  const idsEl         = document.getElementById('branchIds');
+  const addBtn        = document.getElementById('btnAddBranch');
+  const allBranchesCb = document.getElementById('allBranches');
+
+  const addForm    = document.getElementById('branchAddForm');
+  const nameInput  = document.getElementById('newBranchName');
+  const emailInput = document.getElementById('newBranchEmail');
+  const latInput   = document.getElementById('newBranchLat');
+  const lonInput   = document.getElementById('newBranchLon');
+
+  if (!form || !chipsEl || !searchEl || !resultsEl || !idsEl) return;
+
+  const selected   = new Map(); // id -> name
+  let listItems    = [];
+  let highlighted  = -1;
+  let aborter      = null;
+  let debT         = null;
+
+  const getCSRF = () =>
+    form.querySelector('input[name=csrfmiddlewaretoken]')?.value || '';
+
+  const setIds = () => { idsEl.value = JSON.stringify([...selected.keys()]); };
+
+  const renderChips = () => {
+    chipsEl.innerHTML = '';
+    selected.forEach((name, id) => {
+      const chip = document.createElement('span');
+      chip.className = 'bp-chip';
+      chip.innerHTML = `<b>${name}</b><button type="button" aria-label="Remove">×</button>`;
+      chip.querySelector('button').onclick = () => {
+        selected.delete(id);
+        setIds(); renderChips();
+        doSearch(searchEl.value.trim());
+      };
+      chipsEl.appendChild(chip);
+    });
+  };
+
+  const clearResults = () => {
+    resultsEl.innerHTML = '';
+    resultsEl.classList.remove('open');
+    listItems = [];
+    highlighted = -1;
+  };
+
+  const applyHighlight = () => {
+    [...resultsEl.querySelectorAll('li')].forEach((li, i) => {
+      li.setAttribute('aria-selected', i === highlighted ? 'true' : 'false');
+    });
+  };
+
+  const selectBranch = (it) => {
+    if (!selected.has(it.id)) {
+      selected.set(it.id, it.name);
+      setIds(); renderChips();
+    }
+    searchEl.value = '';
+    doSearch('');
+    searchEl.focus();
+  };
+
+  const showResults = (items) => {
+    const filtered = (items || []).filter(it => !selected.has(it.id));
+    if (!filtered.length) { clearResults(); return; }
+
+    listItems = filtered;
+    const ul = document.createElement('ul');
+    filtered.forEach((it) => {
+      const li = document.createElement('li');
+      li.textContent = it.name;
+      li.setAttribute('role', 'option');
+      li.onclick = () => selectBranch(it);
+      ul.appendChild(li);
+    });
+
+    resultsEl.innerHTML = '';
+    resultsEl.appendChild(ul);
+    resultsEl.classList.add('open');
+    highlighted = 0; applyHighlight();
+  };
+
+  const doSearch = (q) => {
+    if (aborter) aborter.abort();
+    aborter = new AbortController();
+    const url = API.search + (q ? ('?q=' + encodeURIComponent(q)) : '');
+    fetch(url, { credentials: 'same-origin', signal: aborter.signal })
+      .then(r => r.ok ? r.json() : [])
+      .then(list => showResults(list || []))
+      .catch(() => {});
+  };
+
+  // search box → fetch branches
+  searchEl.addEventListener('focus', () => doSearch(searchEl.value.trim()));
+  searchEl.addEventListener('click',  () => doSearch(searchEl.value.trim()));
+  searchEl.addEventListener('input', () => {
+    clearTimeout(debT);
+    const q = searchEl.value.trim();
+    debT = setTimeout(() => doSearch(q), 160);
+  });
+
+  // keyboard nav in dropdown
+  searchEl.addEventListener('keydown', (e) => {
+    if (!resultsEl.classList.contains('open')) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      highlighted = Math.min(highlighted + 1, listItems.length - 1);
+      applyHighlight();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      highlighted = Math.max(highlighted - 1, 0);
+      applyHighlight();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (listItems[highlighted]) selectBranch(listItems[highlighted]);
+    } else if (e.key === 'Escape') {
+      clearResults();
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!resultsEl.contains(e.target) && e.target !== searchEl) clearResults();
+  });
+
+  function togglePickerDisabled() {
+    const disabled = allBranchesCb?.checked;
+    [searchEl, addBtn].forEach(el => el && (el.disabled = !!disabled));
+    if (disabled) {
+      selected.clear(); setIds(); renderChips(); clearResults();
+      searchEl.value = '';
+    }
+  }
+  allBranchesCb?.addEventListener('change', togglePickerDisabled);
+  togglePickerDisabled();
+
+  // small toast helper (optional)
+  function toast(msg) {
+    const t = document.createElement('div');
+    t.textContent = msg;
+    Object.assign(t.style, {
+      position:'fixed', left:'50%', bottom:'24px', transform:'translateX(-50%)',
+      background:'#0b5cff', color:'#fff', padding:'10px 14px', borderRadius:'8px',
+      boxShadow:'0 8px 24px rgba(0,0,0,.18)', zIndex:9999, fontWeight:'700'
+    });
+    document.body.appendChild(t);
+    setTimeout(()=> t.remove(), 1500);
+  }
+
+  // --- Add Branch modal open ---
+  addBtn?.addEventListener('click', () => {
+    if (allBranchesCb?.checked) return;
+    if (nameInput)  nameInput.value = '';
+    if (emailInput) emailInput.value = '';
+    if (latInput)   latInput.value  = '';
+    if (lonInput)   lonInput.value  = '';
+
+    window.FreeplateModals?.setOpen('#branchAddModal', true);
+    setTimeout(() => nameInput?.focus(), 0);
+  });
+
+  // --- Add Branch save (POST to API.create) ---
+  addForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!nameInput.checkValidity()) { nameInput.reportValidity(); return; }
+
+    const name  = nameInput.value.trim();
+    const email = (emailInput?.value || '').trim();
+
+    const readCoord = (el, min, max, label) => {
+      if (!el || !el.value) return null;
+      const v = parseFloat(el.value);
+      if (Number.isNaN(v) || v < min || v > max) {
+        alert(`${label} must be between ${min} and ${max}`);
+        el.focus();
+        throw new Error('bad coord');
+      }
+      return Math.round(v * 1e6) / 1e6;
+    };
+
+    let latitude  = null;
+    let longitude = null;
+    try {
+      latitude  = readCoord(latInput, -90, 90,  'Latitude');
+      longitude = readCoord(lonInput, -180, 180,'Longitude');
+    } catch (_) { return; }
+
+    const payload = { name };
+    if (email)    payload.email = email;
+    if (latitude !== null)  payload.latitude  = latitude;
+    if (longitude !== null) payload.longitude = longitude;
+
+    try {
+      const res = await fetch(API.create, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': (addForm.querySelector('input[name=csrfmiddlewaretoken]')?.value
+                          || getCSRF()),
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const ctype = res.headers.get('content-type') || '';
+      if (!ctype.includes('application/json')) {
+        const html = await res.text();
+        throw new Error(`Non-JSON (${res.status}): ` + html.slice(0,120));
+      }
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+
+      // success
+      window.FreeplateModals?.setOpen('#branchAddModal', false);
+      nameInput.value  = '';
+      if (emailInput)  emailInput.value = '';
+      if (latInput)    latInput.value   = '';
+      if (lonInput)    lonInput.value   = '';
+
+      searchEl.value = '';
+      searchEl.focus();
+      doSearch('');
+      toast('Branch added');
+    } catch (err) {
+      alert('Could not add branch: ' + (err.message || err));
+    }
+  });
+
+  // expose reset (used when opening Freeplate fresh)
+  window.FreeplateBranchPicker = {
+    reset() {
+      selected.clear();
+      setIds();
+      renderChips();
+      clearResults();
+      if (allBranchesCb) allBranchesCb.checked = false;
+      if (searchEl) searchEl.value = '';
+      togglePickerDisabled();
+    }
+  };
+
+  setIds();
+})();
+</script>
+
+<!-- save button logic here -->
+<script>
+(() => {
+  const saveBtn = document.getElementById('offerSaveBtn');
+  const form    = document.querySelector('.freeplate-form');
+
+  if (!saveBtn || !form) return;
+
+  function toast(msg, isError=false) {
+    const t = document.createElement('div');
+    t.textContent = msg;
+    Object.assign(t.style, {
+      position:'fixed', left:'50%', bottom:'24px', transform:'translateX(-50%)',
+      background: isError ? '#b91c1c' : '#0b5cff',
+      color:'#fff', padding:'10px 14px', borderRadius:'8px',
+      boxShadow:'0 8px 24px rgba(0,0,0,.18)', zIndex:9999, fontWeight:'700'
+    });
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 1700);
+  }
+
+  saveBtn.addEventListener('click', async () => {
+    const url  = "{% url 'offers:complementary_offer_save' %}";
+    const data = new FormData(form);
+
+    if (!data.get('start_at')) {
+      toast('Start date & time required', true);
+      return;
+    }
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: data,
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || ('HTTP ' + res.status));
+      }
+
+      // ✅ 1) success message visible on current screen
+      toast('Offer saved 🎉');
+
+      // ✅ 2) 1.5s wait → appude close + reload
+      setTimeout(() => {
+        // close modal
+        window.FreeplateModals?.setOpen('#freeplateModal', false);
+
+        // URL nundi #freeplateModal hash remove (so malli open avvadu)
+        const baseUrl = location.pathname + location.search;
+        history.replaceState(null, '', baseUrl);
+
+        // backend template lo unte Django success message ikkada reflect avvali ante:
+        window.location.reload();
+      }, 1500);  // 1.5s time; kavali ante 2000 cheyyi
+
+    } catch (err) {
+      console.error(err);
+      toast('Save failed: ' + (err.message || err), true);
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save';
+    }
+  });
+})();
+
+
+</script>

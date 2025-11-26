@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign in</title>
+  <style>
+    html, body { height: 100%; margin: 0; background:#0b1020; color:#e8ecff; }
+
+.wrap{
+  min-height: 100svh;                       /* mobile-safe viewport */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;                             /* base padding */
+  padding-left:  max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+}
+.card{
+  width: 100%;
+  max-width: 360px;                          /* your desired width */
+  margin: 0 auto;                            /* just in case */
+  background:#11183a;
+  border:1px solid #273164;
+  border-radius:16px;
+  padding:22px;
+  box-shadow:0 10px 30px rgba(0,0,0,.25);
+}
+    h1 { margin:0 0 12px; font-size:22px; }
+    .field { display:flex; flex-direction:column; gap:6px; margin:12px 0; }
+    label { font-size:13px; color:#b9c4ff; }
+    input { padding:12px 12px; border:1px solid #2a376b; border-radius:10px; background:#0e1533; color:#fff; outline:none; }
+    input:focus { border-color:#4c74ff; }
+    .btn { width:100%; padding:12px; border:0; border-radius:10px; background:#4c74ff; color:#fff; font-weight:600; cursor:pointer; }
+    .btn:active { transform: translateY(1px); }
+    .msg { margin-bottom:8px; color:#ff9aa2; font-size:13px; }
+    .hint { margin-top:8px; font-size:12px; color:#93a3ff; opacity:.9; }
+  </style>
+
+  <style>
+.divider{ border:0; border-top:1px solid #273164; margin:14px 0; opacity:.8; }
+.links{ display:grid; gap:8px; margin-top:8px; }
+.links a{ color:#bfc9ff; text-decoration:none; font-size:13px; }
+.links a:hover{ text-decoration:underline; }
+
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <form class="card" method="post">
+      {% csrf_token %}
+      <h1>Sign in</h1>
+
+      {% if messages %}
+        {% for m in messages %}<div class="msg">{{ m }}</div>{% endfor %}
+      {% endif %}
+
+      <div class="field">
+        <label for="id_username">Username</label>
+        <input id="id_username" name="username" type="text" autocomplete="username" required />
+      </div>
+
+      <div class="field">
+        <label for="id_password">Password</label>
+        <input id="id_password" name="password" type="password" autocomplete="current-password" required />
+      </div>
+
+      <button class="btn" type="submit">Login</button>
+      <div class="hint">Tip: you can pass <code>?next=/</code> in URL to redirect after login.</div>
+
+<hr class="divider">
+
+<div class="links">
+  <a href="{% url 'offers:user_login' %}" id="link-user">User sign-in</a>
+  <a href="{% url 'offers:branch_login' %}" id="link-branch">Branch Login</a>
+  <a href="#">Forgot password?</a>
+  <!-- Optional -->
+  <!-- <a href="/signup">Create account</a> -->
+</div>
+
+    </form>
+  </div>
+</body>
+</html>
+<script>
+  function navReplace(e){ e.preventDefault(); location.replace(this.href); }
+  document.getElementById('link-user')?.addEventListener('click', navReplace);
+  document.getElementById('link-branch')?.addEventListener('click', navReplace);
+</script>
