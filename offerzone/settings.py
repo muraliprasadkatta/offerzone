@@ -28,7 +28,8 @@ DEBUG = os.getenv("DEBUG", "true").lower() == "true"
 
 # ALLOWED_HOSTS: comma-separated list from env
 # e.g. ALLOWED_HOSTS=offerzone-production.up.railway.app,localhost,127.0.0.1
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+raw_hosts = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1")
+ALLOWED_HOSTS = [h.strip() for h in raw_hosts.split(",") if h.strip()]
 
 # CSRF_TRUSTED_ORIGINS: comma-separated list from env
 # e.g. CSRF_TRUSTED_ORIGINS=https://offerzone-production.up.railway.app
