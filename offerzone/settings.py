@@ -4,6 +4,7 @@ Django settings for offerzone project.
 
 from pathlib import Path
 import os
+
 from dotenv import load_dotenv
 import dj_database_url
 
@@ -11,21 +12,26 @@ import dj_database_url
 # BASE + ENV LOADING
 # -------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / ".env")   # .env nundi values load avuthayi
+
+# Local development kosam .env nundi values load avuthayi.
+# Railway lo normal env variables nundi directly tiskuntundi.
+load_dotenv(BASE_DIR / ".env")
 
 # -------------------------------------------------------------------
 # CORE SECURITY / DEBUG
 # -------------------------------------------------------------------
-# Production lo .env lo SECRET_KEY must
+# SECRET_KEY: production lo .env / Railway env lo compulsory ga set cheyyi
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-prod")
 
-# DEBUG: .env lo DEBUG=true/false
+# DEBUG: .env / Railway env lo DEBUG=true/false
 DEBUG = os.getenv("DEBUG", "true").lower() == "true"
 
-# ALLOWED_HOSTS: comma-separated list from .env
+# ALLOWED_HOSTS: comma-separated list from env
+# e.g. ALLOWED_HOSTS=offerzone-production.up.railway.app,localhost,127.0.0.1
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
-# CSRF_TRUSTED_ORIGINS: comma-separated list from .env
+# CSRF_TRUSTED_ORIGINS: comma-separated list from env
+# e.g. CSRF_TRUSTED_ORIGINS=https://offerzone-production.up.railway.app
 _csrf_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")
 if _csrf_env:
     CSRF_TRUSTED_ORIGINS = [
@@ -36,11 +42,13 @@ else:
 
 
 # -------------------------------------------------------------------
-# EMAIL (OTP / NOTIFICATIONS) - all from .env
+# EMAIL (OTP / NOTIFICATIONS) - all from env
 # -------------------------------------------------------------------
+# Local dev lo: console backend use cheyyi
+# Prod lo: smtp backend set cheyyi (e.g. Gmail)
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND",
-    "django.core.mail.backends.console.EmailBackend",  # default: console (local dev)
+    "django.core.mail.backends.console.EmailBackend",
 )
 EMAIL_HOST = os.getenv("EMAIL_HOST", "")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
@@ -81,7 +89,7 @@ ROOT_URLCONF = "offerzone.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],  # templates/ folder use cheyyalo ante
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -97,11 +105,12 @@ WSGI_APPLICATION = "offerzone.wsgi.application"
 
 
 # -------------------------------------------------------------------
-# DATABASE (SQLite for local, Postgres for deploy)
+# DATABASE (SQLite for local, Postgres/other for deploy)
 # -------------------------------------------------------------------
+# Railway / Render lo DATABASE_URL env set chesthe automatic ga adhi use avuthundi.
 DATABASES = {
     "default": dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",  # .env lo DATABASE_URL unte adi use avthundi
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
         conn_max_age=600,
     )
 }
@@ -139,7 +148,6 @@ USE_TZ = True
 # STATIC FILES
 # -------------------------------------------------------------------
 STATIC_URL = "static/"
-# deploy kosam static root (e.g. Render)
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -155,61 +163,24 @@ LOGIN_REDIRECT_URL = "/user/home"
 # -------------------------------------------------------------------
 # QR / OTP RELATED
 # -------------------------------------------------------------------
-QR_JWT_SECRET = os.getenv("QR_JWT_SECRET", "change-me-long-random")  # prod lo change cheyyi
+QR_JWT_SECRET = os.getenv("QR_JWT_SECRET", "change-me-long-random")
 QR_JWT_ISSUER = "offerzone"
 QR_TTL_SECONDS = int(os.getenv("QR_TTL_SECONDS", "30"))  # rotate every 30s
 
 QR_TTL_SECS = 180  # 3 minutes
-OZ_QR_PIN_SALT = "oz.qrpin.salt.v1"  # just any constant string
+OZ_QR_PIN_SALT = "oz.qrpin.salt.v1"
 
 
 # -------------------------------------------------------------------
-# SECURITY / PROXY (ngrok / render / etc)
+# SECURITY / PROXY (Railway / Render / ngrok)
 # -------------------------------------------------------------------
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-# cookies: production lo secure, local lo normal (default via DEBUG + env)
+# cookies: production lo secure, local lo normal
 if DEBUG:
     CSRF_COOKIE_SECURE = False
     SESSION_COOKIE_SECURE = False
 else:
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_SECURE = True
-
-
-# ===================================================================
-# 🔰 LOCAL vs DEPLOY OVERRIDE BLOCKS
-#    -> CONFUSE KAAKUNDA CLEAR GA CHESINAM
-#    -> Need ayithe ekkada uncomment cheyyi, inko block comment lo vey.
-# ===================================================================
-
-# ----------------- 🧪 LOCAL DEVELOPMENT (run on your laptop) -----------------
-# DEBUG = True
-# ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
-# CSRF_TRUSTED_ORIGINS = [
-#     "http://localhost:8000",
-#     "http://127.0.0.1:8000",
-# ]
-# CSRF_COOKIE_SECURE = False
-# SESSION_COOKIE_SECURE = False
-# EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"  # or keep smtp if you want real mails
-
-
-# ----------------- 🚀 DEPLOY / PRODUCTION (Render/Railway etc.) --------------
-DEBUG = False
-
-ALLOWED_HOSTS = [
-    "offerzone-production.up.railway.app",
-    "localhost",
-    "127.0.0.1",
-]
-
-CSRF_TRUSTED_ORIGINS = [
-    "https://offerzone-production.up.railway.app",
-]
-
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SECURE = True
-
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
