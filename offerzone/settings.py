@@ -197,11 +197,15 @@ else:
 
 
 # ----------------- 🚀 DEPLOY / PRODUCTION (Render/Railway etc.) --------------
-# DEBUG = False
-# ALLOWED_HOSTS = ["offerzone.onrender.com"]   # <-- mee actual domain ikkad pettu
-# CSRF_TRUSTED_ORIGINS = [
-#     "https://offerzone.onrender.com",
-# ]
-# CSRF_COOKIE_SECURE = True
-# SESSION_COOKIE_SECURE = True
-# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+DEBUG = False
+
+ALLOWED_HOSTS = ["offerzone.onrender.com"]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://offerzone.onrender.com",
+]
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
