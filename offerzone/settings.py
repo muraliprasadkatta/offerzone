@@ -26,10 +26,20 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-prod")
 # DEBUG: env lo DEBUG=true/false
 DEBUG = os.getenv("DEBUG", "true").lower() == "true"
 
+
+
+
 # ALLOWED_HOSTS: comma-separated list from env
 # e.g. ALLOWED_HOSTS=offerzone-production.up.railway.app,localhost,127.0.0.1
-raw_hosts = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1")
-ALLOWED_HOSTS = [h.strip() for h in raw_hosts.split(",") if h.strip()]
+raw_hosts = os.getenv("ALLOWED_HOSTS", "")
+if raw_hosts:
+    ALLOWED_HOSTS = [h.strip() for h in raw_hosts.split(",") if h.strip()]
+else:
+    ALLOWED_HOSTS = [
+        "offerzone-production.up.railway.app",  # production
+        "localhost",
+        "127.0.0.1",
+    ]
 
 # CSRF_TRUSTED_ORIGINS: comma-separated list from env
 # e.g. CSRF_TRUSTED_ORIGINS=https://offerzone-production.up.railway.app
@@ -38,6 +48,11 @@ if _csrf_env:
     CSRF_TRUSTED_ORIGINS = [x.strip() for x in _csrf_env.split(",") if x.strip()]
 else:
     CSRF_TRUSTED_ORIGINS = []
+
+
+import logging
+logging.basicConfig(level=logging.INFO)
+logging.info(f"ALLOWED_HOSTS at startup: {ALLOWED_HOSTS}")
 
 
 # -------------------------------------------------------------------
