@@ -4,26 +4,28 @@
   <title>Branch Detail</title>
   <style>
     body{background:#0b1020;color:#fff;font-family:system-ui;padding:20px;}
-    .box{
-        background:#11183a;
-        padding:20px;
-        border-radius:14px;
-        border:1px solid #253060;
-        max-width:500px;
-        margin:auto;
-    }
-    .back{
-        color:#7fa7ff;
-        text-decoration:none;
-        margin-bottom:20px;
-        display:inline-block;
-    }
+    .box{background:#11183a;padding:20px;border-radius:14px;border:1px solid #253060;max-width:500px;margin:auto;}
+    .back{color:#7fa7ff;text-decoration:none;margin-bottom:20px;display:inline-block;}
+    .topbar{max-width:500px;margin:0 auto 14px;display:flex;justify-content:space-between;align-items:center;gap:12px;}
+    .btn{display:inline-block;background:#4c74ff;color:#fff;padding:10px 14px;border-radius:10px;font-weight:600;text-decoration:none;border:1px solid rgba(255,255,255,.08);}
+    .btn:hover{opacity:.9}
   </style>
 </head>
 
 <body>
 
-  <a href="{% url 'offers:admin_home' %}" class="back">← Back</a>
+  <div class="topbar">
+    <a href="{% url 'offers:admin_home' %}" class="back">← Back</a>
+
+    <a href="#"
+       class="btn"
+       data-open="#freeplateModal"
+       data-noreset="1"
+       data-branch-id="{{ branch.id }}"
+       data-branch-name="{{ branch.name|escapejs }}">
+      Create Offer
+    </a>
+  </div>
 
   <div class="box">
     <h2 style="margin-top:0;">Branch: {{ branch.name }}</h2>
@@ -40,13 +42,31 @@
     </p>
 
     <p><strong>Created At:</strong> {{ created_at }}</p>
-
     <hr>
-
     <h3>Users (dummy)</h3>
     <p>No users linked yet.</p>
-
   </div>
+
+  <!-- ✅ ONLY include here -->
+  {% include "homepage/complementary_offer_modal.html" %}
+
+
+  <script>
+  // ✅ safety: if coming with #freeplateModal, clear it
+  if (location.hash === '#freeplateModal') {
+    const baseUrl = location.pathname + location.search;
+    history.replaceState(null, '', baseUrl);
+  }
+</script>
+
+
+<script>
+  if (location.hash) {
+    const baseUrl = location.pathname + location.search;
+    history.replaceState(null, '', baseUrl);
+  }
+</script>
 
 </body>
 </html>
+ 

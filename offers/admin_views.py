@@ -196,9 +196,14 @@ def branch_detail_view(request, branch_id):
 
 
 
-
 # ---- save complementary offer (exclude_staff, branches, extra_nths) ---------
 
+
+from django.http import JsonResponse, HttpResponseBadRequest
+from django.db import transaction
+from django.contrib.auth.decorators import login_required, user_passes_test
+from datetime import datetime
+import json
 
 @login_required(login_url="offers:admin_login")
 @user_passes_test(_is_superuser, login_url="offers:admin_login")
@@ -207,10 +212,11 @@ def complementary_offer_save(request):
         return HttpResponseBadRequest("POST required")
 
     p = request.POST
+
     try:
-        FIXED_ISSUANCE_MODE  = "auto"
-        FIXED_REDEEM_METHODS = "qr"
-        FIXED_FALLBACK_LEN   = 6
+        FIXED_ISSUANCE_MODE   = "auto"
+        FIXED_REDEEM_METHODS  = "qr"
+        FIXED_FALLBACK_LEN    = 6
 
         # ---------- Nth + numbers ----------
         nth_val = parse_positive_int(p.get("nth"), default=None, min_value=1)
@@ -240,7 +246,6 @@ def complementary_offer_save(request):
             backfill=_b(p.get("backfill")),
             nth=nth_val,
             repeat=_b(p.get("repeat")),
-            # 🔥 DEFAULT: QR scan + PIN at outlet (most secure)
             visit_unit=p.get("visit_unit", "qr_pin"),
             dedupe_value=dedupe_value,
             dedupe_unit=p.get("dedupe_unit", "day"),
@@ -279,13 +284,37 @@ def complementary_offer_save(request):
         all_branches_val = (p.get("all_branches") or "").lower()
         offer.all_branches = all_branches_val in ("on", "true", "1")
 
+        # parse branch_ids JSON
         try:
             raw_ids    = p.get("branch_ids") or "[]"
             parsed     = json.loads(raw_ids)
             branch_ids = [int(x) for x in parsed]
             branch_ids = list(dict.fromkeys(branch_ids))[:200]
         except Exception:
+            raw_ids = p.get("branch_ids")
             branch_ids = []
+
+        # ✅ fallback source branch id (branch detail edit case)
+        source_branch_id = parse_positive_int(
+            p.get("source_branch_id"),
+            default=None,
+            min_value=1
+        )
+        if (not offer.all_branches) and (not branch_ids) and source_branch_id:
+            branch_ids = [source_branch_id]
+
+        # ✅ PRINT DEBUG (see terminal)
+        print("\n========== complementary_offer_save DEBUG ==========")
+        print("path:", request.path)
+        print("user:", getattr(request.user, "username", None), "superuser:", getattr(request.user, "is_superuser", None))
+        print("all_branches:", offer.all_branches, "| raw:", p.get("all_branches"))
+        print("source_branch_id:", p.get("source_branch_id"), "=> parsed:", source_branch_id)
+        print("branch_ids raw:", p.get("branch_ids"))
+        print("branch_ids parsed/final:", branch_ids)
+        print("count_start:", p.get("count_start"), "| visit_unit:", p.get("visit_unit"))
+        print("start_at:", p.get("start_at"), "| end_at:", p.get("end_at"))
+        print("nth:", p.get("nth"), "=>", nth_val, "| repeat:", p.get("repeat"))
+        print("===================================================\n")
 
         with transaction.atomic():
             offer.full_clean()
@@ -303,12 +332,60 @@ def complementary_offer_save(request):
         return JsonResponse({"ok": True, "id": offer.id, "message": "Offer saved"})
 
     except Exception as e:
+        print("\n❌ complementary_offer_save ERROR:", repr(e))
         return JsonResponse({"ok": False, "error": str(e)}, status=400)
 
 # ---- branches APIs (superuser only) --------------------------
 
 
 _name_re = re.compile(r"^[a-z0-9]+$")
+
+
+
+
+
+
+
+
+
+from django.db.models import Q
+from django.views.decorators.http import require_GET
+from django.utils import timezone
+
+@require_GET
+@login_required(login_url="offers:admin_login")
+@user_passes_test(_is_superuser, login_url="offers:admin_login")
+def offer_json_for_branch(request, branch_id):
+    branch = Branch.objects.get(id=branch_id)
+
+    offer = (ComplementaryOffer.objects
+        .filter(kind="complementary_offer")
+        .filter(Q(all_branches=True) | Q(eligible_branches=branch))
+        .order_by("-id")
+        .first()
+    )
+
+    if not offer:
+        return JsonResponse({"ok": True, "offer": None})
+
+    def fmt(dt):
+        if not dt: return ""
+        return timezone.localtime(dt).strftime("%Y-%m-%dT%H:%M")
+
+    return JsonResponse({"ok": True, "offer": {
+        "id": offer.id,
+        "start_at": fmt(offer.start_at),
+        "end_at": fmt(offer.end_at),
+        "nth": offer.nth or "",
+        "repeat": bool(offer.repeat),
+        "extra_nths": getattr(offer, "extra_nths", []) or [],
+        "all_branches": bool(offer.all_branches),
+        "branch_ids": list(offer.eligible_branches.values_list("id", flat=True)),
+    }})
+
+
+
+
 
 
 def _sanitize_name(raw: str) -> str:

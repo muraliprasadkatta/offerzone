@@ -217,5 +217,22 @@
       window.history.replaceState(null, '', window.location.href);
     }
   </script>
+
+<script>
+  // ✅ Before leaving Home, always clear hash (so next page won't auto-open modal)
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('a.branch-pill');
+    if (!a) return;
+
+    if (location.hash) {
+      const baseUrl = location.pathname + location.search;
+      history.replaceState(null, '', baseUrl);
+    }
+  }, true); // capture = true (runs before navigation)
+</script>
+
+
+
+
 </body>
 </html>

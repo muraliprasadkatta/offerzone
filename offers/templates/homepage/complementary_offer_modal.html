@@ -10,6 +10,12 @@
     <form class="freeplate-form" action="#" method="post" onsubmit="return false;">
         {% csrf_token %}
 
+  <input type="hidden" name="offer_id" id="offerId" value="">
+
+          <!-- ✅ added: current branch context (so Save can read it) -->
+  <input type="hidden" name="source_branch_id" value="{{ branch.id }}">
+  <input type="hidden" name="source_branch_name" value="{{ branch.name }}">
+
       <!-- ===== ELIGIBILITY (VISITS) ===== -->
       <fieldset class="freeplate-group">
         <legend>Eligibility · Visits</legend>
@@ -262,71 +268,78 @@
   </div>
 
 <!-- put this AFTER the closing </form> of the Complementary Offer form (or even at the end of body) -->
+<!-- put this AFTER the closing </form> of the Complementary Offer form -->
 <div id="branchAddModal" class="freeplate-modal" aria-hidden="true" role="dialog" aria-modal="true">
   <div class="freeplate-modal__card" role="document">
+
     <div class="freeplate-modal__head">
       <strong>Add Branch</strong>
+      <a href="#" class="freeplate-close" data-close="#branchAddModal" aria-label="Close">✕</a>
     </div>
-    <a href="#" class="freeplate-close" data-close="#branchAddModal" aria-label="Close">✕</a>
-
 
     <!-- Standalone form (NOT nested) -->
-<form id="branchAddForm" novalidate>
-  {% csrf_token %}
-  <div class="freeplate-form" style="padding:16px">
-    <label class="freeplate-field" for="newBranchName">
-      <span>Branch name</span>
-      <input type="text" id="newBranchName" name="name" required pattern="[a-z0-9]*"  title="Only lowercase letters and numbers (no spaces)">
-    </label>
+    <form id="branchAddForm" novalidate>
+      {% csrf_token %}
 
-    <!-- ✅ New: Branch email -->
-    <label class="freeplate-field" for="newBranchEmail">
-      <span>Branch email (optional)</span>
-      <input type="email" id="newBranchEmail" name="email" placeholder="name@branch.com">
-    </label>
+      <div class="freeplate-form" style="padding:16px">
+        <label class="freeplate-field" for="newBranchName">
+          <span>Branch name</span>
+          <input
+            type="text"
+            id="newBranchName"
+            name="name"
+            required
+            pattern="[a-z0-9]*"
+            title="Only lowercase letters and numbers (no spaces)"
+          >
+        </label>
+
+        <label class="freeplate-field" for="newBranchEmail">
+          <span>Branch email (optional)</span>
+          <input type="email" id="newBranchEmail" name="email" placeholder="name@branch.com">
+        </label>
+
+        <!-- ✅ Manual coordinates -->
+        <div class="freeplate-2col" style="margin-top:8px">
+          <label class="freeplate-field" for="newBranchLat">
+            <span>Latitude</span>
+            <input
+              type="number"
+              id="newBranchLat"
+              name="latitude"
+              inputmode="decimal"
+              placeholder="e.g., 17.385044"
+              step="0.000001"
+              min="-90"
+              max="90"
+            >
+            <small class="freeplate-hint">Range −90 to +90 (up to 6 decimals).</small>
+          </label>
+
+          <label class="freeplate-field" for="newBranchLon">
+            <span>Longitude</span>
+            <input
+              type="number"
+              id="newBranchLon"
+              name="longitude"
+              inputmode="decimal"
+              placeholder="e.g., 78.486671"
+              step="0.000001"
+              min="-180"
+              max="180"
+            >
+            <small class="freeplate-hint">Range −180 to +180 (up to 6 decimals).</small>
+          </label>
+        </div>
+      </div>
+
+      <div class="freeplate-actions">
+        <button type="button" class="freeplate-btn freeplate-btn--ghost" data-close="#branchAddModal">Cancel</button>
+        <button type="submit" class="freeplate-btn" id="branchSaveBtn">Save</button>
+      </div>
+    </form>
+
   </div>
-
-      <!-- ✅ Manual coordinates (no geolocation) -->
-    <div class="freeplate-2col" style="margin-top:8px">
-      <label class="freeplate-field" for="newBranchLat">
-        <span>Latitude</span>
-        <input
-          type="number"
-          id="newBranchLat"
-          name="latitude"
-          inputmode="decimal"
-          placeholder="e.g., 17.385044"
-          step="0.000001"
-          min="-90"
-          max="90"
-        >
-        <small class="freeplate-hint">Range −90 to +90 (up to 6 decimals).</small>
-      </label>
-
-      <label class="freeplate-field" for="newBranchLon">
-        <span>Longitude</span>
-        <input
-          type="number"
-          id="newBranchLon"
-          name="longitude"
-          inputmode="decimal"
-          placeholder="e.g., 78.486671"
-          step="0.000001"
-          min="-180"
-          max="180"
-        >
-        <small class="freeplate-hint">Range −180 to +180 (up to 6 decimals).</small>
-      </label>
-    </div>
-
-
-  <div class="freeplate-actions">
-    <button type="button" class="freeplate-btn freeplate-btn--ghost" data-close="#branchAddModal">Cancel</button>
-    <button type="submit" class="freeplate-btn" id="branchSaveBtn">Save</button>
-  </div>
-</form>
-
-</div>
 </div>
 
 </div>
@@ -892,10 +905,8 @@
 <!-- date disable logic in calender -->
 <script>
 (() => {
-  // helper: 2-digit pad
   const pad = (n) => String(n).padStart(2, "0");
 
-  // html datetime-local format: yyyy-MM-ddTHH:mm
   function getNowLocalForDatetime() {
     const d = new Date();
     const y = d.getFullYear();
@@ -908,35 +919,23 @@
 
   const startInput = document.querySelector('input[name="start_at"]');
   const endInput   = document.querySelector('input[name="end_at"]');
+  const offerIdEl  = document.getElementById('offerId');
 
-  if (!startInput || !endInput) return;
+  if (!startInput || !endInput || !offerIdEl) return;
 
-  // current datetime
-  const minVal   = getNowLocalForDatetime();
-  const dayPart  = minVal.slice(0, 10);      // yyyy-MM-dd
-  const endOfDay = `${dayPart}T23:59`;       // same day 23:59
+  // ✅ dynamic check (important!)
+  const isEditNow = () => !!String(offerIdEl.value || '').trim();
 
-  // --- set min and default values ---
-
-  // START: min = now, default = now (if empty)
-  startInput.min = minVal;
-  if (!startInput.value) {
-    startInput.value = minVal;
-    // inform other scripts (Nth/milestones) that value changed
-    startInput.dispatchEvent(new Event("change", { bubbles: true }));
-  }
-
-  // END: min = now, default = today 23:59 (if empty)
-  endInput.min = minVal;
-  if (!endInput.value) {
-    endInput.value = endOfDay;
-    endInput.dispatchEvent(new Event("change", { bubbles: true }));
-  }
-
-  // --- clamp helpers (prevent going before min) ---
+  // attach ONCE (but safe, because it exits in edit mode)
   function clampToMin(input) {
-    if (!input) return;
+    if (input.dataset.clampBound === "1") return;
+    input.dataset.clampBound = "1";
+
     input.addEventListener("change", () => {
+      // ✅ if edit mode, never clamp
+      if (isEditNow()) return;
+
+      const minVal = getNowLocalForDatetime();
       if (input.value && input.value < minVal) {
         input.value = minVal;
         input.dispatchEvent(new Event("change", { bubbles: true }));
@@ -946,6 +945,36 @@
 
   clampToMin(startInput);
   clampToMin(endInput);
+
+  // expose apply() so you can call after prefill
+  window.FreeplateDatePolicy = {
+    apply() {
+      const edit = isEditNow();
+      if (edit) {
+        // ✅ edit mode: don’t set defaults, don’t enforce mins
+        startInput.removeAttribute("min");
+        endInput.removeAttribute("min");
+        return;
+      }
+
+      // ✅ create mode defaults
+      const minVal   = getNowLocalForDatetime();
+      const dayPart  = minVal.slice(0, 10);
+      const endOfDay = `${dayPart}T23:59`;
+
+      startInput.min = minVal;
+      endInput.min   = minVal;
+
+      if (!startInput.value) startInput.value = minVal;
+      if (!endInput.value)   endInput.value   = endOfDay;
+
+      startInput.dispatchEvent(new Event("change", { bubbles: true }));
+      endInput.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  };
+
+  // initial apply
+  window.FreeplateDatePolicy.apply();
 })();
 </script>
 
@@ -976,81 +1005,268 @@
   window.FreeplateModals = { setOpen: setModalOpenById };
 
   function showFreeplate(fromPopState) {
+    console.log('[Freeplate] showFreeplate()', { fromPopState });
     setModalOpenById(freeplateModal, true);
 
-    // manual open appude hash push cheyyi
     if (!fromPopState && window.history && history.pushState) {
       history.pushState({ freeplateModal: true }, '', baseUrl + HASH);
     }
   }
 
   function hideFreeplate(fromPopState) {
+    console.log('[Freeplate] hideFreeplate()', { fromPopState });
     setModalOpenById(freeplateModal, false);
 
-    // manual close appude → back button la behave avvali
     if (!fromPopState && window.history && location.hash === HASH && history.length > 1) {
       history.back();
     }
   }
 
-  // ---------- 1) Open freeplate modal (from Create Offer tile) ----------
+  // ✅ Robust: read branch id/name from (1) clicked button attrs (2) hidden inputs
+  function getBranchFromTrigger(btn) {
+    const bidFromBtn = btn?.getAttribute('data-branch-id');
+    const bnmFromBtn = btn?.getAttribute('data-branch-name');
+
+    const liveForm = document.querySelector('.freeplate-form');
+    const bidFromHidden = liveForm?.querySelector('input[name="source_branch_id"]')?.value;
+    const bnmFromHidden = liveForm?.querySelector('input[name="source_branch_name"]')?.value;
+
+    const bid = bidFromBtn || bidFromHidden || '';
+    const bnm = bnmFromBtn || bnmFromHidden || '';
+
+    console.log('[Freeplate] branch read', {
+      bidFromBtn, bnmFromBtn,
+      bidFromHidden, bnmFromHidden,
+      finalBid: bid, finalName: bnm
+    });
+
+    return { bid, bnm };
+  }
+
+  // ✅ Retry addBranch until FreeplateBranchPicker is ready
+  function tryAddBranchWithRetry(bid, bnm) {
+    let tries = 0;
+    const maxTries = 20;
+
+    function tick() {
+      tries += 1;
+
+      const picker = window.FreeplateBranchPicker;
+      const canAdd = !!(picker && typeof picker.addBranch === 'function');
+
+      if (canAdd) {
+        picker.addBranch(bid, bnm);
+        console.log('[Freeplate] ✅ branch added into chips', { bid, bnm });
+        return;
+      }
+
+      if (tries < maxTries) setTimeout(tick, 100);
+      else console.warn('[Freeplate] ❌ FreeplateBranchPicker not ready, could not auto-add branch.');
+    }
+
+    tick();
+  }
+
+  // ---------- NEW: offer helpers ----------
+  function getForm() {
+    return document.querySelector('.freeplate-form');
+  }
+
+  function setVal(name, v) {
+    const form = getForm();
+    const el = form?.querySelector(`[name="${name}"]`);
+    if (!el) return;
+    el.value = (v ?? '');
+  }
+
+  function setChecked(id, v) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.checked = !!v;
+  }
+
+  function clearOfferFormButKeepBranch() {
+    const form = getForm();
+    if (!form) return;
+
+    // keep branch chips; clear offer fields only
+    const fieldsToClear = [
+      'offer_id', 'start_at', 'end_at', 'nth',
+      'dedupe_value', 'claim_expiry_hours',
+      'total_cap', 'daily_cap', 'active_from', 'active_to',
+      'allow_key', 'allow_users'
+    ];
+
+    fieldsToClear.forEach(n => setVal(n, ''));
+
+    // defaults
+    setChecked('repeat', false);
+    setChecked('backfill', false);
+    setChecked('allBranches', false);
+
+    // reset first milestone input
+    const firstExtra = form.querySelector('input[name="extra_nths[]"]');
+    if (firstExtra) firstExtra.value = '';
+
+    // remove extra dynamically added milestone rows (keep first row)
+    const fpBlock = document.getElementById('fpMilestones');
+    if (fpBlock) {
+      const rows = Array.from(fpBlock.querySelectorAll('.bp-row'));
+      rows.slice(1).forEach(r => r.remove());
+    }
+  }
+
+  async function prefillOffer(bid) {
+    try {
+      // ⚠️ Make sure your backend URL matches this path.
+      const url = `/admin/branch/${bid}/offer-json/`;
+      const res = await fetch(url, { credentials: 'same-origin' });
+      const j = await res.json().catch(() => ({}));
+
+      console.log('[Freeplate] prefillOffer response', j);
+
+      if (!j.ok || !j.offer) {
+        // no offer found -> treat as fresh create for this branch
+        clearOfferFormButKeepBranch();
+        setVal('offer_id', '');
+        return;
+      }
+
+      const o = j.offer;
+
+      // offer id hidden
+      setVal('offer_id', o.id || '');
+      window.FreeplateDatePolicy?.apply?.();   // ✅ now edit mode, so no min clamp
+
+
+      // 1) set dates first
+      setVal('start_at', o.start_at || '');
+      setVal('end_at',   o.end_at   || '');
+
+      // 2) IMPORTANT: trigger change so milestone script enables Add button
+      const sEl = getForm()?.querySelector('input[name="start_at"]');
+      const eEl = getForm()?.querySelector('input[name="end_at"]');
+      sEl?.dispatchEvent(new Event('change', { bubbles: true }));
+      eEl?.dispatchEvent(new Event('change', { bubbles: true }));
+
+      // 3) NOW milestones
+      const fpBlock = document.getElementById('fpMilestones');
+      const firstExtra = getForm()?.querySelector('input[name="extra_nths[]"]');
+      const addBtn = document.getElementById('fpAddMilestone');
+
+      if (firstExtra) firstExtra.value = (o.extra_nths?.[0] ?? '');
+
+      // remove old dynamic rows (keep first)
+      if (fpBlock) {
+        const rows = Array.from(fpBlock.querySelectorAll('.bp-row'));
+        rows.slice(1).forEach(r => r.remove());
+      }
+
+      // add remaining extras
+      const extras = (o.extra_nths || []).slice(1);
+
+      // ensure addBtn enabled (in case)
+      if (addBtn) addBtn.disabled = false;
+
+      extras.forEach((val) => {
+        addBtn?.click(); // will work now because enabled
+        const all = Array.from(fpBlock.querySelectorAll('input[name="extra_nths[]"]'));
+        const last = all[all.length - 1];
+        if (last) last.value = val;
+      });
+
+
+      // trigger change so your clamp scripts run
+      getForm()?.querySelector('input[name="start_at"]')?.dispatchEvent(new Event('change', { bubbles: true }));
+      getForm()?.querySelector('input[name="end_at"]')?.dispatchEvent(new Event('change', { bubbles: true }));
+
+    } catch (e) {
+      console.warn('[Freeplate] prefillOffer failed', e);
+    }
+  }
+
+  // ---------- 1) Open freeplate modal ----------
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-open="#freeplateModal"], [data-open="freeplateModal"]');
     if (!btn) return;
 
     e.preventDefault();
 
-    // offerModal ni visual ga close cheyyi (history ni touch cheyyakunda)
+    const noReset = btn.getAttribute('data-noreset') === '1';
+    console.log('[Freeplate] open click', { noReset, btn });
+
+    // offerModal close (only if exists)
     const offerModal = document.getElementById('offerModal');
     if (offerModal) {
       offerModal.classList.remove('open');
       offerModal.setAttribute('aria-hidden', 'true');
     }
 
-    // form reset + defaults (nee existing logic)
-    const form = document.querySelector('.freeplate-form');
-    if (form) {
-      try { form.reset(); } catch (_) {}
-      window.FreeplateBranchPicker?.reset();
+    const form = getForm();
 
-      const startInput = form.querySelector('input[name="start_at"]');
-      const endInput   = form.querySelector('input[name="end_at"]');
-      if (startInput && endInput) {
-        const pad = (n) => String(n).padStart(2, '0');
-        const d   = new Date();
-        const y   = d.getFullYear();
-        const m   = pad(d.getMonth() + 1);
-        const day = pad(d.getDate());
-        const h   = pad(d.getHours());
-        const min = pad(d.getMinutes());
+    // ✅ Create Offer mode -> reset everything (new offer)
+    if (!noReset) {
+      console.log('[Freeplate] reset form + branch picker (Create new)');
+      if (form) {
+        try { form.reset(); } catch (_) {}
+        window.FreeplateBranchPicker?.reset?.();
 
-        const minVal   = `${y}-${m}-${day}T${h}:${min}`;
-        const endOfDay = `${y}-${m}-${day}T23:59`;
+        // IMPORTANT: make sure offer_id cleared for create
+        setVal('offer_id', '');
 
-        startInput.min   = minVal;
-        endInput.min     = minVal;
-        startInput.value = minVal;
-        endInput.value   = endOfDay;
+        const startInput = form.querySelector('input[name="start_at"]');
+        const endInput   = form.querySelector('input[name="end_at"]');
 
-        startInput.dispatchEvent(new Event('change', { bubbles: true }));
-        endInput.dispatchEvent(new Event('change', { bubbles: true }));
+        if (startInput && endInput) {
+          const pad = (n) => String(n).padStart(2, '0');
+          const d   = new Date();
+          const y   = d.getFullYear();
+          const m   = pad(d.getMonth() + 1);
+          const day = pad(d.getDate());
+          const h   = pad(d.getHours());
+          const min = pad(d.getMinutes());
+
+          const minVal   = `${y}-${m}-${day}T${h}:${min}`;
+          const endOfDay = `${y}-${m}-${day}T23:59`;
+
+          startInput.min   = minVal;
+          endInput.min     = minVal;
+          startInput.value = minVal;
+          endInput.value   = endOfDay;
+
+          startInput.dispatchEvent(new Event('change', { bubbles: true }));
+          endInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
       }
     }
 
+    // ✅ OPEN modal first
     showFreeplate(false);
+
+    // ✅ Branch detail edit mode -> keep, auto branch add + prefill offer
+    if (noReset) {
+      const { bid, bnm } = getBranchFromTrigger(btn);
+      if (!bid) {
+        console.warn('[Freeplate] ❌ No branch id found.');
+        return;
+      }
+
+      setTimeout(() => {
+        tryAddBranchWithRetry(bid, bnm);
+        prefillOffer(bid);   // ✅ THIS solves "existing dates/nth not coming"
+      }, 0);
+    }
   });
 
-  // ---------- 2) Back button inside freeplate → history.back() ----------
+  // ---------- 2) Back button inside freeplate ----------
   document.addEventListener('click', (e) => {
     const back = e.target.closest('.freeplate-actions [data-open="#offerModal"]');
     if (!back) return;
     e.preventDefault();
 
-    // history stack lo mundu #offerModal / base page undi
     if (location.hash === HASH && history.length > 1) {
       history.back();
     } else {
-      // fallback: hashes lekunda direct ga switch cheyyali ante
       hideFreeplate(true);
       const offerModal = document.getElementById('offerModal');
       if (offerModal) {
@@ -1061,26 +1277,20 @@
     }
   });
 
-  // ---------- 3) Generic [data-close] (freeplate / branchAdd) ----------
+  // ---------- 3) Generic [data-close] ----------
   document.addEventListener('click', (e) => {
     const closeBtn = e.target.closest('[data-close]');
     if (!closeBtn) return;
 
     const sel   = closeBtn.getAttribute('data-close');
-    const modal = sel
-      ? document.querySelector(sel)
-      : closeBtn.closest('.freeplate-modal');
-
+    const modal = sel ? document.querySelector(sel) : closeBtn.closest('.freeplate-modal');
     if (!modal) return;
 
     e.preventDefault();
     e.stopPropagation();
 
-    if (modal === freeplateModal) {
-      hideFreeplate(false);
-    } else {
-      setModalOpenById(modal, false); // branchAddModal etc
-    }
+    if (modal === freeplateModal) hideFreeplate(false);
+    else setModalOpenById(modal, false);
   });
 
   // ---------- 4) Backdrop click ----------
@@ -1088,47 +1298,33 @@
     if (!modal) return;
     modal.addEventListener('click', (e) => {
       if (e.target === modal) {
-        if (modal === freeplateModal) {
-          hideFreeplate(false);
-        } else {
-          setModalOpenById(modal, false);
-        }
+        if (modal === freeplateModal) hideFreeplate(false);
+        else setModalOpenById(modal, false);
       }
     });
   });
 
-  // ---------- 5) ESC key ----------
+  // ---------- 5) ESC ----------
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
 
-    // freeplate open unte → hash respect cheyyali
     if (freeplateModal.classList.contains('open')) {
       hideFreeplate(false);
       return;
     }
 
-    // lekapothe inko freeplate-modal (branchAdd) open unte direct close
     const other = document.querySelector('.freeplate-modal.open');
-    if (other && other !== freeplateModal) {
-      setModalOpenById(other, false);
-    }
+    if (other && other !== freeplateModal) setModalOpenById(other, false);
   });
 
-  // ---------- 6) popstate → URL hash to modal sync ----------
+  // ---------- 6) popstate ----------
   window.addEventListener('popstate', () => {
-    if (location.hash === HASH) {
-      // browser back/forward valla hash #freeplateModal aithe → open it
-      showFreeplate(true);
-    } else {
-      // vere hash / no hash → freeplate close
-      setModalOpenById(freeplateModal, false);
-    }
+    if (location.hash === HASH) showFreeplate(true);
+    else setModalOpenById(freeplateModal, false);
   });
 
-  // ---------- 7) direct /deep link: ...#freeplateModal ----------
-  if (location.hash === HASH) {
-    showFreeplate(true);
-  }
+  // ---------- 7) direct link ----------
+  if (location.hash === HASH) showFreeplate(true);
 })();
 </script>
 
@@ -1194,6 +1390,8 @@
 
   function attachCleaners(inputEl) {
     if (!inputEl) return;
+    if (inputEl.dataset.cleaned === "1") return;
+    inputEl.dataset.cleaned = "1";
 
     // block space key
     inputEl.addEventListener('keydown', (e) => {
@@ -1229,10 +1427,14 @@
   if (addBtn) {
     addBtn.addEventListener('click', () => {
       // wait a tick for modal DOM
-      setTimeout(() => {
-        const lateNameEl = document.getElementById('newBranchName');
-        attachCleaners(lateNameEl);
+      setTimeout(async () => {
+        tryAddBranchWithRetry(bid, bnm);
+        await prefillOffer(bid);   // offerId + dates set ayyaka
+
+        // ✅ NOW apply date policy (edit vs create safe)
+        window.FreeplateDatePolicy?.apply?.();
       }, 0);
+
     });
   }
 
@@ -1244,259 +1446,341 @@
 <!-- search box branch and add branch logic here entire script -->
 
 <script>
-(() => {
-  const API = {
-    search: "{% url 'offers:branches_search' %}",
-    create: "{% url 'offers:branches_create' %}",
-  };
+(function () {
 
-  const form          = document.querySelector('.freeplate-form');
-  const chipsEl       = document.getElementById('branchChips');
-  const searchEl      = document.getElementById('branchSearch');
-  const resultsEl     = document.getElementById('branchResults');
-  const idsEl         = document.getElementById('branchIds');
-  const addBtn        = document.getElementById('btnAddBranch');
-  const allBranchesCb = document.getElementById('allBranches');
+  window.initFreeplateBranchPicker = function initFreeplateBranchPicker() {
+    console.log('[BranchPicker] init called');
 
-  const addForm    = document.getElementById('branchAddForm');
-  const nameInput  = document.getElementById('newBranchName');
-  const emailInput = document.getElementById('newBranchEmail');
-  const latInput   = document.getElementById('newBranchLat');
-  const lonInput   = document.getElementById('newBranchLon');
-
-  if (!form || !chipsEl || !searchEl || !resultsEl || !idsEl) return;
-
-  const selected   = new Map(); // id -> name
-  let listItems    = [];
-  let highlighted  = -1;
-  let aborter      = null;
-  let debT         = null;
-
-  const getCSRF = () =>
-    form.querySelector('input[name=csrfmiddlewaretoken]')?.value || '';
-
-  const setIds = () => { idsEl.value = JSON.stringify([...selected.keys()]); };
-
-  const renderChips = () => {
-    chipsEl.innerHTML = '';
-    selected.forEach((name, id) => {
-      const chip = document.createElement('span');
-      chip.className = 'bp-chip';
-      chip.innerHTML = `<b>${name}</b><button type="button" aria-label="Remove">×</button>`;
-      chip.querySelector('button').onclick = () => {
-        selected.delete(id);
-        setIds(); renderChips();
-        doSearch(searchEl.value.trim());
-      };
-      chipsEl.appendChild(chip);
-    });
-  };
-
-  const clearResults = () => {
-    resultsEl.innerHTML = '';
-    resultsEl.classList.remove('open');
-    listItems = [];
-    highlighted = -1;
-  };
-
-  const applyHighlight = () => {
-    [...resultsEl.querySelectorAll('li')].forEach((li, i) => {
-      li.setAttribute('aria-selected', i === highlighted ? 'true' : 'false');
-    });
-  };
-
-  const selectBranch = (it) => {
-    if (!selected.has(it.id)) {
-      selected.set(it.id, it.name);
-      setIds(); renderChips();
-    }
-    searchEl.value = '';
-    doSearch('');
-    searchEl.focus();
-  };
-
-  const showResults = (items) => {
-    const filtered = (items || []).filter(it => !selected.has(it.id));
-    if (!filtered.length) { clearResults(); return; }
-
-    listItems = filtered;
-    const ul = document.createElement('ul');
-    filtered.forEach((it) => {
-      const li = document.createElement('li');
-      li.textContent = it.name;
-      li.setAttribute('role', 'option');
-      li.onclick = () => selectBranch(it);
-      ul.appendChild(li);
-    });
-
-    resultsEl.innerHTML = '';
-    resultsEl.appendChild(ul);
-    resultsEl.classList.add('open');
-    highlighted = 0; applyHighlight();
-  };
-
-  const doSearch = (q) => {
-    if (aborter) aborter.abort();
-    aborter = new AbortController();
-    const url = API.search + (q ? ('?q=' + encodeURIComponent(q)) : '');
-    fetch(url, { credentials: 'same-origin', signal: aborter.signal })
-      .then(r => r.ok ? r.json() : [])
-      .then(list => showResults(list || []))
-      .catch(() => {});
-  };
-
-  // search box → fetch branches
-  searchEl.addEventListener('focus', () => doSearch(searchEl.value.trim()));
-  searchEl.addEventListener('click',  () => doSearch(searchEl.value.trim()));
-  searchEl.addEventListener('input', () => {
-    clearTimeout(debT);
-    const q = searchEl.value.trim();
-    debT = setTimeout(() => doSearch(q), 160);
-  });
-
-  // keyboard nav in dropdown
-  searchEl.addEventListener('keydown', (e) => {
-    if (!resultsEl.classList.contains('open')) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      highlighted = Math.min(highlighted + 1, listItems.length - 1);
-      applyHighlight();
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      highlighted = Math.max(highlighted - 1, 0);
-      applyHighlight();
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (listItems[highlighted]) selectBranch(listItems[highlighted]);
-    } else if (e.key === 'Escape') {
-      clearResults();
-    }
-  });
-
-  document.addEventListener('click', (e) => {
-    if (!resultsEl.contains(e.target) && e.target !== searchEl) clearResults();
-  });
-
-  function togglePickerDisabled() {
-    const disabled = allBranchesCb?.checked;
-    [searchEl, addBtn].forEach(el => el && (el.disabled = !!disabled));
-    if (disabled) {
-      selected.clear(); setIds(); renderChips(); clearResults();
-      searchEl.value = '';
-    }
-  }
-  allBranchesCb?.addEventListener('change', togglePickerDisabled);
-  togglePickerDisabled();
-
-  // small toast helper (optional)
-  function toast(msg) {
-    const t = document.createElement('div');
-    t.textContent = msg;
-    Object.assign(t.style, {
-      position:'fixed', left:'50%', bottom:'24px', transform:'translateX(-50%)',
-      background:'#0b5cff', color:'#fff', padding:'10px 14px', borderRadius:'8px',
-      boxShadow:'0 8px 24px rgba(0,0,0,.18)', zIndex:9999, fontWeight:'700'
-    });
-    document.body.appendChild(t);
-    setTimeout(()=> t.remove(), 1500);
-  }
-
-  // --- Add Branch modal open ---
-  addBtn?.addEventListener('click', () => {
-    if (allBranchesCb?.checked) return;
-    if (nameInput)  nameInput.value = '';
-    if (emailInput) emailInput.value = '';
-    if (latInput)   latInput.value  = '';
-    if (lonInput)   lonInput.value  = '';
-
-    window.FreeplateModals?.setOpen('#branchAddModal', true);
-    setTimeout(() => nameInput?.focus(), 0);
-  });
-
-  // --- Add Branch save (POST to API.create) ---
-  addForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!nameInput.checkValidity()) { nameInput.reportValidity(); return; }
-
-    const name  = nameInput.value.trim();
-    const email = (emailInput?.value || '').trim();
-
-    const readCoord = (el, min, max, label) => {
-      if (!el || !el.value) return null;
-      const v = parseFloat(el.value);
-      if (Number.isNaN(v) || v < min || v > max) {
-        alert(`${label} must be between ${min} and ${max}`);
-        el.focus();
-        throw new Error('bad coord');
-      }
-      return Math.round(v * 1e6) / 1e6;
+    const API = {
+      search: "{% url 'offers:branches_search' %}",
+      create: "{% url 'offers:branches_create' %}",
     };
 
-    let latitude  = null;
-    let longitude = null;
-    try {
-      latitude  = readCoord(latInput, -90, 90,  'Latitude');
-      longitude = readCoord(lonInput, -180, 180,'Longitude');
-    } catch (_) { return; }
+    const form          = document.querySelector('.freeplate-form');
+    const chipsEl       = document.getElementById('branchChips');
+    const searchEl      = document.getElementById('branchSearch');
+    const resultsEl     = document.getElementById('branchResults');
+    const idsEl         = document.getElementById('branchIds');
+    const addBtn        = document.getElementById('btnAddBranch');
+    const allBranchesCb = document.getElementById('allBranches');
 
-    const payload = { name };
-    if (email)    payload.email = email;
-    if (latitude !== null)  payload.latitude  = latitude;
-    if (longitude !== null) payload.longitude = longitude;
+    console.log('[BranchPicker] DOM check', {
+      form: !!form, chipsEl: !!chipsEl, searchEl: !!searchEl, resultsEl: !!resultsEl, idsEl: !!idsEl
+    });
 
-    try {
-      const res = await fetch(API.create, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': (addForm.querySelector('input[name=csrfmiddlewaretoken]')?.value
-                          || getCSRF()),
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: JSON.stringify(payload)
+    // ✅ DON’T RETURN AND DIE FOREVER
+    if (!form || !chipsEl || !searchEl || !resultsEl || !idsEl) {
+      console.warn('[BranchPicker] ❌ elements missing, will retry later');
+      return false;
+    }
+
+    // ✅ prevent double init
+    if (window.FreeplateBranchPicker && window.FreeplateBranchPicker.__inited) {
+      console.log('[BranchPicker] already initialized');
+      return true;
+    }
+
+    const selected = new Map(); // id -> name
+    const normId = (v) => {
+      const n = parseInt(v, 10);
+      return Number.isFinite(n) ? n : null;
+    };
+
+    let listItems   = [];
+    let highlighted = -1;
+    let aborter     = null;
+    let debT        = null;
+
+    const getAddFormEls = () => ({
+      addForm: document.getElementById('branchAddForm'),
+      nameInput: document.getElementById('newBranchName'),
+      emailInput: document.getElementById('newBranchEmail'),
+      latInput: document.getElementById('newBranchLat'),
+      lonInput: document.getElementById('newBranchLon'),
+    });
+
+    const getCSRF = () =>
+      form.querySelector('input[name=csrfmiddlewaretoken]')?.value || '';
+
+    const setIds = () => {
+      idsEl.value = JSON.stringify([...selected.keys()]);
+      console.log('[BranchPicker] setIds', idsEl.value);
+    };
+
+    const renderChips = () => {
+      chipsEl.innerHTML = '';
+      selected.forEach((name, id) => {
+        const chip = document.createElement('span');
+        chip.className = 'bp-chip';
+        chip.innerHTML = `<b>${name}</b><button type="button" aria-label="Remove">×</button>`;
+        chip.querySelector('button').onclick = () => {
+          selected.delete(id);
+          setIds(); renderChips();
+          doSearch(searchEl.value.trim());
+        };
+        chipsEl.appendChild(chip);
+      });
+    };
+
+    const clearResults = () => {
+      resultsEl.innerHTML = '';
+      resultsEl.classList.remove('open');
+      listItems = [];
+      highlighted = -1;
+    };
+
+    const applyHighlight = () => {
+      [...resultsEl.querySelectorAll('li')].forEach((li, i) => {
+        li.setAttribute('aria-selected', i === highlighted ? 'true' : 'false');
+      });
+    };
+
+    const selectBranch = (it) => {
+      const id = normId(it.id);
+      if (id === null) return;
+
+      if (!selected.has(id)) {
+        selected.set(id, it.name);
+        console.log('[BranchPicker] selected add', {id, name: it.name});
+        setIds(); renderChips();
+      }
+      searchEl.value = '';
+      doSearch('');
+      searchEl.focus();
+    };
+
+    const showResults = (items) => {
+      const filtered = (items || [])
+        .map(it => ({ id: normId(it.id), name: it.name }))
+        .filter(it => it.id !== null && !selected.has(it.id));
+
+      if (!filtered.length) { clearResults(); return; }
+
+      listItems = filtered;
+      const ul = document.createElement('ul');
+
+      filtered.forEach((it) => {
+        const li = document.createElement('li');
+        li.textContent = it.name;
+        li.setAttribute('role', 'option');
+        li.onclick = () => selectBranch(it);
+        ul.appendChild(li);
       });
 
-      const ctype = res.headers.get('content-type') || '';
-      if (!ctype.includes('application/json')) {
-        const html = await res.text();
-        throw new Error(`Non-JSON (${res.status}): ` + html.slice(0,120));
+      resultsEl.innerHTML = '';
+      resultsEl.appendChild(ul);
+      resultsEl.classList.add('open');
+      highlighted = 0; applyHighlight();
+    };
+
+    const doSearch = (q) => {
+      if (aborter) aborter.abort();
+      aborter = new AbortController();
+      const url = API.search + (q ? ('?q=' + encodeURIComponent(q)) : '');
+      fetch(url, { credentials: 'same-origin', signal: aborter.signal })
+        .then(r => r.ok ? r.json() : [])
+        .then(list => showResults(list || []))
+        .catch(() => {});
+    };
+
+    // ✅ attach events ONCE
+    searchEl.addEventListener('focus', () => doSearch(searchEl.value.trim()));
+    searchEl.addEventListener('click',  () => doSearch(searchEl.value.trim()));
+    searchEl.addEventListener('input', () => {
+      clearTimeout(debT);
+      const q = searchEl.value.trim();
+      debT = setTimeout(() => doSearch(q), 160);
+    });
+
+    searchEl.addEventListener('keydown', (e) => {
+      if (!resultsEl.classList.contains('open')) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        highlighted = Math.min(highlighted + 1, listItems.length - 1);
+        applyHighlight();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        highlighted = Math.max(highlighted - 1, 0);
+        applyHighlight();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (listItems[highlighted]) selectBranch(listItems[highlighted]);
+      } else if (e.key === 'Escape') {
+        clearResults();
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!resultsEl.contains(e.target) && e.target !== searchEl) clearResults();
+    });
+
+    function togglePickerDisabled() {
+      const disabled = allBranchesCb?.checked;
+      [searchEl, addBtn].forEach(el => el && (el.disabled = !!disabled));
+      if (disabled) {
+        selected.clear(); setIds(); renderChips(); clearResults();
+        searchEl.value = '';
+      }
+    }
+    allBranchesCb?.addEventListener('change', togglePickerDisabled);
+    togglePickerDisabled();
+
+    // --- Add Branch modal open ---
+    addBtn?.addEventListener('click', () => {
+      if (allBranchesCb?.checked) return;
+      window.FreeplateModals?.setOpen('#branchAddModal', true);
+      setTimeout(() => {
+        const { nameInput, emailInput, latInput, lonInput } = getAddFormEls();
+        if (nameInput) nameInput.value = '';
+        if (emailInput) emailInput.value = '';
+        if (latInput) latInput.value = '';
+        if (lonInput) lonInput.value = '';
+        nameInput?.focus();
+      }, 0);
+    });
+
+    // --- Add Branch save ---
+    document.addEventListener('submit', async (e) => {
+      if (e.target?.id !== 'branchAddForm') return;
+      e.preventDefault();
+
+      const { addForm, nameInput, emailInput, latInput, lonInput } = getAddFormEls();
+      if (!addForm || !nameInput) return;
+
+      const submitBtn = addForm.querySelector('#branchSaveBtn');
+      if (submitBtn) {
+        if (submitBtn.disabled) return;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving…';
       }
 
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      try {
+        if (!nameInput.checkValidity()) { nameInput.reportValidity(); return; }
 
-      // success
-      window.FreeplateModals?.setOpen('#branchAddModal', false);
-      nameInput.value  = '';
-      if (emailInput)  emailInput.value = '';
-      if (latInput)    latInput.value   = '';
-      if (lonInput)    lonInput.value   = '';
+        const name  = nameInput.value.trim();
+        const email = (emailInput?.value || '').trim();
 
-      searchEl.value = '';
-      searchEl.focus();
-      doSearch('');
-      toast('Branch added');
-    } catch (err) {
-      alert('Could not add branch: ' + (err.message || err));
-    }
-  });
+        const readCoord = (el, min, max, label) => {
+          if (!el || !el.value) return null;
+          const v = parseFloat(el.value);
+          if (Number.isNaN(v) || v < min || v > max) {
+            alert(`${label} must be between ${min} and ${max}`);
+            el.focus();
+            throw new Error('bad coord');
+          }
+          return Math.round(v * 1e6) / 1e6;
+        };
 
-  // expose reset (used when opening Freeplate fresh)
-  window.FreeplateBranchPicker = {
-    reset() {
-      selected.clear();
-      setIds();
-      renderChips();
-      clearResults();
-      if (allBranchesCb) allBranchesCb.checked = false;
-      if (searchEl) searchEl.value = '';
-      togglePickerDisabled();
-    }
+        let latitude  = null;
+        let longitude = null;
+        try {
+          latitude  = readCoord(latInput, -90, 90,  'Latitude');
+          longitude = readCoord(lonInput, -180, 180,'Longitude');
+        } catch (_) { return; }
+
+        const payload = { name };
+        if (email) payload.email = email;
+        if (latitude !== null)  payload.latitude  = latitude;
+        if (longitude !== null) payload.longitude = longitude;
+
+        const res = await fetch(API.create, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': (addForm.querySelector('input[name=csrfmiddlewaretoken]')?.value || getCSRF()),
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+
+        window.FreeplateModals?.setOpen('#branchAddModal', false);
+
+        nameInput.value = '';
+        if (emailInput) emailInput.value = '';
+        if (latInput)   latInput.value   = '';
+        if (lonInput)   lonInput.value   = '';
+
+        searchEl.value = '';
+        searchEl.focus();
+        doSearch('');
+
+        const newId =
+          data.id || data.branch_id || data.pk ||
+          data.branch?.id || data.branch?.pk || null;
+
+        const newName =
+          data.name || data.branch_name ||
+          data.branch?.name || name;
+
+        if (newId) {
+          window.FreeplateBranchPicker?.addBranch?.(newId, newName);
+        }
+
+      } catch (err) {
+        alert('Could not add branch: ' + (err.message || err));
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Save';
+        }
+      }
+    });
+
+    // ✅ expose picker
+    window.FreeplateBranchPicker = {
+      __inited: true,
+
+      reset() {
+        selected.clear();
+        setIds();
+        renderChips();
+        clearResults();
+        if (allBranchesCb) allBranchesCb.checked = false;
+        if (searchEl) searchEl.value = '';
+        togglePickerDisabled();
+      },
+
+      addBranch(id, name) {
+        console.log('[BranchPicker] addBranch', {id, name});
+        if (!id) return;
+        const bid = parseInt(id, 10);
+        if (!Number.isFinite(bid)) return;
+
+        if (allBranchesCb && allBranchesCb.checked) {
+          allBranchesCb.checked = false;
+          togglePickerDisabled();
+        }
+
+        if (!selected.has(bid)) {
+          selected.set(bid, name || ('Branch ' + bid));
+          setIds();
+          renderChips();
+        }
+      }
+    };
+
+    setIds();
+    console.log('[BranchPicker] ✅ init success');
+    return true;
   };
 
-  setIds();
+  // ✅ init when page ready
+  document.addEventListener('DOMContentLoaded', () => {
+    window.initFreeplateBranchPicker();
+  });
+
+  // ✅ init again when opening modal (important)
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-open="#freeplateModal"], [data-open="freeplateModal"]');
+    if (!btn) return;
+    setTimeout(() => window.initFreeplateBranchPicker(), 0);
+  });
+
 })();
 </script>
 

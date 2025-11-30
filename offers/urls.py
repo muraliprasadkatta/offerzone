@@ -32,6 +32,9 @@ urlpatterns = [
     path("complementary-offer/save", aviews.complementary_offer_save, name="complementary_offer_save"),
     # path("admin/api/qr/generate/",aviews.api_generate_counter_qr,name="api_generate_counter_qr",),
     path("admin/branch/<int:branch_id>/",aviews.branch_detail_view, name="branch_detail"),
+    path("admin/branch/<int:branch_id>/offer-json/", aviews.offer_json_for_branch, name="offer_json_for_branch"),
+
+
 
     path("qrg/", include(("offers.qr_generation.urls", "qrgen"), namespace="qrgen")),
 
