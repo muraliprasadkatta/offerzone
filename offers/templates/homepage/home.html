@@ -224,9 +224,9 @@
     const a = e.target.closest('a.branch-pill');
     if (!a) return;
 
+    // remove any #... before navigation
     if (location.hash) {
-      const baseUrl = location.pathname + location.search;
-      history.replaceState(null, '', baseUrl);
+      history.replaceState(null, '', location.pathname + location.search);
     }
   }, true); // capture = true (runs before navigation)
 </script>

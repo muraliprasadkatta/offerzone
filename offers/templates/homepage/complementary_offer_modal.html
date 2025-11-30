@@ -1,5 +1,5 @@
 <!-- SECOND MODAL: Complementary Offer form -->
-<div id="freeplateModal" class="freeplate-modal" aria-hidden="true" role="dialog" aria-modal="true">
+<div id="freeplateModal" class="freeplate-modal" aria-hidden="true" hidden  role="dialog" aria-modal="true">
 
 <div class="freeplate-modal__card freeplate-modal__card--fullscreen" role="document">
     <div class="freeplate-modal__head freeplate-sticky--top">
@@ -997,10 +997,13 @@
   function setModalOpenById(target, open) {
     const el = typeof target === 'string' ? document.querySelector(target) : target;
     if (!el) return;
+
+    el.hidden = !open;  // ✅ important
     el.setAttribute('aria-hidden', open ? 'false' : 'true');
     el.classList.toggle('open', !!open);
     bodyLockMaybe();
   }
+
 
   window.FreeplateModals = { setOpen: setModalOpenById };
 
