@@ -604,11 +604,9 @@ class UserVisitEvent(models.Model):
 
     visit_method = models.CharField(max_length=20, choices=VISIT_METHOD_CHOICES)
 
-
     # ⭐ NEW FIELDS
     staff_name = models.CharField(max_length=255, blank=True, default="")
     staff_code = models.CharField(max_length=100, blank=True, default="")
-
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -618,4 +616,3 @@ class UserVisitEvent(models.Model):
     def __str__(self):
         who = self.user or "Guest"
         return f"{who} @ {self.branch} ({self.visit_method})"
-

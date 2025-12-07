@@ -589,7 +589,8 @@ def pin_verify(request):
                 staff_code=row.staff_code,
             )
 
-    next_url = reverse("offers:user_visit_count") + f"?token={row.token}"
+    next_url = reverse("offers:user_visit_intake") + f"?token={row.token}"
+
 
     return JsonResponse({
         "ok": True,
@@ -679,7 +680,8 @@ def scan_verify(request):
 
             UserVisitEvent.objects.create(**event_kwargs)
 
-    next_url = reverse("offers:user_visit_count") + f"?token={token}"
+    next_url = reverse("offers:user_visit_intake") + f"?token={token}"
+
 
     return JsonResponse({
         "ok": True,
@@ -735,69 +737,89 @@ def branch_offers_in_userinterface(request, branch_id):
 # Visit count page after sucefull pin or scan redirect view 
 # =========================
 
+
+from django.views.decorators.cache import cache_control
+from django.shortcuts import redirect
 from django.utils import timezone
-from django.shortcuts import render, redirect
-from django.views.decorators.cache import cache_control, never_cache
 from django.db import models
 
 @cache_control(no_store=True, no_cache=True, must_revalidate=True)
 @never_cache
-def user_visit_count_view(request):
+def user_visit_intake_view(request):
+    """
+    QR / PIN verify taruvata first hit oka sari ikkade ki vastundi.
+
+    Task:
+    - ?token= ni verify cheyyadam
+    - Branch ni find cheyyadam
+    - Session lo last_branch_* context store cheyyadam
+    - Clean status page (/visit-count/) ki redirect cheyyadam
+    """
     token = request.GET.get("token")
+    if not token:
+        # token lekunda direct hit aithe, straight ga status page ki velipoddam
+        return redirect("offers:user_visit_count")
+
+    try:
+        if "." in token:
+            # new style JWT-like token
+            info = verify_qr_token(token, allow_used=True)
+        elif ":" in token:
+            # legacy colon token
+            info = verify_legacy_colon_token(token)
+        else:
+            raise ValueError("Bad token format")
+
+        branch = (
+            Branch.objects
+            .filter(pk=info["bid"])
+            .only("id", "name")
+            .first()
+        )
+        if not branch:
+            raise ValueError("Branch not found")
+
+        desk = info.get("desk")
+
+        # Session lo visit context store
+        request.session["last_branch_id"] = branch.id
+        request.session["last_branch_name"] = branch.name
+        request.session["last_qr_ok_at"] = timezone.now().isoformat()
+
+        if desk:
+            request.session["last_branch_desk"] = str(desk)
+        else:
+            request.session.pop("last_branch_desk", None)
+
+        # (optional) debug kosam token cache
+        request.session["last_visit_token"] = token
+
+        # IMPORTANT:
+        # UserVisitEvent already scan_verify / pin_verify lo create ayyindi,
+        # ikkada malli create cheyyakunda clean status URL ki redirect.
+        return redirect("offers:user_visit_count")
+
+    except ValueError:
+        # bad / expired / invalid token → home
+        return redirect("offers:user_home")
+
+
+
+
+
+
+@cache_control(no_store=True, no_cache=True, must_revalidate=True)
+@never_cache
+def user_visit_count_view(request):
+    """
+    Status / visits page:
+    - Header lo 'Status' click → ikkade
+    - Scan / PIN taruvata intake → ikkade
+    """
     visit_unit = "qr_screenshot"   # default
 
     # ================================
-    # 1) First-time hit WITH ?token=
-    #    -> verify token + store in session
-    #    -> redirect to clean URL (/visit-count/)
-    # ================================
-    if token:
-        try:
-            if "." in token:
-                # new style JWT-like token
-                info = verify_qr_token(token, allow_used=True)
-            elif ":" in token:
-                # legacy colon token
-                info = verify_legacy_colon_token(token)
-            else:
-                raise ValueError("Bad token format")
-
-            branch = (
-                Branch.objects
-                .filter(pk=info["bid"])
-                .only("id", "name")
-                .first()
-            )
-            if not branch:
-                raise ValueError("Branch not found")
-
-            desk = info.get("desk")
-
-            # Save visit context in session
-            request.session["last_branch_id"] = branch.id
-            request.session["last_branch_name"] = branch.name
-            request.session["last_qr_ok_at"] = timezone.now().isoformat()
-
-            if desk:
-                request.session["last_branch_desk"] = str(desk)
-            else:
-                request.session.pop("last_branch_desk", None)
-
-            # (optional) cache last token if you ever need in template/debug
-            request.session["last_visit_token"] = token
-
-            # IMPORTANT:
-            # UserVisitEvent already create ayyi untundi (scan_verify / pin_verify lo),
-            # ikkada malli create cheyyakunda clean URL ki redirect.
-            return redirect("offers:user_visit_count")
-
-        except ValueError:
-            # bad / expired / invalid token → home
-            return redirect("offers:user_home")
-
-    # ================================
-    # 2) Normal render (NO token in URL)
-    #    -> session lo branch_id required
+    # 1) Session lo branch_id required
     # ================================
     branch_id = request.session.get("last_branch_id")
     if not branch_id:
@@ -823,19 +845,16 @@ def user_visit_count_view(request):
     # -------------------------------
     # Fetch visit stats from DB
     # -------------------------------
-    total_visits = 0
-    today_visits = 0
-    last_visit = None
-
     qs = UserVisitEvent.objects.filter(branch_id=branch_id)
 
-    # Only count this specific user if logged in
     if request.user.is_authenticated:
         qs = qs.filter(user=request.user)
 
     total_visits = qs.count()
 
-    start_of_day = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    start_of_day = timezone.now().replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
     today_visits = qs.filter(created_at__gte=start_of_day).count()
 
     last_obj = qs.order_by("-created_at").first()
@@ -848,9 +867,11 @@ def user_visit_count_view(request):
         "branch_name": request.session.get("last_branch_name", "Unknown Branch"),
         "total_visits": total_visits,
         "today_visits": today_visits,
-        "last_visit": last_visit.strftime("%Y-%m-%d %H:%M") if last_visit else None,
+        "last_visit": (
+            last_visit.strftime("%Y-%m-%d %H:%M") if last_visit else None
+        ),
         "visit_unit": visit_unit,
-        # template ki token kavalsina avasaram ledu, but debug kosam isthene:
+        # template ki token kavalsina avasaram ledu, but debug kosam isthe:
         "token": request.session.get("last_visit_token"),
     }
 

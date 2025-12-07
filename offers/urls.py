@@ -46,6 +46,8 @@ urlpatterns = [
     path("qrg/pin-verify/", uviews.pin_verify, name="pin_verify"),
     path("qrg/scan-verify/", uviews.scan_verify, name="scan_verify"),
     path("user-visit-count/",uviews.user_visit_count_view,name="user_visit_count"),
+    path("visit-count/intake/",uviews.user_visit_intake_view,name="user_visit_intake"),
+    path("user-visit-count/",uviews.user_visit_count_view,name="user_visit_count"),
 
     path(
         "branch_offers_in_userinterface/<int:branch_id>/",

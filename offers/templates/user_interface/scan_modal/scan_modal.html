@@ -919,7 +919,8 @@ window.OZScan = window.OZScan || {};
       }
 
       const next =
-        data.next || `/visit-count/?token=${encodeURIComponent(token)}`;
+        data.next || `/visit-count/intake/?token=${encodeURIComponent(token)}`;
+
       window.location.replace(next);
     } catch (err) {
       console.error("QR verify error", err);
@@ -1014,7 +1015,8 @@ window.OZScan = window.OZScan || {};
           return;                         // IMPORTANT
         }
 
-        const next = data.next || '/visit-count/';
+
+        const next = data.next || '/visit-count/intake/';
         window.location.replace(next);
 
 

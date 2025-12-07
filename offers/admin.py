@@ -323,26 +323,33 @@ class UserVisitEventAdmin(admin.ModelAdmin):
         "branch",
         "visit_method",
         "desk",
+        "staff_name",   # 👈 ADD
+        "staff_code",   # 👈 ADD
         "token",
         "created_at",
     )
+
     list_filter = (
         "visit_method",
         "branch",
         "desk",
+        "staff_code",    # (optional) filter by staff
         "created_at",
     )
+
     search_fields = (
         "token",
         "desk",
+        "staff_name",     # 👈 search by staff name
+        "staff_code",     # 👈 search by staff code
         "branch__name",
         "user__username",
         "user__email",
     )
+
     date_hierarchy = "created_at"
     ordering = ("-created_at",)
     autocomplete_fields = ("user", "branch")
-
 
 
 from django.contrib import admin
