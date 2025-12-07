@@ -30,6 +30,7 @@ urlpatterns = [
     path("admin/home/", aviews.admin_home, name="admin_home"),            # ← /  is home
     path("complementary-offer/save", aviews.complementary_offer_save, name="complementary_offer_save"),
     # path("admin/api/qr/generate/",aviews.api_generate_counter_qr,name="api_generate_counter_qr",),
+    path("admin/branch/<int:branch_id>/",aviews.branch_detail_view, name="branch_detail"),
 
     path("qrg/", include(("offers.qr_generation.urls", "qrgen"), namespace="qrgen")),
 
@@ -39,17 +40,18 @@ urlpatterns = [
     path("branch/auth/otp/verify", bviews.branch_otp_verify, name="branch_otp_verify"),
     path("branch/home/", bviews.branch_home_view, name="branch_home"),
     path("branch/logout/", bviews.branch_logout_view, name="branch_logout"),
+    path("branch/staff/create/",bviews.branch_staff_create_view,name="branch_staff_create"),
 
     # offers/urls.py
     path("qrg/pin-verify/", uviews.pin_verify, name="pin_verify"),
+    path("qrg/scan-verify/", uviews.scan_verify, name="scan_verify"),
+    path("user-visit-count/",uviews.user_visit_count_view,name="user_visit_count"),
 
     path(
         "branch_offers_in_userinterface/<int:branch_id>/",
         uviews.branch_offers_in_userinterface,
         name="branch_offers_in_userinterface",
     ),
-
-    path("visit-count/", uviews.user_visit_count_view, name="user_visit_count"),
 
 
 ]

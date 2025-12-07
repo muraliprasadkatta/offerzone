@@ -5,32 +5,96 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Branch · Home</title>
-  <style>
-    :root{ --bg:#0b1020; --card:#11183a; --border:#273164; --text:#e8ecff; --muted:#b9c4ff; --prim:#4c74ff; }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,Arial,sans-serif;background:var(--bg);color:var(--text)}
-    .wrap{min-height:100dvh;display:grid;grid-template-rows:auto 1fr;gap:18px}
-    .top{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--border);background:#0c1230}
-    .brand{font-weight:800;letter-spacing:.3px}
-    .badge{padding:4px 10px;border:1px solid var(--border);border-radius:999px;font-size:12px;color:#b9c4ff}
-    .main{padding:18px;display:grid;gap:16px;max-width:980px;margin:0 auto;width:100%}
-    .card{background:#11183a;border:1px solid var(--border);border-radius:14px;padding:16px}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
-    .btn{display:inline-block;background:var(--prim);color:white;text-decoration:none;border-radius:10px;padding:10px 14px;font-weight:700}
-    .muted{color:var(--muted);font-size:14px}
-    .row{display:flex;gap:10px;flex-wrap:wrap}
-  </style>
 
-  <!-- QR button = admin-style ghost pill, classes/ids untouched -->
   <style>
-    /* Target ONLY the QR trigger using its data-open attribute */
+    :root{
+      --bg:#0b1020;
+      --card:#11183a;
+      --border:#273164;
+      --text:#e8ecff;
+      --muted:#b9c4ff;
+      --prim:#4c74ff;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:system-ui,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+    .wrap{
+      min-height:100dvh;
+      display:grid;
+      grid-template-rows:auto 1fr;
+      gap:18px;
+    }
+    .top{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:16px 18px;
+      border-bottom:1px solid var(--border);
+      background:#0c1230;
+    }
+    .brand{
+      font-weight:800;
+      letter-spacing:.3px;
+    }
+    .badge{
+      padding:4px 10px;
+      border:1px solid var(--border);
+      border-radius:999px;
+      font-size:12px;
+      color:#b9c4ff;
+    }
+    .main{
+      padding:18px;
+      display:grid;
+      gap:16px;
+      max-width:980px;
+      margin:0 auto;
+      width:100%;
+    }
+    .card{
+      background:#11183a;
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:16px;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      gap:12px;
+    }
+    .btn{
+      display:inline-block;
+      background:var(--prim);
+      color:white;
+      text-decoration:none;
+      border-radius:10px;
+      padding:10px 14px;
+      font-weight:700;
+      border:none;
+      cursor:pointer;
+    }
+    .muted{
+      color:var(--muted);
+      font-size:14px;
+    }
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    /* QR button = admin-style ghost pill, classes/ids untouched */
     a.btn[data-open="#qrcodeModal"]{
-      background:#eaf0ff;           /* light ghost */
-      color:#0b5cff;                 /* brand blue text */
+      background:#eaf0ff;
+      color:#0b5cff;
       border:1px solid #d8e2ff;
       border-radius:14px;
 
-      display:inline-flex;           /* icon + label inline */
+      display:inline-flex;
       align-items:center;
       gap:8px;
       padding:10px 12px;
@@ -43,15 +107,43 @@
       background:#dde7ff;
     }
     a.btn[data-open="#qrcodeModal"]:focus-visible{
-      outline:2px solid #cbd6ff; outline-offset:2px;
+      outline:2px solid #cbd6ff;
+      outline-offset:2px;
     }
-    /* icon size ONLY inside QR button */
     a.btn[data-open="#qrcodeModal"] svg{
-      width:18px; height:18px; display:block;
+      width:18px;
+      height:18px;
+      display:block;
     }
-    /* small screens keep same pill */
     @media (max-width:520px){
-      a.btn[data-open="#qrcodeModal"]{ padding:9px 11px; border-radius:12px; }
+      a.btn[data-open="#qrcodeModal"]{
+        padding:9px 11px;
+        border-radius:12px;
+      }
+    }
+
+    /* small outline button style for visitor test */
+    .btn--outline-mini{
+      background:transparent;
+      border:1px solid var(--border);
+      color:var(--muted);
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      font-weight:600;
+      cursor:pointer;
+    }
+    .btn--outline-mini:hover{
+      border-color:var(--prim);
+      color:var(--text);
+    }
+
+    /* ===== generic modal visibility ===== */
+    [data-modal]{
+      display:none;           /* hidden by default */
+    }
+    [data-modal].is-open{
+      display:flex;           /* flex because our backdrop uses flex-center */
     }
   </style>
 </head>
@@ -63,6 +155,17 @@
     <div class="row" style="align-items:center">
       <div class="brand">Branch Home</div>
       <span class="badge">{{ request.session.branch_name|default:"—" }}</span>
+
+            <!-- 🌟 Staff pill (login via staff email ayithe) -->
+      {% if request.session.branch_staff_name %}
+        <span class="badge badge--staff">
+          Staff: {{ request.session.branch_staff_name }}
+          {% if request.session.branch_staff_code %}
+            · {{ request.session.branch_staff_code }}
+          {% endif %}
+        </span>
+      {% endif %}
+
     </div>
 
     <!-- right side: ONLY QR button (logout moved to bottom) -->
@@ -84,12 +187,41 @@
 
     <section class="card">
       <h2 style="margin:0 0 6px">Welcome 👋</h2>
-      <p class="muted">Logged in as: <b>{{ request.session.branch_name|default:"Branch" }}</b></p>
+      <p class="muted">
+        Logged in as: <b>{{ request.session.branch_name|default:"Branch" }}</b>
+        {% if request.session.branch_staff_name %}
+          <br>
+          <small>
+            Staff: {{ request.session.branch_staff_name }}
+            {% if request.session.branch_staff_code %}
+              ({{ request.session.branch_staff_code }})
+            {% endif %}
+          </small>
+        {% endif %}
+      </p>
+
+
 
       <div class="row" style="margin-top:10px">
         <a class="btn" href="#">Orders</a>
         <a class="btn" href="#">Staff</a>
         <a class="btn" href="#">Settings</a>
+
+
+          <!-- NEW: Add Staff button (future modal ki hook pedthaam) -->
+  <button type="button"
+          class="btn"
+          data-open="#addStaffModal">
+    Add staff
+  </button>
+
+  
+        <!-- TEST BUTTON: open visitor details modal -->
+        <button type="button"
+                class="btn btn--outline-mini"
+                data-open="#visitDetailsModal">
+          Test visitor details
+        </button>
       </div>
     </section>
 
@@ -113,15 +245,34 @@
 </div>
 
 {% include "offers/qr_generation/branch_qrcode_modal.html" %}
+{% include "branch/branch_homepage/visitor_details_modal.html" %}
+{% include "branch/branch_homepage/branch_staff_create_modal.html" %}
 
 </body>
 </html>
 
 <script>
-  // remove previous entry and trap back
+  // history trap
   history.replaceState(null, '', location.pathname);
   history.pushState(null, '', location.pathname);
   window.addEventListener('popstate', function () {
     location.replace("{% url 'offers:branch_home' %}");
+  });
+
+  // generic modal open/close handler
+  document.addEventListener("click", function (e) {
+    const openBtn = e.target.closest("[data-open]");
+    if (openBtn) {
+      e.preventDefault(); // avoid # jump
+      const selector = openBtn.getAttribute("data-open");
+      const modal = document.querySelector(selector);
+      if (modal) modal.classList.add("is-open");
+    }
+
+    const closeBtn = e.target.closest("[data-close]");
+    if (closeBtn) {
+      const modal = closeBtn.closest("[data-modal]");
+      if (modal) modal.classList.remove("is-open");
+    }
   });
 </script>

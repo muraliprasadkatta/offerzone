@@ -51,15 +51,6 @@ def _parse_dt_local(s: str):
     dt = datetime.strptime(s, "%Y-%m-%dT%H:%M")
     return dt.replace(tzinfo=IST)
 
-# ---- admin home/login/logout --------------------------------
-
-
-@login_required(login_url="offers:admin_login")
-@user_passes_test(_is_superuser, login_url="offers:admin_login")
-@never_cache
-def admin_home(request):
-    branches = Branch.objects.all().order_by("name")
-    return render(request, "homepage/home.html", {"branches": branches})
 
 
 @never_cache
@@ -115,6 +106,97 @@ def parse_positive_int(val, default=None, min_value=None):
     if min_value is not None and n < min_value:
         return default if default is not None else min_value
     return n
+
+
+
+
+
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.utils import timezone
+from django.db.models.functions import Lower
+
+from .models import Branch, LoginVisit
+
+
+def _is_superuser(user):
+    return user.is_superuser
+
+
+@login_required(login_url="offers:admin_login")
+@user_passes_test(_is_superuser, login_url="offers:admin_login")
+@never_cache
+def admin_home(request):
+    """
+    Admin dashboard: branch-level summary.
+
+    Shows:
+      - total_branches        → system lo enni branches register ayyayo
+      - branches_active_today → ee roju login ayina branches count
+      - branches (first 12)   → UI lo cards/pills kosam
+    """
+
+    # 1) Total branches
+    total_branches = Branch.objects.count()
+
+    # 2) Branch list (first 12, name order)
+    LIMIT = 12
+    all_branches_qs = Branch.objects.order_by(Lower("name"))
+    branches = list(all_branches_qs[:LIMIT])
+
+    # 3) Today date (IST / project timezone)
+    today = timezone.localdate()
+
+    # 4) Today login visits (LoginVisit lo per-user, per-day row untundi)
+    login_qs = (
+        LoginVisit.objects
+        .filter(visit_date=today)
+        .select_related("user")
+    )
+
+    # 5) Aa users emails collect cheddam
+    #    assumption: Branch.email == User.email (branch login mail)
+    emails = {
+        lv.user.email
+        for lv in login_qs
+        if getattr(lv.user, "email", None)
+    }
+
+    # 6) A emails ki match ayye branches = today active branches
+    branches_active_today = (
+        Branch.objects
+        .filter(email__in=emails)
+        .distinct()
+        .count()
+    )
+
+    ctx = {
+        "branches": branches,
+        "total_branches": total_branches,
+        "branches_active_today": branches_active_today,
+    }
+    return render(request, "homepage/home.html", ctx)
+
+
+@login_required(login_url="offers:admin_login")
+@user_passes_test(_is_superuser, login_url="offers:admin_login")
+@never_cache
+def branch_detail_view(request, branch_id):
+    """Single branch detail page (admin panel)."""
+    try:
+        branch = Branch.objects.get(id=branch_id)
+    except Branch.DoesNotExist:
+        return redirect("offers:admin_home")
+
+    ctx = {
+        "branch": branch,
+        "created_at": branch.created_at,
+        "email": branch.email,
+    }
+
+    return render(request, "homepage/branchdata_in_adminpanel.html", ctx)
+
+
+
 
 
 # ---- save complementary offer (exclude_staff, branches, extra_nths) ---------
@@ -347,38 +429,4 @@ def branches_search(request):
     data = [{"id": b.id, "name": b.name} for b in qs.order_by("name")[:20]]
     return JsonResponse(data, safe=False)
 
-# ---- QR PIN / counter QR API (superuser only) ----------------
-# (still commented; left untouched)
 
-# @require_POST
-# @login_required(login_url="offers:admin_login")
-# @user_passes_test(_is_superuser, login_url="offers:admin_login")
-# def api_generate_counter_qr(request):
-#     """
-#     Admin side nundi AJAX call:
-#     fresh QR token + 4-digit PIN create chesi JSON return chesthundi.
-#     """
-#     branch_id = request.POST.get("branch_id")
-#     desk = (request.POST.get("desk") or "").strip()
-#
-#     if not branch_id:
-#         return HttpResponseBadRequest("branch_id required")
-#
-#     try:
-#         branch = Branch.objects.get(id=branch_id)
-#     except Branch.DoesNotExist:
-#         return HttpResponseBadRequest("invalid branch_id")
-#
-#     data = generate_qr_token_and_pin(branch, desk=desk)
-#
-#     return JsonResponse(
-#         {
-#             "ok": True,
-#             "token": data["token"],                    # QR code ki
-#             "pin": data["pin"],                        # modal lo display
-#             "expires_in": data["expires_in"],          # seconds
-#             "expires_at": data["expires_at"].isoformat(),
-#             "branch_name": branch.name,
-#             "desk": data["desk"],
-#         }
-#     )

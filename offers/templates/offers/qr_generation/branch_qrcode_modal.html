@@ -10,6 +10,8 @@
   <span class="chip" id="qrMetaBranch" title="Branch">—</span>
   <span class="chip" id="qrMetaUID" title="Branch UID">UID: ----</span>
   <span class="chip" id="qrMetaTag" title="Short Tag">#----</span>
+    <span class="chip" id="qrMetaStaff" title="Staff">Staff: —</span>
+
   <span class="chip dev" id="qrMetaTTL" title="Rotating TTL">Rotating • TTL 03:00</span>
 </div>
 
@@ -131,7 +133,7 @@ window.OZQR = {
   MODAL_ID: 'qrcodeModal',
   START_URL: '/qrg/start',
   flags: { SHOW_DEBUG: true },      // set to false to hide TTL chip later
-  state: { countdown:180, tickTimer:null, payload:'', pin:'', branch:'—', desk:'—', tag:'----', uid:'', seed:'' }
+  state: { countdown:180, tickTimer:null, payload:'', pin:'', branch:'—', desk:'—', tag:'----', uid:'', seed:'', staffName: '', staffCode: '' }
 
 };
 </script>
@@ -176,7 +178,11 @@ window.OZQR = {
     OZ.setText('#qrMetaBranch', S.branch || '—');
     OZ.setText('#qrMetaUID', 'UID: ' + (S.uid || '----'));   // ⬅️ NEW
     OZ.setText('#qrMetaTag', '#'+(S.tag || '----'));
-    OZ.setText('#qrMetaDesk', 'Desk: '+(S.desk || '—'));
+
+    const staffText = S.staffCode
+      ? `Staff: ${S.staffCode}`
+      : (S.staffName ? `Staff: ${S.staffName}` : 'Staff: —');
+    OZ.setText('#qrMetaStaff', staffText);
     const ttlChip = OZ.$('#qrMetaTTL');
     if(ttlChip) ttlChip.style.display = (window.OZQR.flags?.SHOW_DEBUG ? '' : 'none');
   };
@@ -195,14 +201,39 @@ window.OZQR = {
   };
 
 
-  const mmss=s=>`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
-  OZ.updateCountdown=()=>{
-    OZ.setText('#qrCountdown', mmss(S.countdown));
-    if(window.OZQR.flags?.SHOW_DEBUG){ OZ.setText('#qrMetaTTL', 'Rotating • TTL '+mmss(S.countdown)); }
+  const mmss = s =>
+    `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+
+  OZ.updateCountdown = () => {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const remaining = Math.max(0, (S.expUnix || nowSec) - nowSec);
+    S.countdown = remaining;
+
+    OZ.setText('#qrCountdown', mmss(remaining));
+    if (window.OZQR.flags?.SHOW_DEBUG) {
+      OZ.setText('#qrMetaTTL', 'Rotating • TTL ' + mmss(remaining));
+    }
+
+    if (remaining <= 0) {
+      // expire → refresh or just stop
+      OZ.stopTimer();
+      OZ.refresh();
+    }
   };
-  OZ.stopTimer=()=>{ if(S.tickTimer){ clearInterval(S.tickTimer); S.tickTimer=null; } };
-  OZ.startTimer=()=>{ OZ.stopTimer(); OZ.updateCountdown(); S.tickTimer=setInterval(()=>{ S.countdown--; OZ.updateCountdown(); if(S.countdown<=0) OZ.refresh(); },1000); };
- 
+
+  OZ.stopTimer = () => {
+    if (S.tickTimer) {
+      clearInterval(S.tickTimer);
+      S.tickTimer = null;
+    }
+  };
+
+  OZ.startTimer = () => {
+    OZ.stopTimer();
+    OZ.updateCountdown();                // compute immediately
+    S.tickTimer = setInterval(OZ.updateCountdown, 1000);
+  };
+
   // 👇 make it available to the other IIFE
   window.__oz_shortTagFromUID = shortTagFromUID;
 
@@ -232,50 +263,71 @@ window.OZQR = {
   }
 
 
-  OZ.mintFromServer=async(seed='')=>{
+  OZ.mintFromServer = async (seed = '') => {
     const params = parseSeed(seed);
     const url = new URL(OZ.START_URL, location.origin);
-    if(params.branchPid) url.searchParams.set('branch', params.branchPid); // pass UID to server
-    if(params.desk)      url.searchParams.set('desk', params.desk);
+    if (params.branchPid) url.searchParams.set('branch', params.branchPid); // pass UID to server
+    if (params.desk)      url.searchParams.set('desk', params.desk);
 
-    const res = await fetch(url.toString(), { method:'GET', credentials:'same-origin', headers:{Accept:'application/json'} });
-    const ct = res.headers.get('content-type')||''; if(!ct.includes('application/json')) throw new Error('Non-JSON');
-    const data = await res.json(); if(!res.ok || data.ok===false) throw new Error(data.error || ('HTTP '+res.status));
+    const res = await fetch(url.toString(), {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json' }
+    });
+    const ct = res.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) throw new Error('Non-JSON');
+    const data = await res.json();
+    if (!res.ok || data.ok === false) throw new Error(data.error || ('HTTP ' + res.status));
 
-    S.payload   = data.payload || '';
-    S.pin       = data.pin || '';   // ← IKKADA CHANGE
-    S.countdown = Math.max(30, parseInt(data.expires_in ?? 180, 10));
-    S.desk      = data.desk || params.desk || '—';
+    S.payload = data.payload || '';
+    S.pin     = data.pin || '';
+
+    // ⬇⬇⬇ TTL & absolute expiry (NEW)
+    const ttl = Math.max(30, parseInt(data.expires_in ?? 180, 10) || 0);
+    const nowSec = Math.floor(Date.now() / 1000);
+    S.expUnix   = nowSec + ttl;   // absolute expiry timestamp (seconds)
+    S.countdown = ttl;            // initial display value
+    // ⬆⬆⬆
+
+    S.desk = data.desk || params.desk || '—';
+    S.staffName = (data.staff_name || '').toString();
+    S.staffCode = (data.staff_code || '').toString();
 
     // try to read UID from server (optional), else fallback to seed
     S.uid = (data.branch_public_id || data.uid || params.branchPid || '').toString();
 
     // Branch label + tag
     const label = (data.branch || '').toString();
-    if(label.includes('#')){
-      S.branch = label.replace(/\s*·\s*#.*$/,'').trim();
+    if (label.includes('#')) {
+      S.branch = label.replace(/\s*·\s*#.*$/, '').trim();
       S.tag    = label.split('#').pop().trim();
     } else {
       S.branch = label || '—';
       S.tag    = (data.branch_tag || '').toString().trim();
-      if(!S.tag){
+      if (!S.tag) {
         // derive short tag from UID (best) else from name
         S.tag = S.uid ? tagFromUID(S.uid) : tagFromUID(S.branch);
       }
     }
 
-    OZ.renderHead(); OZ.renderQR(); OZ.renderPIN();
-
+    OZ.renderHead();
+    OZ.renderQR();
+    OZ.renderPIN();
   };
 
-  OZ.mintLocally=(seed='')=>{
+  OZ.mintLocally = (seed = '') => {
     const params = parseSeed(seed);
+    const ttl = 180;
+    const nowSec = Math.floor(Date.now() / 1000);
     S.payload   = seed || (location.origin + '/offers/local-demo');
-    S.pin       = '';                 // no PIN in local demo
-    S.countdown = 180;
+    S.pin       = '';
+    S.countdown = ttl;
+    S.expUnix   = nowSec + ttl;          // ⬅️ ADD
     S.branch    = 'demo-branch';
     S.uid       = params.branchPid || 'DEMOUID1';
     S.tag       = tagFromUID(S.uid);
+    S.staffName = '';
+    S.staffCode = '';
     S.desk      = params.desk || 'A1';
     OZ.renderHead(); OZ.renderQR(); OZ.renderPIN();
   };

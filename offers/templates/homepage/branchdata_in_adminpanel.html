@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+<head>
+  <title>Branch Detail</title>
+  <style>
+    body{background:#0b1020;color:#fff;font-family:system-ui;padding:20px;}
+    .box{
+        background:#11183a;
+        padding:20px;
+        border-radius:14px;
+        border:1px solid #253060;
+        max-width:500px;
+        margin:auto;
+    }
+    .back{
+        color:#7fa7ff;
+        text-decoration:none;
+        margin-bottom:20px;
+        display:inline-block;
+    }
+  </style>
+</head>
+
+<body>
+
+  <a href="{% url 'offers:admin_home' %}" class="back">← Back</a>
+
+  <div class="box">
+    <h2 style="margin-top:0;">Branch: {{ branch.name }}</h2>
+
+    <p><strong>Branch ID:</strong> {{ branch.id }}</p>
+    <p><strong>Public ID:</strong> {{ branch.public_id }}</p>
+    <p><strong>Email:</strong> {{ branch.email|default:"Not set" }}</p>
+    <p><strong>Coordinates:</strong>
+      {% if branch.latitude %}
+        {{ branch.latitude }}, {{ branch.longitude }}
+      {% else %}
+        No coordinates
+      {% endif %}
+    </p>
+
+    <p><strong>Created At:</strong> {{ created_at }}</p>
+
+    <hr>
+
+    <h3>Users (dummy)</h3>
+    <p>No users linked yet.</p>
+
+  </div>
+
+</body>
+</html>

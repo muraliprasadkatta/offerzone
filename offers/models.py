@@ -19,14 +19,6 @@ from django.db import models
 from django.contrib.auth import get_user_model
 
 
-# offers/models.py
-from django.utils import timezone
-
-from django.utils import timezone  # already undi anukunta
-
-
-from django.db import models
-from django.utils import timezone
 
 class QRPin(models.Model):
     branch = models.ForeignKey(
@@ -62,11 +54,36 @@ class QRPin(models.Model):
     used_at = models.DateTimeField(null=True, blank=True)
     attempts = models.PositiveSmallIntegerField(default=0)
 
+    # ⭐ NEW: staff info snapshot (optional)
+    staff_name = models.CharField(max_length=255, blank=True, default="")
+    staff_code = models.CharField(max_length=100, blank=True, default="")
+
+
     class Meta:
         ordering = ["-created_at"]
 
     def __str__(self):
         return f"QRPin({self.branch_id}, {self.desk}, {self.token[:8]}...)"
+
+
+
+
+from django.db import models
+from django.utils import timezone
+
+class QRTokenUsage(models.Model):
+    token = models.CharField(max_length=255, unique=True)
+    used = models.BooleanField(default=False)
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    def mark_used(self):
+        if not self.used:
+            self.used = True
+            self.used_at = timezone.now()
+            self.save(update_fields=["used", "used_at"])
+
+    def __str__(self):
+        return f"{self.token} (used={self.used})"
 
 
 User = get_user_model()
@@ -83,6 +100,9 @@ class LoginVisit(models.Model):
     visit_date = models.DateField()                   # IST calendar date
     source = models.CharField(max_length=16, choices=SOURCE_CHOICES, default="login")
     created_at = models.DateTimeField(auto_now_add=True)
+
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True, default="")
 
     class Meta:
         unique_together = (("user", "visit_date"),)   # ✅ 1/day de-dupe
@@ -121,6 +141,20 @@ branch_name_validator = RegexValidator(
 )
 
 
+from decimal import Decimal, ROUND_HALF_UP
+
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db import models
+from django.db.models.functions import Lower
+from django.utils import timezone
+
+# ee imports already untaayi ani assume chestunna:
+# from .validators import branch_name_validator
+# from .utils import make_branch_pid
+# from .models import LoginVisit
+
+
 class Branch(models.Model):
     name = models.CharField(
         max_length=120,
@@ -131,41 +165,87 @@ class Branch(models.Model):
     email = models.EmailField(blank=True, null=True, db_index=True)
 
     # ✅ Stable public unique id for QR/links
-    # top: imports lo secrets alphabet & helper already unnaayi ani anukuntunna
     public_id = models.CharField(
         max_length=12,
         unique=True,              # enforce uniqueness
         default=make_branch_pid,  # auto-generate for new rows
         editable=False,
         db_index=True,
-        help_text="Stable public identifier for URLs/QR (immutable)."
+        help_text="Stable public identifier for URLs/QR (immutable).",
     )
-
-
 
     # ✅ manual coords (no auto-geo)
     latitude = models.DecimalField(
-        max_digits=9, decimal_places=6,
-        null=True, blank=True,
-        validators=[MinValueValidator(Decimal("-90")), MaxValueValidator(Decimal("90"))],
-        help_text="decimal degrees (−90..90) — 6 d.p."
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        validators=[
+            MinValueValidator(Decimal("-90")),
+            MaxValueValidator(Decimal("90")),
+        ],
+        help_text="decimal degrees (−90..90) — 6 d.p.",
     )
     longitude = models.DecimalField(
-        max_digits=9, decimal_places=6,
-        null=True, blank=True,
-        validators=[MinValueValidator(Decimal("-180")), MaxValueValidator(Decimal("180"))],
-        help_text="decimal degrees (−180..180) — 6 d.p."
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        validators=[
+            MinValueValidator(Decimal("-180")),
+            MaxValueValidator(Decimal("180")),
+        ],
+        help_text="decimal degrees (−180..180) — 6 d.p.",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
 
+    qr_visit_count = models.PositiveIntegerField(default=0)
+
+    # ------- helper methods for today login --------
+    def _today_login_qs(self):
+        """
+        Helper: Ee branch ki, present-day LoginVisit rows filter chestundi.
+        Assumption: Branch.email == User.email (branch login email).
+        """
+        today = timezone.localdate()
+        if not self.email:
+            return LoginVisit.objects.none()
+
+        return (
+            LoginVisit.objects
+            .filter(visit_date=today, user__email=self.email)
+            .order_by("created_at")
+        )
+
+    @property
+    def today_first_login(self):
+        qs = self._today_login_qs()
+        first = qs.first()
+        return first.created_at if first else None
+
+    @property
+    def today_last_login(self):
+        qs = self._today_login_qs()
+        last = qs.last()
+        return last.created_at if last else None
+
     class Meta:
         constraints = [
-            models.UniqueConstraint(Lower('name'), name='uniq_branch_name_lower'),
+            models.UniqueConstraint(
+                Lower("name"),
+                name="uniq_branch_name_lower",
+            ),
         ]
         indexes = [
-            models.Index(Lower('name'), name='idx_branch_name_lower'),
-            models.Index(fields=['latitude', 'longitude'], name='idx_branch_lat_lon'),
+            models.Index(
+                Lower("name"),
+                name="idx_branch_name_lower",
+            ),
+            models.Index(
+                fields=["latitude", "longitude"],
+                name="idx_branch_lat_lon",
+            ),
             # public_id ki separate db_index already undi; malli index add avasaram ledu
         ]
 
@@ -174,8 +254,9 @@ class Branch(models.Model):
         # --- name normalize + regex ---
         if self.name:
             raw = self.name.strip()
-            norm = ''.join(ch for ch in raw.lower() if ch.isalnum())
+            norm = "".join(ch for ch in raw.lower() if ch.isalnum())
             if not norm:
+                # branch_name_validator lo message use chestunnam
                 raise ValidationError({"name": branch_name_validator.message})
             self.name = norm
             branch_name_validator(self.name)
@@ -184,27 +265,37 @@ class Branch(models.Model):
         lat = self.latitude
         lon = self.longitude
         if (lat is None) ^ (lon is None):
-            raise ValidationError("Provide both latitude and longitude, or leave both empty")
+            raise ValidationError(
+                "Provide both latitude and longitude, or leave both empty"
+            )
 
         # --- round to 6 dp consistently ---
-        def r6(v):
+        def r6(v: Decimal) -> Decimal:
             return v.quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
+
         if lat is not None:
-            self.latitude = r6(Decimal(lat))
+            self.latitude = r6(Decimal(self.latitude))
         if lon is not None:
-            self.longitude = r6(Decimal(lon))
+            self.longitude = r6(Decimal(self.longitude))
 
     def save(self, *args, **kwargs):
-        # Ensure normalization even if clean() not called
+        """
+        Ensure normalization + rounding even if clean() not called.
+        clean() lo unna logic ki sync lo pettaam.
+        """
+        # --- name normalize ---
         if self.name:
-            self.name = ''.join(ch for ch in self.name.strip().lower() if ch.isalnum())
+            self.name = "".join(
+                ch for ch in self.name.strip().lower() if ch.isalnum()
+            )
 
-        # mirror the rounding if values are present
-        def r6(v):
+        # --- coords rounding (ALWAYS round if present) ---
+        def r6(v: Decimal) -> Decimal:
             return v.quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
-        if self.latitude is not None and not isinstance(self.latitude, Decimal):
+
+        if self.latitude is not None:
             self.latitude = r6(Decimal(self.latitude))
-        if self.longitude is not None and not isinstance(self.longitude, Decimal):
+        if self.longitude is not None:
             self.longitude = r6(Decimal(self.longitude))
 
         super().save(*args, **kwargs)
@@ -214,7 +305,16 @@ class Branch(models.Model):
 
     @property
     def coords(self):
-        return (float(self.latitude), float(self.longitude)) if (self.latitude is not None and self.longitude is not None) else None
+        """
+        Return (lat, lon) as float tuple if both set; else None.
+        """
+        if self.latitude is not None and self.longitude is not None:
+            return float(self.latitude), float(self.longitude)
+        return None
+
+
+
+
 
 # offers/models.py
 from django.db import models
@@ -231,6 +331,39 @@ class BranchOTP(models.Model):
 
     class Meta:
         indexes = [models.Index(fields=["identifier", "created_at"])]
+
+
+class BranchStaff(models.Model):
+    branch = models.ForeignKey(
+        "Branch",
+        on_delete=models.CASCADE,
+        related_name="staff",
+    )
+
+    name = models.CharField(max_length=255)
+    email = models.EmailField()
+
+    # 🌟 NEW: staff ID (manual / user-created code)
+    staff_id = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="Unique staff code created by branch",
+    )
+
+    # future mobile number
+    mobile = models.CharField(max_length=20, blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = (
+            ("branch", "email"),
+            ("branch", "staff_id"),   # 🌟 NEW: prevent duplicate staff codes per branch
+        )
+
+    def __str__(self):
+        return f"{self.name} ({self.branch.name})"
 
 
 # assume Branch model already defined above or imported from same app
@@ -438,3 +571,51 @@ class UserLocationPing(models.Model):
 
     class Meta:
         indexes = [models.Index(fields=["user","-created_at"])]
+
+
+
+
+from django.conf import settings
+from django.db import models
+
+
+class UserVisitEvent(models.Model):
+    VISIT_METHOD_CHOICES = (
+        ("qr_screenshot", "QR Screenshot Scan"),
+        ("qr_pin", "QR PIN Entry"),
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="visit_events",
+    )
+
+    branch = models.ForeignKey(
+        "Branch",
+        on_delete=models.CASCADE,
+        related_name="visit_events",
+    )
+
+    token = models.CharField(max_length=255, null=True, blank=True)
+    desk = models.CharField(max_length=50, null=True, blank=True)
+
+    visit_method = models.CharField(max_length=20, choices=VISIT_METHOD_CHOICES)
+
+
+    # ⭐ NEW FIELDS
+    staff_name = models.CharField(max_length=255, blank=True, default="")
+    staff_code = models.CharField(max_length=100, blank=True, default="")
+
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        who = self.user or "Guest"
+        return f"{who} @ {self.branch} ({self.visit_method})"
+

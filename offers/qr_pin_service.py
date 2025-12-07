@@ -1,4 +1,4 @@
-# qr_pin_service.py
+# qr_pin_service.py   pin generation and verification service
 import hashlib
 import random
 from datetime import timedelta
@@ -7,47 +7,50 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.crypto import get_random_string
 
+from django.db import transaction   # 👈 add this
 from .models import QRPin
 
 
 def _hash_pin(pin: str, token: str, branch_id: int) -> str:
-    """
-    PIN ni hash cheyyadaniki helper.
-    Token + branch_id + SALT mix chesi hash chestham, so pin alone guess cheyyatam kashhtam.
-    """
     salt = getattr(settings, "OZ_QR_PIN_SALT", "oz.qrpin.default.salt")
     raw = f"{pin}:{token}:{branch_id}:{salt}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def create_qrpin_for_existing_token(branch, desk: str, token: str, ttl_secs: int):
+def create_qrpin_for_existing_token(branch, desk: str, token: str, ttl_secs: int, staff_name: str = "", staff_code: str = "",):
     """
-    Token already ready undi (e.g. _mint_token nundi ochindi) ani anukoni:
+    Token already ready undi (mint_qr_token nundi).
     - 4-digit PIN generate chestundi
     - hash compute chestundi
-    - QRPin row create chestundi
-    - basic metadata bundle ga return chestundi
+    - QRPin row ni (token basis lo) create/update chestundi
+    - metadata return chestundi
     """
-    # 1) PIN generate (1000–9999, 4-digit, 0tho start kakunda)
+    # 1) 4-digit PIN (1000–9999)
     pin = f"{random.randint(1000, 9999)}"
 
     # 2) Hash compute
     pin_hash = _hash_pin(pin, token, branch.id)
 
-    # 3) Expiry time
+    # 3) Expiry
     now = timezone.now()
     expires_at = now + timedelta(seconds=ttl_secs)
 
-    # 4) DB row create
-    qrpin = QRPin.objects.create(
-        branch=branch,
-        desk=desk or "",
-        token=token,
-        pin_hash=pin_hash,
-        expires_at=expires_at,
-    )
+    # 4) Idempotent create/update by token
+    with transaction.atomic():
+        qrpin, _created = QRPin.objects.update_or_create(
+            token=token,
+            defaults={
+                "branch": branch,
+                "desk": desk or "",
+                "pin_hash": pin_hash,
+                "expires_at": expires_at,
+                "used": False,   # fresh PIN ⇒ not used
+                "staff_name": staff_name or "",
+                "staff_code": staff_code or "",
+            },
+        )
 
-    # 5) Caller ki result return
+    # 5) Return to caller
     return {
         "obj": qrpin,
         "token": token,

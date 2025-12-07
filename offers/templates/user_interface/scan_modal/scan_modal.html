@@ -82,6 +82,65 @@
   }
 </style>
 
+<style>
+  /* ... NEE EXISTING CSS AS-IS ... */
+
+  /* ===== Verifying state overlay (QR locked) ===== */
+
+  .qr-edge.scan--verifying::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(4, 6, 20, 0.78);
+    backdrop-filter: blur(4px);
+    pointer-events: auto;       /* block clicks to underneath */
+    z-index: 20;
+  }
+
+  .scan-verifying-chip {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(.96);
+    padding: 10px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: rgba(15, 23, 60, 0.96);
+    box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    color: #dbe6ff;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 30;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .18s ease-out, transform .18s ease-out;
+  }
+
+  .scan-verifying-chip-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #4ade80;
+    box-shadow: 0 0 10px rgba(74, 222, 128, 0.8);
+    animation: scanPulse 1s ease-in-out infinite;
+  }
+
+  @keyframes scanPulse {
+    0% { transform: scale(0.9); opacity: 0.8; }
+    50% { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(0.9); opacity: 0.8; }
+  }
+
+  .qr-edge.scan--verifying .scan-verifying-chip {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+</style>
+
+
 <div id="scanModal" class="ozm" aria-hidden="true">
   <div class="ozm__dialog">
     <div class="ozm__head">
@@ -116,7 +175,14 @@
 
           <div class="scan-caption">Bring QR into view. Use zoom if needed.</div>
         </div>
+
+        <!-- 🔥 chip ni ikkada ki move cheyyi -->
+        <div class="scan-verifying-chip" id="scanVerifyingChip">
+          <span class="scan-verifying-chip-dot"></span>
+          <span>Verifying QR…</span>
+        </div>
       </div>
+
 
 <div class="qr-form">
 
@@ -137,361 +203,314 @@
   </div>
 </div>
 
+
+
+
+<!-- scan-core.js -->
+
+<!-- (config + DOM refs + common helpers + verifying state) -->
+
+
 <script>
-(function () {
-  const tile     = document.getElementById('tapToScan');
-  const modal    = document.getElementById('scanModal');
-  const closeBtn = document.getElementById('scanCloseBtn');
-  const statusEl = document.getElementById('qrStatus');
+  // ozscan/scan-core.js
+window.OZScan = window.OZScan || {};
 
-  // PIN elements
-  const pinInput = document.getElementById('qrPinInput');
-  const pinBtn   = document.getElementById('qrPinSubmit');
+(function (ns) {
+  // ---- Config ----
+  ns.cfg = {
+    SCAN_HASH: '#scan',
+    HOLD_THRESHOLD: 300,
+    REPEAT_EVERY: 65,
+  };
 
-  const zoomRange    = document.getElementById('zoomRange');
-  const zoomMinus    = document.getElementById('zoomMinus');
-  const zoomPlus     = document.getElementById('zoomPlus');
-  const zoomBubble   = document.getElementById('zoomBubble');
-  const scanStateText = document.getElementById('scanStateText');
+  // ---- DOM refs (fill in initDom) ----
+  ns.dom = {
+    tile: null,
+    modal: null,
+    closeBtn: null,
+    statusEl: null,
+    scanEdge: null,
+    scanChip: null,
+    pinInput: null,
+    pinBtn: null,
+    zoomRange: null,
+    zoomMinus: null,
+    zoomPlus: null,
+    zoomBubble: null,
+    scanStateText: null,
+  };
 
-  const SCAN_HASH = '#scan';
-  let scanPushed = false;
-  const isScanHash = () => location.hash === SCAN_HASH;
+  // ---- Runtime state ----
+  ns.state = {
+    scanPushed: false,
+    isVerifying: false,
+    started: false,
+    videoEl: null,
+    track: null,
+    hasOpticalZoom: false,
+    zoomMin: 1,
+    zoomMax: 2,
+    zoomStep: 0.01,
+    holdTimer: null,
+    repeatTimer: null,
+    wasHolding: false,
 
-  let _videoEl = null, _track = null, _hasOpticalZoom = false;
-  let _zoomMin = 1, _zoomMax = 2, _zoomStep = 0.01;
-  let _holdTimer = null, _repeatTimer = null, _wasHolding = false;
-  const HOLD_THRESHOLD = 300, REPEAT_EVERY = 65;
-  let _started = false;
+    // 🔥 NEW: backend lo compute chesina per-day flag
+    alreadyClaimedToday:
+      (document.body &&
+        document.body.dataset &&
+        document.body.dataset.ozAlreadyClaimed === "1") || false,
+  };
 
-  function show(el, ok, msg){
+  // ===== DOM init (called once on DOMContentLoaded) =====
+  ns.initDom = function () {
+    const d = ns.dom;
+    d.tile         = document.getElementById('tapToScan');
+    d.modal        = document.getElementById('scanModal');
+    d.closeBtn     = document.getElementById('scanCloseBtn');
+    d.statusEl     = document.getElementById('qrStatus');
+    d.scanEdge     = document.querySelector('.qr-edge');
+    d.scanChip     = document.getElementById('scanVerifyingChip');
+    d.pinInput     = document.getElementById('qrPinInput');
+    d.pinBtn       = document.getElementById('qrPinSubmit');
+    d.zoomRange    = document.getElementById('zoomRange');
+    d.zoomMinus    = document.getElementById('zoomMinus');
+    d.zoomPlus     = document.getElementById('zoomPlus');
+    d.zoomBubble   = document.getElementById('zoomBubble');
+    d.scanStateText = document.getElementById('scanStateText');
+  };
+
+  // ===== Common helpers (status, cookie, zoom text) =====
+  ns.showStatus = function (ok, msg) {
+    const el = ns.dom.statusEl;
     if (!el) return;
     el.style.display = 'block';
-    el.textContent   = msg;
-    el.className     = 'oz-status ' + (ok ? 'ok' : 'err');
-  }
-  function hide(el){
+    el.textContent = msg;
+    el.className = 'oz-status ' + (ok ? 'ok' : 'err');
+  };
+
+  ns.hideStatus = function () {
+    const el = ns.dom.statusEl;
     if (!el) return;
     el.style.display = 'none';
-    el.textContent   = '';
-  }
-  function fmtZoom(v){
-    const n = Math.max(_zoomMin, Math.min(_zoomMax, Number(v || 1)));
-    return (Math.round(n * 10) / 10).toFixed(1) + '×';
-  }
-  function updateZoomUI(v){
-    if (zoomBubble) zoomBubble.textContent = 'Zoom ' + fmtZoom(v ?? zoomRange?.value ?? 1);
-  }
-  function setScanning(on){
-    if (scanStateText) scanStateText.textContent = on ? 'Scanning…' : 'Paused';
-  }
+    el.textContent = '';
+  };
 
-  function revealOverlayOnce(){
-    const panel = document.querySelector('.scan-panel');
-    if (panel && !panel.classList.contains('ready')){
-      panel.classList.add('ready');
-      setupZoomControls();
-    }
-  }
-  function waitForVideoThenReveal(){
-    const root = document.getElementById('qr-reader');
-    const tryNow = () => {
-      const v = root?.querySelector('video');
-      if (!v) return false;
-      if (!v.paused && !v.seeking && v.readyState >= 2){
-        revealOverlayOnce();
-        return true;
-      }
-      v.addEventListener('playing',    revealOverlayOnce, { once:true });
-      v.addEventListener('loadeddata', revealOverlayOnce, { once:true });
-      return true;
-    };
-    if (tryNow()) return;
-    const mo = new MutationObserver(() => { if (tryNow()) mo.disconnect(); });
-    mo.observe(root, { childList:true, subtree:true });
-    setTimeout(() => { revealOverlayOnce(); mo.disconnect(); }, 800);
-  }
-
-  async function applyZoom(val){
-    if (!_videoEl) return;
-    if (_hasOpticalZoom && _track){
-      try{
-        await _track.applyConstraints({ advanced:[{ zoom:Number(val) }] })
-          .catch(() => _track.applyConstraints({ zoom:Number(val) }));
-        _videoEl.style.transform = '';
-      }catch{}
-    }else{
-      const s = Math.max(1, Number(val));
-      _videoEl.style.transformOrigin = '50% 50%';
-      _videoEl.style.transform       = `scale(${s})`;
-    }
-    updateZoomUI(val);
-  }
-  function nudge(dir){
-    const cur  = Number(zoomRange.value);
-    const step = Number(zoomRange.step || 0.01);
-    const next = Math.min(_zoomMax, Math.max(_zoomMin, cur + dir * step * 3));
-    zoomRange.value = next.toFixed(2);
-    applyZoom(next);
-    updateZoomUI(next);
-  }
-
-  function pickRearDevice(devs){  return devs.find(d => /back|rear|environment/i.test(d.label)); }
-  function pickFrontDevice(devs){ return devs.find(d => /front|user|face/i.test(d.label)); }
-
-  async function startWithDeviceId(qr, deviceId, onDecode){
-    const baseCfg = {
-      fps: 10,
-      aspectRatio: 1.777,
-      disableFlip: true,
-      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-    };
-    return qr.start(deviceId, baseCfg, onDecode, () => {});
-  }
-
-  async function startWithFacingMode(qr, facingMode, onDecode){
-    const cameraCfg = { facingMode };
-    const baseCfg = {
-      fps: 10,
-      aspectRatio: 1.777,
-      disableFlip: true,
-      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-    };
-    return qr.start(cameraCfg, baseCfg, onDecode, () => {});
-  }
-
-  async function preflightRear(){
-    try{
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { exact: "environment" } }, audio: false
-      });
-      stream.getTracks().forEach(t => t.stop());
-    }catch{}
-  }
-
-  async function startRearThenFront(qr, onDecode){
-    const markStarted = () => { _started = true; waitForVideoThenReveal(); };
-    const maybeShowError = (msg) => { if(!_started) show(statusEl, false, msg); };
-
-    await preflightRear();
-
-    try{
-      await startWithFacingMode(qr, { exact:"environment" }, onDecode);
-      markStarted(); return 'rear-facing';
-    }catch{}
-
-    try{
-      const devs = await Html5Qrcode.getCameras();
-      if (devs && devs.length){
-        const rear = pickRearDevice(devs);
-        if (rear){
-          await startWithDeviceId(qr, rear.id, onDecode);
-          markStarted(); return 'rear-device';
-        }
-      }
-    }catch{}
-
-    try{
-      const devs2 = await Html5Qrcode.getCameras().catch(() => null);
-      const front = devs2 && pickFrontDevice(devs2);
-      if (front){
-        await startWithDeviceId(qr, front.id, onDecode);
-        markStarted(); return 'front-device';
-      }
-    }catch{}
-
-    try{
-      await startWithFacingMode(qr, "user", onDecode);
-      markStarted(); return 'front-facing';
-    }catch(err){
-      maybeShowError("Camera not available — use PIN.");
-      throw err;
-    }
-  }
-
-  function startScanner(){
-    hide(statusEl);
-    setScanning(true);
-    _started = false;
-
-    if (!window.Html5Qrcode) return;
-
-    if (window.__qrInstance && typeof window.__qrInstance.clear === 'function'){
-      try{ window.__qrInstance.clear(); }catch{}
-      window.__qrInstance = null;
-    }
-
-    const qr = new Html5Qrcode("qr-reader");
-    const onDecode = (txt) => handlePayload(txt);
-
-    startRearThenFront(qr, onDecode)
-      .then(() => { window.__qrInstance = qr; })
-      .catch(() => {
-        try{ qr.clear(); }catch{}
-        window.__qrInstance = null;
-      });
-  }
-
-  function getCookie(name){
+  ns.getCookie = function (name) {
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
     if (parts.length === 2) return parts.pop().split(';').shift();
     return null;
-  }
+  };
 
-  function stopScanner(){
-    const qr = window.__qrInstance;
-    if (qr){
-      qr.stop()
-        .then(() => { try{ qr.clear(); }catch{} window.__qrInstance = null; })
-        .catch(() => { try{ qr.clear(); }catch{} window.__qrInstance = null; });
-    }else{
-      try{
-        const reader = document.getElementById('qr-reader');
-        reader && (reader.innerHTML = '');
-      }catch{}
-    }
-    if (_videoEl) _videoEl.style.transform = '';
-    if (zoomRange) zoomRange.value = 1;
-    const zb = document.getElementById('zoomBubble');
-    if (zb) zb.textContent = 'Zoom 1.0×';
-    endHold();
-  }
+  ns.updateZoomUI = function (v) {
+    const d = ns.dom;
+    const s = ns.state;
+    if (!d.zoomBubble) return;
+    const val = v ?? (d.zoomRange ? d.zoomRange.value : 1);
+    const n = Math.max(s.zoomMin, Math.min(s.zoomMax, Number(val || 1)));
+    const txt = (Math.round(n * 10) / 10).toFixed(1) + '×';
+    d.zoomBubble.textContent = 'Zoom ' + txt;
+  };
 
-  function openModal(opts = {}){
-    const { fromHash = false } = opts || {};
-    modal.classList.add('show');
-    document.body.style.overflow = 'hidden';
-    startScanner();
-    if (!fromHash && !scanPushed){
-      history.pushState({ ozScan:true }, '', SCAN_HASH);
-      scanPushed = true;
+  ns.setScanning = function (on) {
+    const d = ns.dom;
+    const st = d.scanStateText;
+    if (st && !ns.state.isVerifying) {
+      st.textContent = on ? 'Scanning…' : 'Paused';
     }
-  }
-  function closeModal(arg){
-    let force = false, fromPop = false;
-    if (typeof arg === 'boolean'){ force = arg; }
-    else if (typeof arg === 'object' && arg){
-      force   = !!arg.force;
-      fromPop = !!arg.fromPop;
+  };
+
+  // ===== Verifying overlay state (blur + lock) =====
+  ns.setVerifying = function (on) {
+    const d = ns.dom;
+    ns.state.isVerifying = !!on;
+
+    if (d.scanEdge) {
+      d.scanEdge.classList.toggle('scan--verifying', !!on);
     }
 
-    try{ stopScanner(); }catch{}
-    if (force){
-      try{
-        const r = document.getElementById('qr-reader');
-        r && (r.innerHTML = '');
-      }catch{}
+    if (d.scanStateText) {
+      d.scanStateText.textContent = on ? 'Verifying…' : 'Scanning…';
     }
 
-    modal.classList.remove('show');
-    document.body.style.overflow = '';
-    hide(statusEl);
-    setScanning(false);
-
-    if (scanPushed && !fromPop){
-      scanPushed = false;
-      if (isScanHash()) history.back();
+    if (!on) {
+      ns.setScanning(true);
     }
-  }
+  };
 
-  closeBtn?.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    closeModal(true);
-  });
-  window.addEventListener('popstate', () => {
-    if (modal.classList.contains('show')){
-      closeModal({ fromPop:true });
-      scanPushed = false;
-    } else if (isScanHash()){
-      openModal({ fromHash:true });
-      scanPushed = true;
+})(window.OZScan);
+
+</script>
+
+
+
+<!-- 2) scan-camera.js  (zoom helpers + camera start/stop) -->
+
+<script>
+  // ozscan/scan-camera.js
+window.OZScan = window.OZScan || {};
+
+(function (ns) {
+  const s = ns.state;
+  const cfg = ns.cfg;
+
+  // ========= Zoom helpers =========
+  function applyZoom(val) {
+    if (!s.videoEl) return;
+
+    if (s.hasOpticalZoom && s.track) {
+      s.track
+        .applyConstraints({ advanced: [{ zoom: Number(val) }] })
+        .catch(() => s.track.applyConstraints({ zoom: Number(val) }))
+        .catch(() => {});
+      s.videoEl.style.transform = '';
     } else {
-      scanPushed = false;
+      const scale = Math.max(1, Number(val));
+      s.videoEl.style.transformOrigin = '50% 50%';
+      s.videoEl.style.transform = `scale(${scale})`;
     }
-  });
-  if (isScanHash()){
-    openModal({ fromHash:true });
-    scanPushed = true;
+    ns.updateZoomUI(val);
   }
 
-  function startHold(dir){
-    _wasHolding = false;
-    nudge(dir);
-    _holdTimer = setTimeout(() => {
-      _wasHolding = true;
-      _repeatTimer = setInterval(() => nudge(dir), REPEAT_EVERY);
-    }, HOLD_THRESHOLD);
-  }
-  function endHold(){
-    if (_holdTimer){ clearTimeout(_holdTimer); _holdTimer = null; }
-    if (_repeatTimer){ clearInterval(_repeatTimer); _repeatTimer = null; }
+  function nudgeZoom(dir) {
+    const d = ns.dom;
+    if (!d.zoomRange) return;
+    const cur = Number(d.zoomRange.value || 1);
+    const step = Number(d.zoomRange.step || 0.01);
+    const next = Math.min(s.zoomMax, Math.max(s.zoomMin, cur + dir * step * 3));
+    d.zoomRange.value = next.toFixed(2);
+    applyZoom(next);
   }
 
-  function bindHold(btn, dir){
+  function startHold(dir) {
+    s.wasHolding = false;
+    nudgeZoom(dir);
+
+    s.holdTimer = setTimeout(() => {
+      s.wasHolding = true;
+      s.repeatTimer = setInterval(() => nudgeZoom(dir), cfg.REPEAT_EVERY);
+    }, cfg.HOLD_THRESHOLD);
+  }
+
+  function endHold() {
+    if (s.holdTimer) {
+      clearTimeout(s.holdTimer);
+      s.holdTimer = null;
+    }
+    if (s.repeatTimer) {
+      clearInterval(s.repeatTimer);
+      s.repeatTimer = null;
+    }
+  }
+
+  function bindHold(btn, dir) {
     if (!btn) return;
+
     btn.addEventListener('click', (e) => {
-      if (_wasHolding){
+      if (s.wasHolding) {
         e.preventDefault();
-        _wasHolding = false;
+        s.wasHolding = false;
         return;
       }
-      nudge(dir);
+      nudgeZoom(dir);
     });
+
     btn.addEventListener('mousedown', (e) => {
       e.preventDefault();
       startHold(dir);
     });
+
     const mouseEnd = () => endHold();
     btn.addEventListener('mouseup', mouseEnd);
     btn.addEventListener('mouseleave', mouseEnd);
+
     btn.addEventListener('touchstart', (e) => {
       e.preventDefault();
       startHold(dir);
-    }, { passive:false });
+    }, { passive: false });
+
     const touchEnd = () => endHold();
     btn.addEventListener('touchend', touchEnd);
     btn.addEventListener('touchcancel', touchEnd);
+
     btn.addEventListener('keydown', (e) => {
-      if (e.key === ' ' || e.key === 'Enter'){
+      if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault();
         startHold(dir);
       }
     });
     btn.addEventListener('keyup', (e) => {
-      if (e.key === ' ' || e.key === 'Enter'){ endHold(); }
+      if (e.key === ' ' || e.key === 'Enter') {
+        endHold();
+      }
     });
   }
 
-  function setupZoomControls(){
+  function setupZoomControls() {
+    const d = ns.dom;
     const v = document.querySelector('#qr-reader video');
-    _videoEl = v || _videoEl;
-    try{
-      const t    = v?.srcObject?.getVideoTracks?.()[0];
-      const caps = t?.getCapabilities?.();
-      if (caps && 'zoom' in caps){
-        _track          = t;
-        _hasOpticalZoom = true;
-        _zoomMin        = caps.zoom.min ?? 1;
-        _zoomMax        = caps.zoom.max ?? 3;
-        _zoomStep       = caps.zoom.step ?? 0.1;
+    s.videoEl = v || s.videoEl;
+
+    try {
+      const track = v?.srcObject?.getVideoTracks?.()[0];
+      const caps = track?.getCapabilities?.();
+      if (caps && 'zoom' in caps) {
+        s.track = track;
+        s.hasOpticalZoom = true;
+        s.zoomMin = caps.zoom.min ?? 1;
+        s.zoomMax = caps.zoom.max ?? 3;
+        s.zoomStep = caps.zoom.step ?? 0.1;
       }
-    }catch{}
-    if (zoomRange){
-      zoomRange.min   = _zoomMin;
-      zoomRange.max   = _zoomMax;
-      zoomRange.step  = _zoomStep;
-      zoomRange.value = 1;
-      zoomRange.oninput = (e) => {
-        applyZoom(e.target.value);
-        updateZoomUI(e.target.value);
-      };
+    } catch {}
+
+    if (d.zoomRange) {
+      d.zoomRange.min = s.zoomMin;
+      d.zoomRange.max = s.zoomMax;
+      d.zoomRange.step = s.zoomStep;
+      d.zoomRange.value = 1;
+      d.zoomRange.oninput = (e) => applyZoom(e.target.value);
     }
-    bindHold(zoomMinus, -1);
-    bindHold(zoomPlus,  +1);
+
+    bindHold(d.zoomMinus, -1);
+    bindHold(d.zoomPlus, 1);
+
     applyZoom(1);
-    updateZoomUI(1);
+    ns.updateZoomUI(1);
+  }
+
+  function revealOverlayOnce() {
+    const panel = document.querySelector('.scan-panel');
+    if (panel && !panel.classList.contains('ready')) {
+      panel.classList.add('ready');
+      setupZoomControls();
+    }
+  }
+
+  function waitForVideoThenReveal() {
+    const root = document.getElementById('qr-reader');
+    const tryNow = () => {
+      const v = root?.querySelector('video');
+      if (!v) return false;
+      if (!v.paused && !v.seeking && v.readyState >= 2) {
+        revealOverlayOnce();
+        return true;
+      }
+      v.addEventListener('playing', revealOverlayOnce, { once: true });
+      v.addEventListener('loadeddata', revealOverlayOnce, { once: true });
+      return true;
+    };
+
+    if (tryNow()) return;
+
+    const mo = new MutationObserver(() => {
+      if (tryNow()) mo.disconnect();
+    });
+    mo.observe(root, { childList: true, subtree: true });
+    setTimeout(() => {
+      revealOverlayOnce();
+      mo.disconnect();
+    }, 800);
   }
 
   window.addEventListener('blur', endHold);
@@ -499,117 +518,523 @@
     if (document.hidden) endHold();
   });
 
-  // ===== Token helpers for SCAN only =====
-  async function seedToPayloadUrlIfNeeded(v){
-    v = String(v || '').trim();
-    if (/\/qrg\/(?:redeem|t)\//.test(v)) return v;
-    if (/^[A-Za-z0-9._\-=:]+$/.test(v) && (v.includes('.') || v.includes(':'))){
-      return location.origin + "/qrg/redeem/" + v;
+  // ========= Html5Qrcode wrappers =========
+
+  async function startWithDeviceId(qr, deviceId, onDecode) {
+    const baseCfg = {
+      fps: 10,
+      aspectRatio: 1.777,
+      disableFlip: true,
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+    };
+    return qr.start(deviceId, baseCfg, onDecode, () => {});
+  }
+
+  async function startWithFacingMode(qr, facingMode, onDecode) {
+    const cameraCfg = { facingMode };
+    const baseCfg = {
+      fps: 10,
+      aspectRatio: 1.777,
+      disableFlip: true,
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+    };
+    return qr.start(cameraCfg, baseCfg, onDecode, () => {});
+  }
+
+  async function preflightRear() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { exact: 'environment' } },
+        audio: false,
+      });
+      stream.getTracks().forEach((t) => t.stop());
+    } catch {}
+  }
+
+  async function startRearThenFront(qr, onDecode) {
+    const d = ns.dom;
+
+    const markStarted = () => {
+      s.started = true;
+      waitForVideoThenReveal();
+    };
+
+    const maybeShowError = (msg) => {
+      if (!s.started) ns.showStatus(false, msg);
+    };
+
+    await preflightRear();
+
+    try {
+      await startWithFacingMode(qr, { exact: 'environment' }, onDecode);
+      markStarted();
+      return 'rear-facing';
+    } catch {}
+
+    try {
+      const devs = await Html5Qrcode.getCameras();
+      if (devs && devs.length) {
+        const rear = devs.find((x) => /back|rear|environment/i.test(x.label));
+        if (rear) {
+          await startWithDeviceId(qr, rear.id, onDecode);
+          markStarted();
+          return 'rear-device';
+        }
+      }
+    } catch {}
+
+    try {
+      const devs2 = await Html5Qrcode.getCameras().catch(() => null);
+      const front = devs2 && devs2.find((x) => /front|user|face/i.test(x.label));
+      if (front) {
+        await startWithDeviceId(qr, front.id, onDecode);
+        markStarted();
+        return 'front-device';
+      }
+    } catch {}
+
+    try {
+      await startWithFacingMode(qr, 'user', onDecode);
+      markStarted();
+      return 'front-facing';
+    } catch (err) {
+      maybeShowError('Camera not available — use PIN.');
+      throw err;
     }
-    if (v.startsWith("offerzone://")){
-      const qp  = v.split("://")[1];
+  }
+
+  // ========= Public: startScanner / stopScanner =========
+
+  ns.startScanner = function () {
+    ns.hideStatus();
+    ns.setVerifying(false);
+    ns.setScanning(true);
+    s.started = false;
+
+    if (!window.Html5Qrcode) return;
+
+    if (window.__qrInstance && typeof window.__qrInstance.clear === 'function') {
+      try {
+        window.__qrInstance.clear();
+      } catch {}
+      window.__qrInstance = null;
+    }
+
+    const qr = new Html5Qrcode('qr-reader');
+    const onDecode = (txt) => {
+      if (typeof ns.handlePayload === 'function') {
+        ns.handlePayload(txt);
+      }
+    };
+
+    startRearThenFront(qr, onDecode)
+      .then(() => {
+        window.__qrInstance = qr;
+      })
+      .catch(() => {
+        try {
+          qr.clear();
+        } catch {}
+        window.__qrInstance = null;
+      });
+  };
+
+  ns.stopScanner = function () {
+    const qr = window.__qrInstance;
+    if (qr) {
+      qr
+        .stop()
+        .then(() => {
+          try {
+            qr.clear();
+          } catch {}
+          window.__qrInstance = null;
+        })
+        .catch(() => {
+          try {
+            qr.clear();
+          } catch {}
+          window.__qrInstance = null;
+        });
+    } else {
+      try {
+        const reader = document.getElementById('qr-reader');
+        reader && (reader.innerHTML = '');
+      } catch {}
+    }
+
+    if (s.videoEl) s.videoEl.style.transform = '';
+    const d = ns.dom;
+    if (d.zoomRange) d.zoomRange.value = 1;
+    ns.updateZoomUI(1);
+    endHold();
+  };
+})(window.OZScan);
+
+</script>
+
+<!-- 3) scan-modal.js  (open/close modal + history + triggers) -->
+
+<script>
+  // ozscan/scan-modal.js
+window.OZScan = window.OZScan || {};
+
+(function (ns) {
+  const cfg = ns.cfg;
+  const st  = ns.state;
+
+  function isScanHash() {
+    return location.hash === cfg.SCAN_HASH;
+  }
+
+  ns.openModal = function (opts = {}) {
+    const { fromHash = false } = opts || {};
+    const d = ns.dom;
+
+    // 🔥 PRE-CHECK: ivvala already claim unte scanner e open avvakudadhu
+    if (st.alreadyClaimedToday) {
+        if (window.OZScan.showAlreadyClaimed) {
+            window.OZScan.showAlreadyClaimed();
+        }
+        return;
+    }
+
+
+    d.modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    ns.startScanner();
+
+    if (!fromHash && !st.scanPushed) {
+      history.pushState({ ozScan: true }, '', cfg.SCAN_HASH);
+      st.scanPushed = true;
+    }
+  };
+
+  ns.closeModal = function (arg) {
+    let force = false;
+    let fromPop = false;
+
+    if (typeof arg === 'boolean') {
+      force = arg;
+    } else if (typeof arg === 'object' && arg) {
+      force = !!arg.force;
+      fromPop = !!arg.fromPop;
+    }
+
+    const d = ns.dom;
+
+    try {
+      ns.stopScanner();
+    } catch {}
+
+    if (force) {
+      try {
+        const r = document.getElementById('qr-reader');
+        r && (r.innerHTML = '');
+      } catch {}
+    }
+
+    d.modal.classList.remove('show');
+    document.body.style.overflow = '';
+    ns.hideStatus();
+    ns.setVerifying(false);
+
+    if (st.scanPushed && !fromPop) {
+      st.scanPushed = false;
+      if (isScanHash()) history.back();
+    }
+  };
+
+  function initModalTriggers() {
+    ns.initDom();
+    const d = ns.dom;
+
+    d.closeBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      ns.closeModal(true);
+    });
+
+    d.modal?.addEventListener('click', (e) => {
+      if (e.target === d.modal) ns.closeModal();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && d.modal?.classList.contains('show')) {
+        ns.closeModal();
+      }
+    });
+
+    d.tile?.addEventListener('click', () => ns.openModal());
+    d.tile?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        ns.openModal();
+      }
+    });
+
+    window.addEventListener('popstate', () => {
+      if (d.modal.classList.contains('show')) {
+        ns.closeModal({ fromPop: true });
+        st.scanPushed = false;
+      } else if (isScanHash()) {
+        ns.openModal({ fromHash: true });
+        st.scanPushed = true;
+      } else {
+        st.scanPushed = false;
+      }
+    });
+
+    if (isScanHash()) {
+      ns.openModal({ fromHash: true });
+      st.scanPushed = true;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', initModalTriggers);
+})(window.OZScan);
+
+</script>
+
+
+<!-- 4) scan-qr.js  (token helpers + QR → /qrg/scan-verify/) -->
+
+<script>
+  // ozscan/scan-qr.js
+window.OZScan = window.OZScan || {};
+
+(function (ns) {
+  const st = ns.state;
+
+
+  // 🔥 LOCAL SESSION LO "EE TOKEN IVVALA ALREADY CLAIM AYYINDI" MEMORY
+  const CLAIM_KEY = "oz_scan_claim_state";
+
+  function todayStr() {
+    // yyyy-mm-dd (browser local date)
+    try {
+      return new Date().toISOString().slice(0, 10);
+    } catch {
+      return "";
+    }
+  }
+
+  function loadClaimState() {
+    try {
+      const raw = sessionStorage.getItem(CLAIM_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  function saveClaimState(token) {
+    try {
+      const payload = {
+        token: String(token || ""),
+        date: todayStr(),
+      };
+      sessionStorage.setItem(CLAIM_KEY, JSON.stringify(payload));
+    } catch {
+      // safari/incognito issues unna ignore cheyyi
+    }
+  }
+
+
+  async function seedToPayloadUrlIfNeeded(v) {
+    v = String(v || '').trim();
+
+    if (/\/qrg\/(?:redeem|t)\//.test(v)) return v;
+
+    if (/^[A-Za-z0-9._\-=:]+$/.test(v) && (v.includes('.') || v.includes(':'))) {
+      return location.origin + '/qrg/redeem/' + v;
+    }
+
+    if (v.startsWith('offerzone://')) {
+      const qp = v.split('://')[1];
       const usp = new URLSearchParams(qp);
-      const branch = usp.get("branch") || "";
-      const desk   = usp.get("desk")   || "";
-      const url    = new URL("/qrg/start", location.origin);
-      if (branch) url.searchParams.set("branch", branch);
-      if (desk)   url.searchParams.set("desk", desk);
-      const res  = await fetch(url, { headers:{ Accept:"application/json" } });
+      const branch = usp.get('branch') || '';
+      const desk = usp.get('desk') || '';
+      const url = new URL('/qrg/start', location.origin);
+      if (branch) url.searchParams.set('branch', branch);
+      if (desk)   url.searchParams.set('desk', desk);
+
+      const res = await fetch(url, { headers: { Accept: 'application/json' } });
       const data = await res.json();
-      if (!res.ok || data.ok === false || !data.payload){
-        throw new Error(data.error || "Could not mint QR");
+      if (!res.ok || data.ok === false || !data.payload) {
+        throw new Error(data.error || 'Could not mint QR');
       }
       return data.payload;
     }
+
     return v;
   }
 
-  function extractTokenFromUrl(u){
-    const m = String(u || "").match(/\/qrg\/(?:redeem|t)\/([^?#\s]+)/i);
+  function extractTokenFromUrl(u) {
+    const m = String(u || '').match(/\/qrg\/(?:redeem|t)\/([^?#\s]+)/i);
     return m ? decodeURIComponent(m[1]) : null;
   }
 
-  function onSuccess(token){
-    if (scanStateText) scanStateText.textContent = 'Verifying…';
-    window.location.replace(`/visit-count/?token=${encodeURIComponent(token)}`);
-  }
-
-  async function handlePayload(v){
-    try{
-      const resolved = await seedToPayloadUrlIfNeeded(v);
-      const token    = extractTokenFromUrl(resolved);
-      if (!token) throw new Error("No token found");
-      onSuccess(token);
-    }catch(err){
-      alert(err.message || "Scan failed. Please try again.");
-      openModal();
-    }
-  }
-
-  // Triggers
-  tile?.addEventListener('click', () => openModal());
-  tile?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' '){
-      e.preventDefault();
-      openModal();
-    }
-  });
-  document.getElementById('scanModal')?.addEventListener('click', (e) => {
-    if (e.target === document.getElementById('scanModal')) closeModal();
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && document.getElementById('scanModal')?.classList.contains('show')){
-      closeModal();
-    }
-  });
-
-  // ===== PIN verify (only PIN) =====
-// ===== PIN verify (only PIN) =====
-  pinBtn?.addEventListener('click', async () => {
-    let pin = (pinInput?.value || '').trim();
-
-    // only digits, max 4
-    pin = pin.replace(/\D/g, '').slice(0, 4);
-
-    if (!/^\d{4}$/.test(pin)) {
-      show(statusEl, false, 'Enter a valid 4-digit PIN.');
-      return;
-    }
-
-    show(statusEl, true, 'Verifying PIN…');
+  async function onScanSuccess(token) {
+    ns.hideStatus();
 
     try {
-      const res = await fetch('/qrg/pin-verify/', {
-        method: 'POST',
+      const res = await fetch("/qrg/scan-verify/", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': getCookie('csrftoken') || ''
+          "Content-Type": "application/json",
+          "X-CSRFToken": ns.getCookie("csrftoken") || "",
         },
-        body: JSON.stringify({ pin })
+        body: JSON.stringify({ token }),
       });
 
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok || data.ok === false) {
-        show(statusEl, false, data.error || 'PIN verification failed.');
+        if (data.error === "Already used") {
+          ns.showStatus(
+            false,
+            "This QR has already been used. Ask staff for a new code."
+          );
+        } else {
+          ns.showStatus(false, data.error || "QR verification failed.");
+        }
+        ns.setVerifying(false);
         return;
       }
 
-      const next = data.next || '/visit-count/';
+      // 🔥 ONE-PER-DAY (QR) CASE – STORE IN SESSION
+      if (data.already_claimed_today) {
+        // ee browser/session + ee token + ee date ki memory petti pettam
+        const pure = token.trim();
+        saveClaimState(pure);
+
+
+        alert("Nuvvu ivvala already claim chesavu mava. Status page lo chusko 😊");
+
+        ns.setVerifying(false);
+        window.location.replace("/"); // home ki teesuku vellu
+        return; // IMPORTANT
+      }
+
+      const next =
+        data.next || `/visit-count/?token=${encodeURIComponent(token)}`;
       window.location.replace(next);
     } catch (err) {
-      console.error('PIN verify error', err);
-      show(statusEl, false, 'Network error. Please try again.');
+      console.error("QR verify error", err);
+      ns.showStatus(false, "Network error. Please try again.");
+      ns.setVerifying(false);
     }
-  });
+  }
+
 
   
-  pinInput?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter'){
-      e.preventDefault();
-      pinBtn?.click();
-    }
-  });
+  // public: scanner will call this
+  ns.handlePayload = async function (v) {
+    if (st.isVerifying) return;
 
-})();
+    try {
+      const resolved = await seedToPayloadUrlIfNeeded(v);
+      const token = extractTokenFromUrl(resolved);
+      if (!token) throw new Error("No token found");
+
+      // 🔥 SHORT-CIRCUIT:
+      // ee session lo, ee roju, ee token already "ivvala claim chesavu" ani telsithe
+      // backend ki call pettakunda directga popup + redirect
+      const cs = loadClaimState();
+      if (cs && cs.token === token && cs.date === todayStr()) {
+        alert(
+          "Nuvvu ivvala already claim chesavu mava. Status page lo chusko 😊"
+        );
+        ns.setVerifying(false);
+        window.location.replace("/");
+        return;
+      }
+
+      ns.setVerifying(true);
+      await onScanSuccess(token);
+    } catch (err) {
+      console.error("Scan handle error", err);
+      ns.setVerifying(false);
+      alert(err.message || "Scan failed. Please try again.");
+      ns.openModal();
+    }
+  };
+
+
+})(window.OZScan);
+
 </script>
+
+
+
+<!-- 5) scan-pin.js (PIN verify separate) -->
+
+<script>
+  // ozscan/scan-pin.js
+window.OZScan = window.OZScan || {};
+
+(function (ns) {
+  function initPinVerify() {
+    const d = ns.dom;
+
+    d.pinBtn?.addEventListener('click', async () => {
+      let pin = (d.pinInput?.value || '').trim();
+      pin = pin.replace(/\D/g, '').slice(0, 4);
+
+      if (!/^\d{4}$/.test(pin)) {
+        ns.showStatus(false, 'Enter a valid 4-digit PIN.');
+        return;
+      }
+
+      ns.showStatus(true, 'Verifying PIN…');
+
+      try {
+        const res = await fetch('/qrg/pin-verify/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': ns.getCookie('csrftoken') || '',
+          },
+          body: JSON.stringify({ pin }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || data.ok === false) {
+          ns.showStatus(false, data.error || 'PIN verification failed.');
+          return;
+        }
+
+        // 🔥 ONE-PER-DAY (PIN) CASE
+        if (data.already_claimed_today) {
+          alert("Nuvvu ivvala already claim chesavu mava. Status page lo chusko 😊");
+          window.location.replace('/');   // or your home URL
+          return;                         // IMPORTANT
+        }
+
+        const next = data.next || '/visit-count/';
+        window.location.replace(next);
+
+
+      } catch (err) {
+        console.error('PIN verify error', err);
+        ns.showStatus(false, 'Network error. Please try again.');
+      }
+    });
+
+    d.pinInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        d.pinBtn?.click();
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', initPinVerify);
+})(window.OZScan);
+
+</script>
+
+

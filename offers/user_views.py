@@ -27,6 +27,11 @@ from django.views.decorators.cache import never_cache, cache_control
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
 from django.db import models  # Q kosam
+from .models import LoginVisit
+from django.utils import timezone
+from offers.models import UserVisitEvent   # 👈 add this import
+
+
 
 from .models import (
     Profile,
@@ -148,19 +153,21 @@ def save_location(request):
 # Public pages
 # =========================
 
+
 @cache_control(no_store=True, no_cache=True, must_revalidate=True)
 @never_cache
 def user_login_page(request):
-    # Branch session active → branch home (login page kanakunda)
+    # Branch session active → branch home ki
     if request.session.get("branch_id"):
         return redirect("offers:branch_home")
 
-    # Already authenticated → route by role (superuser → admin home)
+    # Already authenticated ayithe direct redirect
     if request.user.is_authenticated:
         if request.user.is_superuser:
             return redirect("offers:admin_home")
         return redirect("offers:user_home")
 
+    # Normal GET → login form
     return render(request, "user_registration/user_login.html")
 
 
@@ -171,6 +178,17 @@ def user_login_page(request):
 NAME_RE = re.compile(r"^[^\s].{1,39}$")  # 2–40 chars, Unicode-friendly
 
 
+def get_client_ip(request):
+    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(",")[0].strip()
+    else:
+        ip = request.META.get("REMOTE_ADDR")
+    return ip
+
+
+
+
 @csrf_protect
 @login_required
 @never_cache
@@ -178,6 +196,30 @@ def user_home_page(request):
     # Superusers shouldn’t see user home
     if request.user.is_superuser:
         return redirect("offers:admin_home")
+
+    client_ip = get_client_ip(request)
+    ua = request.META.get("HTTP_USER_AGENT", "")
+
+    today = timezone.localdate()
+
+    LoginVisit.objects.update_or_create(
+        user=request.user,
+        visit_date=today,
+        defaults={
+            "source": "login",
+            "ip_address": client_ip,
+            "user_agent": ua,
+        },
+    )
+
+    # 👇 ONE-PER-DAY VISIT FLAG (qr_screenshot + qr_pin rendu cover)
+    now_ts = timezone.now()
+    start_of_day = now_ts.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    already_claimed_today = UserVisitEvent.objects.filter(
+        user=request.user,
+        created_at__gte=start_of_day,
+    ).exists()
 
     # Profile
     prof = getattr(request.user, "profile", None)
@@ -188,7 +230,7 @@ def user_home_page(request):
     need_name = (disp == "")
 
     # Branches for “Branches” card
-    LIMIT = 12  # show first 12 as small tiles
+    LIMIT = 12
     all_branches_qs = Branch.objects.order_by(Lower("name"))
     branch_count = all_branches_qs.count()
     branches = list(all_branches_qs[:LIMIT])
@@ -202,8 +244,12 @@ def user_home_page(request):
             "branch_count": branch_count,
             "branches": branches,
             "branches_has_more": branch_count > LIMIT,
+            "client_ip": client_ip,
+            # 🔥 ADD THIS
+            "oz_already_claimed_today": already_claimed_today,
         },
     )
+
 
 
 @login_required
@@ -403,40 +449,12 @@ def user_logout_view(request):
 
 
 # =========================
-# QR token helpers (scan / visit count)
+# QR token generaton helpers (scan / visit count)
 # =========================
 
-def decode_base64_url(s: str) -> bytes:
-    """Decode a Base64 URL-safe string back into bytes."""
-    pad = "=" * (-len(s) % 4)
-    return base64.urlsafe_b64decode(s + pad)
 
 
-def create_token_signature(payload_b64: str) -> str:
-    """Create HMAC-SHA256 signature for the given payload using SECRET_KEY."""
-    key = (getattr(settings, "OZ_QR_SIGNING_KEY", None) or settings.SECRET_KEY).encode("utf-8")
-    mac = hmac.new(key, payload_b64.encode("utf-8"), hashlib.sha256).digest()
-    return base64.urlsafe_b64encode(mac).decode("ascii").rstrip("=")
-
-
-def verify_qr_token(token: str):
-    """Verify QR token signature + expiry, return {bid, desk, exp}."""
-    try:
-        payload_b64, sig_b64 = token.split(".", 1)
-    except ValueError:
-        raise ValueError("Bad token format")
-
-    good_sig = create_token_signature(payload_b64)
-    if not hmac.compare_digest(good_sig, sig_b64):
-        raise ValueError("Bad signature")
-
-    doc = json.loads(decode_base64_url(payload_b64))
-    if int(doc.get("exp", 0)) < int(time.time()):
-        raise ValueError("Expired")
-
-    bid = int(doc.get("bid"))
-    desk = str(doc.get("desk") or "A1")[:12]
-    return {"bid": bid, "desk": desk, "exp": int(doc["exp"])}
+from offers.qr_token_utils import parse_qr_token as verify_qr_token
 
 
 TOKEN_PATH_RE = re.compile(r"/qrg/(?:redeem|t)/(?P<tok>[^/?#]+)")
@@ -472,13 +490,18 @@ def extract_qr_token_from_raw(raw):
 
 
 SIGN_SALT = "oz.complementary.qr"   # renamed from oz.freeplate.qr
-QR_TTL_SECS = 180  # same as in qr_generation
 
+
+from django.conf import settings
 
 def verify_legacy_colon_token(token: str):
-    """Decode Django TimestampSigner token: payload:timestamp:signature."""
     try:
-        data = signing.loads(token, salt=SIGN_SALT, max_age=QR_TTL_SECS + 30)
+        ttl = getattr(settings, "QR_TTL_SECS", 180)
+        data = signing.loads(
+            token,
+            salt=SIGN_SALT,
+            max_age=ttl + 30
+        )
         return {
             "bid": int(data.get("branch")),
             "desk": str(data.get("desk") or "A1"),
@@ -499,11 +522,6 @@ PIN_LEN = 4  # 4-digit PIN for QR
 @never_cache
 @cache_control(no_cache=True, no_store=True, must_revalidate=True)
 def pin_verify(request):
-    """
-    POST /qrg/pin-verify/
-    { "pin": "1234" }  →  { ok:true, next:"/visit-count/?token=..." }
-    """
-    print(">>> PIN_VERIFY VIEW HIT")  # debug optional
 
     try:
         data = json.loads(request.body.decode("utf-8") or "{}")
@@ -511,16 +529,13 @@ def pin_verify(request):
         data = {}
 
     raw_pin = str(data.get("pin") or "").strip()
-    # keep only digits, max 4
     pin = re.sub(r"\D", "", raw_pin)[:PIN_LEN]
 
-    # 4-digit validation
     if not re.fullmatch(r"\d{4}", pin):
         return JsonResponse({"ok": False, "error": "Enter a valid 4-digit PIN."}, status=400)
 
     now_ts = timezone.now()
 
-    # Live candidates: not expired, not used (limit few rows)
     qs = (
         QRPin.objects
         .filter(expires_at__gte=now_ts, used=False)
@@ -528,8 +543,8 @@ def pin_verify(request):
     )
 
     row = None
-    for cand in qs[:20]:  # safety limit
-        if verify_qr_pin(cand, pin):   # 👈 uses qr_pin_service logic
+    for cand in qs[:20]:
+        if verify_qr_pin(cand, pin):
             row = cand
             break
 
@@ -542,15 +557,138 @@ def pin_verify(request):
     if getattr(row, "used", False):
         return JsonResponse({"ok": False, "error": "PIN already used."}, status=400)
 
-    # ✅ success → mark used & redirect
-    if hasattr(row, "used"):
+    # Mark pin used
+    row.used = True
+    row.save(update_fields=["used"])
+
+    # ===========================================================
+    # 🔥 ONE-PER-DAY CHECK (user + branch)
+    # ===========================================================
+    already_claimed_today = False
+    user = request.user if request.user.is_authenticated else None
+
+    if user:
+        now = timezone.now()
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        already_claimed_today = UserVisitEvent.objects.filter(
+            user=user,
+            branch=row.branch,
+            created_at__gte=start_of_day,
+        ).exists()
+
+        # Create visit event only if first time today
+        if not already_claimed_today:
+            UserVisitEvent.objects.create(
+                user=user,
+                branch=row.branch,
+                token=row.token,
+                desk=row.desk,
+                visit_method="qr_pin",
+                staff_name=row.staff_name,
+                staff_code=row.staff_code,
+            )
+
+    next_url = reverse("offers:user_visit_count") + f"?token={row.token}"
+
+    return JsonResponse({
+        "ok": True,
+        "next": next_url,
+        "already_claimed_today": already_claimed_today,   # 👈 Frontend popup uses this
+    })
+
+
+# offers/user_views.py (for example)
+
+
+
+
+from offers.qr_token_utils import parse_qr_token as verify_qr_token
+
+
+import logging
+logger = logging.getLogger(__name__)
+
+
+@require_POST
+@never_cache
+@cache_control(no_cache=True, no_store=True, must_revalidate=True)
+def scan_verify(request):
+    try:
+        data = json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        data = {}
+
+    raw_input = str(data.get("token") or "").strip()
+    if not raw_input:
+        return JsonResponse({"ok": False, "error": "No token provided."}, status=400)
+
+    # 👇 URL or raw token rendu handle
+    token = extract_qr_token_from_raw(raw_input)
+    if not token:
+        return JsonResponse({"ok": False, "error": "Invalid QR token format."}, status=400)
+
+    try:
+        parsed = verify_qr_token(token, mark_used=True)
+    except ValueError as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=400)
+
+    branch_id = parsed["bid"]
+    desk = parsed.get("desk")
+    now_ts = timezone.now()
+
+    # IMPORTANT: use the canonical `token` for DB lookup, not raw_input
+    row = QRPin.objects.filter(token=token).first()
+    if row is not None:
+        if row.expires_at < now_ts:
+            return JsonResponse({"ok": False, "error": "PIN expired."}, status=400)
+
+        if getattr(row, "used", False):
+            return JsonResponse({"ok": False, "error": "Already used"}, status=400)
+
         row.used = True
-        row.save(update_fields=["used"])
+        row.used_at = now_ts
+        row.save(update_fields=["used", "used_at"])
 
-    next_url = reverse("offers:user_visit_count")
-    next_url = f"{next_url}?token={row.token}"
+    # ONE-PER-DAY: user + branch
+    already_claimed_today = False
+    user = request.user if request.user.is_authenticated else None
 
-    return JsonResponse({"ok": True, "next": next_url})
+    if user:
+        now = timezone.now()
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        already_claimed_today = UserVisitEvent.objects.filter(
+            user=user,
+            branch_id=branch_id,
+            created_at__gte=start_of_day,
+        ).exists()
+
+        if not already_claimed_today:
+            event_kwargs = {
+                "user": user,
+                "branch_id": branch_id,
+                "token": token,
+                "desk": desk,
+                "visit_method": "qr_screenshot",
+            }
+            # QRPin row dakkite staff snapshot kuda store cheddam
+            if row is not None:
+                event_kwargs["staff_name"] = getattr(row, "staff_name", "") or ""
+                event_kwargs["staff_code"] = getattr(row, "staff_code", "") or ""
+
+            UserVisitEvent.objects.create(**event_kwargs)
+
+    next_url = reverse("offers:user_visit_count") + f"?token={token}"
+
+    return JsonResponse({
+        "ok": True,
+        "next": next_url,
+        "already_claimed_today": already_claimed_today,
+    })
+
+
+
 
 
 # ============================================
@@ -594,73 +732,126 @@ def branch_offers_in_userinterface(request, branch_id):
 
 
 # =========================
-# Visit count page
+# Visit count page after sucefull pin or scan redirect view 
 # =========================
+
+from django.utils import timezone
+from django.shortcuts import render, redirect
+from django.views.decorators.cache import cache_control, never_cache
+from django.db import models
 
 @cache_control(no_store=True, no_cache=True, must_revalidate=True)
 @never_cache
 def user_visit_count_view(request):
     token = request.GET.get("token")
+    visit_unit = "qr_screenshot"   # default
 
-    branch = None
-    visit_unit = "qr_screenshot"   # default if not found
-
+    # ================================
+    # 1) First-time hit WITH ?token=
+    #    -> verify token + store in session
+    #    -> redirect to clean URL (/visit-count/)
+    # ================================
     if token:
         try:
             if "." in token:
-                info = verify_qr_token(token)
+                # new style JWT-like token
+                info = verify_qr_token(token, allow_used=True)
             elif ":" in token:
+                # legacy colon token
                 info = verify_legacy_colon_token(token)
             else:
                 raise ValueError("Bad token format")
 
-            branch = Branch.objects.filter(pk=info["bid"]).only("id", "name").first()
+            branch = (
+                Branch.objects
+                .filter(pk=info["bid"])
+                .only("id", "name")
+                .first()
+            )
             if not branch:
                 raise ValueError("Branch not found")
 
             desk = info.get("desk")
 
-            # Save in session
+            # Save visit context in session
             request.session["last_branch_id"] = branch.id
             request.session["last_branch_name"] = branch.name
+            request.session["last_qr_ok_at"] = timezone.now().isoformat()
 
             if desk:
                 request.session["last_branch_desk"] = str(desk)
             else:
                 request.session.pop("last_branch_desk", None)
 
-            request.session["last_qr_ok_at"] = timezone.now().isoformat()
+            # (optional) cache last token if you ever need in template/debug
+            request.session["last_visit_token"] = token
+
+            # IMPORTANT:
+            # UserVisitEvent already create ayyi untundi (scan_verify / pin_verify lo),
+            # ikkada malli create cheyyakunda clean URL ki redirect.
+            return redirect("offers:user_visit_count")
 
         except ValueError:
+            # bad / expired / invalid token → home
             return redirect("offers:user_home")
 
     # ================================
-    # Fetch visit_unit from active offer
+    # 2) Normal render (NO token in URL)
+    #    -> session lo branch_id required
     # ================================
     branch_id = request.session.get("last_branch_id")
-    if branch_id:
-        # Active complementary_offer for this branch
-        offer = (
-            ComplementaryOffer.objects
-            .filter(kind="complementary_offer", is_active=True)
-            .filter(models.Q(all_branches=True) | models.Q(eligible_branches=branch_id))
-            .only("visit_unit")
-            .first()
-        )
-        if offer:
-            visit_unit = offer.visit_unit  # qr_pin or qr_screenshot
+    if not branch_id:
+        # direct /visit-count/ open chesina or session lost → back to home
+        return redirect("offers:user_home")
 
-    # ================================
-    # Build context for template
-    # Replace TODO visits later
-    # ================================
+    # -------------------------------
+    # Fetch visit_unit from active offer
+    # -------------------------------
+    offer = (
+        ComplementaryOffer.objects
+        .filter(kind="complementary_offer", is_active=True)
+        .filter(
+            models.Q(all_branches=True) |
+            models.Q(eligible_branches=branch_id)
+        )
+        .only("visit_unit")
+        .first()
+    )
+    if offer:
+        visit_unit = offer.visit_unit
+
+    # -------------------------------
+    # Fetch visit stats from DB
+    # -------------------------------
+    total_visits = 0
+    today_visits = 0
+    last_visit = None
+
+    qs = UserVisitEvent.objects.filter(branch_id=branch_id)
+
+    # Only count this specific user if logged in
+    if request.user.is_authenticated:
+        qs = qs.filter(user=request.user)
+
+    total_visits = qs.count()
+
+    start_of_day = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_visits = qs.filter(created_at__gte=start_of_day).count()
+
+    last_obj = qs.order_by("-created_at").first()
+    last_visit = last_obj.created_at if last_obj else None
+
+    # -------------------------------
+    # Build context
+    # -------------------------------
     ctx = {
         "branch_name": request.session.get("last_branch_name", "Unknown Branch"),
-        "total_visits": 12,
-        "today_visits": 1,
-        "last_visit": "2025-11-09 18:45",
-        "visit_unit": visit_unit,              # 👈 VERY IMPORTANT
-        "token": token,                        # optional, needed for upload later
+        "total_visits": total_visits,
+        "today_visits": today_visits,
+        "last_visit": last_visit.strftime("%Y-%m-%d %H:%M") if last_visit else None,
+        "visit_unit": visit_unit,
+        # template ki token kavalsina avasaram ledu, but debug kosam isthene:
+        "token": request.session.get("last_visit_token"),
     }
 
     return render(
@@ -668,3 +859,7 @@ def user_visit_count_view(request):
         "user_interface/user_visit_count/user_visit_count_modal.html",
         ctx,
     )
+
+
+
+

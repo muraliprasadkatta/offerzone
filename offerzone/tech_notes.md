@@ -11,3 +11,6 @@ restarent
 branch home page > brnach scaner page 
 
 so ila kakunda manaki branch hoem ppage lo 
+
+ip adress location fetch cheyali kuda 
+and ip location and mobile nunchi vachina loation compare cheyali 

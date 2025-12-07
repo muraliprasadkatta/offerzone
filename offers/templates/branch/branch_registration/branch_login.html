@@ -9,16 +9,16 @@
     :root{ --bg:#0b1020; --card:#11183a; --border:#273164; --text:#e8ecff; --muted:#b9c4ff; --prim:#4c74ff; --ok:#a7ffb5; --err:#ffb3b3; }
     *{box-sizing:border-box} body{margin:0;font-family:system-ui,Arial,sans-serif;background:var(--bg);color:var(--text)}
     .lg-wrap{min-height:100dvh;display:grid;place-items:center;padding:20px}
-/* Remove vw usage; keep it inside parent's content box */
-.lg-card{
-  width: min(420px, 100%);
-  margin-inline: auto;
-  background: var(--card);
-  border:1px solid var(--border);
-  border-radius:14px;
-  padding:18px 18px 16px;
-  box-shadow:0 10px 30px rgba(0,0,0,.25);
-}
+    /* Remove vw usage; keep it inside parent's content box */
+    .lg-card{
+      width: min(420px, 100%);
+      margin-inline: auto;
+      background: var(--card);
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:18px 18px 16px;
+      box-shadow:0 10px 30px rgba(0,0,0,.25);
+    }
     h1{margin:0 0 12px;font-size:18px}
     .lg-hint{color:var(--muted);font-size:13px;margin:-6px 0 14px}
     label{display:block;margin:10px 0 6px;font-size:14px}
@@ -63,6 +63,15 @@
       <small id="lgBranchMsg">Type to check…</small>
     </div>
 
+    <!-- 🌟 NEW: Login for dropdown (above Send OTP + Email row) -->
+    <div style="margin-top:8px">
+      <label for="lgLoginFor">Login for</label>
+      <select id="lgLoginFor" name="login_for">
+        <option value="branch" selected>Branch main account</option>
+        <option value="staff" disabled>Branch staff (coming soon)</option>
+      </select>
+    </div>
+
     <div class="lg-row" style="margin-top:8px">
       <div>
         <label for="lgLoginTarget">Send OTP to</label>
@@ -91,8 +100,8 @@
     <button type="submit" id="lgBtnVerify" class="lg-btn" style="margin-top:10px" disabled>Verify & Continue</button>
     <div id="lgMsg" class="lg-msg" role="status" aria-live="polite"></div>
 
-<a href="{% url 'offers:user_login' %}" id="link-user">User Login</a>
-<a href="{% url 'offers:admin_login' %}" id="link-admin">Admin sign-in</a>
+    <a href="{% url 'offers:user_login' %}" id="link-user">User Login</a>
+    <a href="{% url 'offers:admin_login' %}" id="link-admin">Admin sign-in</a>
     
     {# {% csrf_token %} #}
   </form>
@@ -108,106 +117,204 @@
   document.getElementById('link-admin')?.addEventListener('click', navReplace);
 </script>
 
-
 <script>
 (() => {
   // Endpoints
-  const OTP_SEND_URL = "{% url 'offers:branch_otp_send' %}";
-  const OTP_VERIFY_URL   = "{% url 'offers:branch_otp_verify' %}";
-  const BRANCH_CHECK_URL = "{% url 'offers:branch_check' %}";
-  const COOLDOWN_SECS    = 30;
+  const OTP_SEND_URL    = "{% url 'offers:branch_otp_send' %}";
+  const OTP_VERIFY_URL  = "{% url 'offers:branch_otp_verify' %}";
+  const BRANCH_CHECK_URL= "{% url 'offers:branch_check' %}";
+  const COOLDOWN_SECS   = 30;
 
   // DOM
-  const form      = document.getElementById('lgBranchOtpForm');
-  const branchEl  = document.getElementById('lgBranchName');
-  const targetEl  = document.getElementById('lgLoginTarget');
-  const idEl      = document.getElementById('lgIdentifier');
-  const otpEl     = document.getElementById('lgOtp');
-  const getBtn    = document.getElementById('lgBtnGetOtp');
-  const verifyBtn = document.getElementById('lgBtnVerify');
-  const msgEl     = document.getElementById('lgMsg');
-  const branchChip= document.getElementById('lgBranchChip');
-  const branchMsg = document.getElementById('lgBranchMsg');
+  const form       = document.getElementById('lgBranchOtpForm');
+  const branchEl   = document.getElementById('lgBranchName');
+  const targetEl   = document.getElementById('lgLoginTarget');
+  const idEl       = document.getElementById('lgIdentifier');
+  const otpEl      = document.getElementById('lgOtp');
+  const getBtn     = document.getElementById('lgBtnGetOtp');
+  const verifyBtn  = document.getElementById('lgBtnVerify');
+  const msgEl      = document.getElementById('lgMsg');
+  const branchChip = document.getElementById('lgBranchChip');
+  const branchMsg  = document.getElementById('lgBranchMsg');
+  const loginForEl = document.getElementById('lgLoginFor');   // dropdown handle
+
+  // ===== Helpers =====
 
   // Branch rules
-  const sanitizeBranch = v => (v || '').toLowerCase().replace(/\s+/g,'').replace(/[^a-z0-9]/g,'');
+  const sanitizeBranch = v =>
+    (v || '').toLowerCase().replace(/\s+/g,'').replace(/[^a-z0-9]/g,'');
   const validBranch    = v => /^[a-z0-9]+$/.test(v);
 
   // Email masker: '......' + last 6 of user + '@' + domain
   function maskEmail(email){
-    if(!email) return '';
+    if (!email) return '';
     const parts = String(email).split('@');
-    if(parts.length !== 2) return email;
+    if (parts.length !== 2) return email;
     const user = parts[0], domain = parts[1];
     const keep = user.slice(-6);
     return '......' + keep + '@' + domain;
   }
 
-  // Live sanitize & check
-  let checkTimer=null, cache=new Map();
-  branchEl.addEventListener('keydown', e => { if(e.key === ' ') e.preventDefault(); });
+  // Lock / unlock email display
+  function lockEmail(email, lock = true) {
+    if (lock && email) {
+      idEl.dataset.real = email;           // keep real email
+      idEl.value = maskEmail(email);       // show masked
+      idEl.readOnly = true;
+    } else {
+      idEl.dataset.real = '';
+      idEl.value = '';
+      idEl.readOnly = true;                // always readonly in branch flow
+    }
+  }
+
+  // 🌟 Populate "Login for" dropdown with staff list + emails
+  function populateLoginFor(staffList, branchEmail) {
+    if (!loginForEl) return;
+
+    // Clear existing options
+    loginForEl.innerHTML = "";
+
+    // 1) Always add branch main account option
+    const optBranch = document.createElement("option");
+    optBranch.value = "branch";
+    optBranch.textContent = "Branch main account";
+    optBranch.dataset.email = branchEmail || "";   // 🔥 attach branch email here
+    optBranch.selected = true;
+    loginForEl.appendChild(optBranch);
+
+    // 2) Staff options (if any)
+    if (Array.isArray(staffList) && staffList.length) {
+      for (const s of staffList) {
+        if (!s.staff_id) continue;
+        const opt = document.createElement("option");
+        opt.value = s.staff_id;                           // value = staff_id
+        opt.textContent = `${s.staff_id} · ${s.name}`;    // label: "ST001 · Ramesh"
+        opt.dataset.email = s.email || "";               // 🔥 attach staff email
+        loginForEl.appendChild(opt);
+      }
+    } else {
+      // Optional: info-only disabled option (no staff yet)
+      const optInfo = document.createElement("option");
+      optInfo.value = "";
+      optInfo.textContent = "No staff IDs yet";
+      optInfo.disabled = true;
+      loginForEl.appendChild(optInfo);
+    }
+  }
+
+  // When user changes dropdown → update locked email
+  if (loginForEl) {
+    loginForEl.addEventListener('change', () => {
+      const opt = loginForEl.options[loginForEl.selectedIndex];
+      const email = opt?.dataset.email || "";
+      if (email) {
+        lockEmail(email, true);
+      } else {
+        // Fallback: clear if no email (shouldn't usually happen)
+        lockEmail('', false);
+      }
+    });
+  }
+
+  // ========= Live branch check =========
+
+  let checkTimer = null;
+  const cache = new Map();
+
+  // prevent spaces
+  branchEl.addEventListener('keydown', e => {
+    if (e.key === ' ') e.preventDefault();
+  });
+
   branchEl.addEventListener('input', () => {
-    const before = branchEl.value, after = sanitizeBranch(before);
+    const before = branchEl.value;
+    const after  = sanitizeBranch(before);
     if (before !== after) branchEl.value = after;
 
-    // reset buttons & id field until checked
+    // reset buttons, email & dropdown until checked
     lockEmail('', false);
-    getBtn.disabled = true; verifyBtn.disabled = true;
+    getBtn.disabled = true;
+    verifyBtn.disabled = true;
+    populateLoginFor([], ""); // reset
 
-    if (!after){ setBranchState('idle'); return; }
-    if (!validBranch(after)){ setBranchState('format_err'); return; }
+    if (!after) {
+      setBranchState('idle');
+      return;
+    }
+    if (!validBranch(after)) {
+      setBranchState('format_err');
+      return;
+    }
 
     setBranchState('checking');
     clearTimeout(checkTimer);
     checkTimer = setTimeout(() => checkBranch(after), 250);
   });
+
   branchEl.addEventListener('blur', () => {
     branchEl.value = sanitizeBranch(branchEl.value);
     if (branchEl.value) checkBranch(branchEl.value);
   });
 
-  async function checkBranch(name){
+  async function checkBranch(name) {
     const q = sanitizeBranch(name);
-    if (!q){ setBranchState('idle'); return; }
-    if (!validBranch(q)){ setBranchState('format_err'); return; }
+    if (!q) {
+      setBranchState('idle');
+      return;
+    }
+    if (!validBranch(q)) {
+      setBranchState('format_err');
+      return;
+    }
 
-    if (cache.has(q)){ const c = cache.get(q); applyBranchResult(c); return; }
-    try{
-      const r = await fetch(BRANCH_CHECK_URL + "?name=" + encodeURIComponent(q), {headers: {"Accept":"application/json"}});
+    if (cache.has(q)) {
+      const c = cache.get(q);
+      applyBranchResult(c);
+      return;
+    }
+
+    try {
+      const r    = await fetch(
+        BRANCH_CHECK_URL + "?name=" + encodeURIComponent(q),
+        { headers: { "Accept": "application/json" } }
+      );
       const data = await r.json();
-      const res = { ok: !!(data && data.ok && data.exists), email: data?.email || "" };
+
+      const res = {
+        ok: !!(data && data.ok && data.exists),
+        email: data?.email || "",
+        staff: Array.isArray(data?.staff) ? data.staff : []
+      };
+
       cache.set(q, res);
       applyBranchResult(res);
-    }catch{ setBranchState('net_err'); }
+    } catch (err) {
+      console.error(err);
+      setBranchState('net_err');
+    }
   }
 
-  function applyBranchResult(res){
-    if (res.ok){
-      lockEmail(res.email, true);            // fill & lock
+  function applyBranchResult(res) {
+    if (res.ok) {
+      lockEmail(res.email, true);                // default: branch email
+      populateLoginFor(res.staff, res.email);    // 🔥 branch + staff emails into dropdown
       setBranchState('ok', res.email);
-      getBtn.disabled = false; verifyBtn.disabled = false;
-    }else{
-      lockEmail('', false);
-      setBranchState('not_found');
-      getBtn.disabled = true; verifyBtn.disabled = true;
-    }
-  }
-
-  function lockEmail(email, lock){
-    if (lock && email){
-      idEl.dataset.real = email;                 // keep real email
-      idEl.value = maskEmail(email);             // show masked
-      idEl.readOnly = true;
+      getBtn.disabled = false;
+      verifyBtn.disabled = false;
     } else {
-      idEl.dataset.real = '';
-      idEl.value = '';
-      idEl.readOnly = true;                      // keep readonly always for branch flow
+      lockEmail('', false);
+      populateLoginFor([], "");
+      setBranchState('not_found');
+      getBtn.disabled = true;
+      verifyBtn.disabled = true;
     }
   }
 
-  function setBranchState(state, email){
+  function setBranchState(state, email) {
     const enable = (state === 'ok');
-    getBtn.disabled = !enable; verifyBtn.disabled = !enable;
+    getBtn.disabled = !enable;
+    verifyBtn.disabled = !enable;
 
     branchEl.classList.remove('lg-is-ok','lg-is-err');
     branchChip.classList.remove('ok','err');
@@ -247,70 +354,152 @@
     }
   }
 
-  // cooldown + helpers
-  let cooldownTimer=null, remaining=0;
+  // ===== OTP send / verify =====
+
+  let cooldownTimer = null;
+  let remaining = 0;
+
   function startCooldown(){
-    remaining = COOLDOWN_SECS; tick();
+    remaining = COOLDOWN_SECS;
+    tick();
     cooldownTimer = setInterval(tick, 1000);
+
     function tick(){
       getBtn.disabled = true;
       getBtn.textContent = `Get OTP (${remaining}s)`;
-      if (--remaining < 0){ clearInterval(cooldownTimer); getBtn.disabled = false; getBtn.textContent = 'Get OTP'; }
+      if (--remaining < 0){
+        clearInterval(cooldownTimer);
+        getBtn.disabled = false;
+        getBtn.textContent = 'Get OTP';
+      }
     }
   }
+
+
+
   async function postJSON(url, data){
-    const headers = {"Content-Type":"application/json"};
-    const csrftoken = (document.cookie.match(/csrftoken=([^;]+)/)||[])[1];
-    if (csrftoken) headers["X-CSRFToken"] = csrftoken;
-    const r = await fetch(url, {method:"POST", headers, body:JSON.stringify(data)});
+    const headers = { "Content-Type": "application/json" };
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    if (m) headers["X-CSRFToken"] = m[1];
+    const r = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(data)
+    });
     return r.json();
   }
 
-  // events
+
+  
+
+  // 🔹 Send OTP click (Get OTP button)
   getBtn.addEventListener('click', async () => {
     const branch = sanitizeBranch(branchEl.value);
-    const codeTo = idEl.dataset.real || '';  // use real locked email
-    if (!branch){ showMsg('Enter branch name.', 'lg-err'); branchEl.focus(); return; }
-    if (!codeTo){ showMsg('No email on file for this branch.', 'lg-err'); return; }
+    const codeTo = idEl.dataset.real || '';  // real locked email (branch OR staff)
 
-    try{
+    if (!branch){
+      showMsg('Enter branch name.', 'lg-err');
+      branchEl.focus();
+      return;
+    }
+    if (!codeTo){
+      showMsg('No email on file for this branch/staff.', 'lg-err');
+      return;
+    }
+
+    try {
       showMsg('Sending OTP…');
       getBtn.disabled = true;
-      // force email mode
-      const res = await postJSON(OTP_SEND_URL, { identifier: codeTo, branch, target: "email" });
-      if (res && res.ok){ showMsg('OTP sent to registered email.', 'lg-ok'); startCooldown(); otpEl.focus(); }
-      else { getBtn.disabled = false; showMsg(res?.error || 'Failed to send OTP.', 'lg-err'); }
-    }catch{ getBtn.disabled = false; showMsg('Network error while sending.', 'lg-err'); }
+
+      const res = await postJSON(OTP_SEND_URL, {
+        branch,
+        identifier: codeTo,   // 🔥 OTP ee email ki vellali
+        target: "email"
+      });
+
+      if (res && res.ok){
+        showMsg('OTP sent to selected email.', 'lg-ok');
+        startCooldown();
+        otpEl.focus();
+      } else {
+        getBtn.disabled = false;
+        showMsg(res?.error || 'Failed to send OTP.', 'lg-err');
+      }
+    } catch (err) {
+      console.error(err);
+      getBtn.disabled = false;
+      showMsg('Network error while sending.', 'lg-err');
+    }
   });
 
+
+
+    // 🔹 Verify submit (form submit)
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const branch = sanitizeBranch(branchEl.value);
     const codeTo = idEl.dataset.real || '';
     const code   = (otpEl.value || '').trim();
-    if (!branch){ showMsg('Enter branch name.', 'lg-err'); branchEl.focus(); return; }
-    if (!codeTo){ showMsg('No email on file for this branch.', 'lg-err'); return; }
-    if (!code){ showMsg('Enter the OTP.', 'lg-err'); otpEl.focus(); return; }
 
-    try{
-      showMsg('Verifying…'); verifyBtn.disabled = true;
-      const res = await postJSON(OTP_VERIFY_URL, { branch, otp: code });
-      if (res && res.ok){ showMsg('Verified. Redirecting…', 'lg-ok'); window.location.replace(res.next || '/'); }
-      else { verifyBtn.disabled = false; showMsg(res?.error || 'Invalid OTP. Try again.', 'lg-err'); }
-    }catch{ verifyBtn.disabled = false; showMsg('Network error while verifying.', 'lg-err'); }
+    if (!branch){
+      showMsg('Enter branch name.', 'lg-err');
+      branchEl.focus();
+      return;
+    }
+    if (!codeTo){
+      showMsg('No email on file for this branch/staff.', 'lg-err');
+      return;
+    }
+    if (!code){
+      showMsg('Enter the OTP.', 'lg-err');
+      otpEl.focus();
+      return;
+    }
+
+    try {
+      showMsg('Verifying…');
+      verifyBtn.disabled = true;
+
+      const res = await postJSON(OTP_VERIFY_URL, {
+        branch,
+        otp: code,
+        identifier: codeTo    // 🔥 same email we sent OTP to
+      });
+
+      if (res && res.ok){
+        showMsg('Verified. Redirecting…', 'lg-ok');
+        window.location.replace(res.next || '/');
+      } else {
+        verifyBtn.disabled = false;
+        showMsg(res?.error || 'Invalid OTP. Try again.', 'lg-err');
+      }
+    } catch (err) {
+      console.error(err);
+      verifyBtn.disabled = false;
+      showMsg('Network error while verifying.', 'lg-err');
+    }
   });
 
-  // prefill (?b=...)
+
+
+  // Prefill (?b=...)
+
   const pre = new URLSearchParams(location.search).get('b');
-  if (pre){ branchEl.value = sanitizeBranch(pre); }
-  if (branchEl.value){ // initial check if prefilled
+  if (pre){
+    branchEl.value = sanitizeBranch(pre);
+  }
+  if (branchEl.value){
     const v = sanitizeBranch(branchEl.value);
     if (v) checkBranch(v);
   }
 
-  function showMsg(text, type=''){ msgEl.textContent = text; msgEl.className = 'lg-msg ' + (type||''); }
+  function showMsg(text, type=''){
+    msgEl.textContent = text;
+    msgEl.className = 'lg-msg ' + (type || '');
+  }
 })();
 </script>
+
 
 </body>
 </html>

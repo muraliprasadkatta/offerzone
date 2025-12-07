@@ -39,7 +39,14 @@ else:
         "offerzone-production.up.railway.app",  # production
         "localhost",
         "127.0.0.1",
+        ".ngrok-free.app",
+
     ]
+
+    # 👇 ADD THIS OVERRIDE FOR LOCAL DEV
+if DEBUG:
+    # Local development lo e host aina accept chey
+    ALLOWED_HOSTS = ["*"]
 
 # CSRF_TRUSTED_ORIGINS: comma-separated list from env
 # e.g. CSRF_TRUSTED_ORIGINS=https://offerzone-production.up.railway.app

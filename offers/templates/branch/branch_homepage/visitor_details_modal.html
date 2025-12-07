@@ -1,0 +1,185 @@
+
+<div id="visitDetailsModal"
+     class="oz-modal-backdrop"
+     data-modal>
+  <div class="oz-modal">
+    <div class="oz-modal-header">
+      <h2>Last visitor details</h2>
+      <button type="button" class="oz-close-btn" data-close>&times;</button>
+    </div>
+
+    <div class="oz-modal-body">
+{% if last_visit %}
+  <div class="oz-row">
+    <span class="oz-label">Name</span>
+    <span class="oz-value">
+      {% if last_visit.user %}
+        {{ last_visit.user.get_full_name|default:last_visit.user.email }}
+      {% else %}
+        Anonymous
+      {% endif %}
+    </span>
+  </div>
+
+  <div class="oz-row">
+    <span class="oz-label">Email</span>
+    <span class="oz-value">
+      {% if last_visit.user %}
+        {{ last_visit.user.email }}
+      {% else %}
+        —
+      {% endif %}
+    </span>
+  </div>
+
+  <div class="oz-row">
+    <span class="oz-label">IP address</span>
+    <span class="oz-value">
+      {{ last_visit.ip_address|default:"—" }}
+    </span>
+  </div>
+
+  <div class="oz-row">
+    <span class="oz-label">Visited at</span>
+    <span class="oz-value">
+      {{ last_visit.created_at }}
+    </span>
+  </div>
+
+  <div class="oz-row">
+    <span class="oz-label">Date</span>
+    <span class="oz-value">
+      {{ last_visit.created_at|date:"M. d, Y" }}
+    </span>
+  </div>
+{% else %}
+  <p>No visits recorded yet.</p>
+{% endif %}
+    </div>
+
+    <div class="oz-modal-footer">
+      <button type="button" class="oz-primary-btn" data-close>
+        Close
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<style>
+/* Backdrop */
+.oz-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: none;                 /* hidden by default */
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+/* shown when .is-open is added */
+.oz-modal-backdrop.is-open {
+  display: flex;
+}
+
+/* Card */
+.oz-modal {
+  background: #c010b1;
+  border-radius: 14px;
+  padding: 16px 18px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.25);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Segoe UI", sans-serif;
+}
+
+/* Header */
+.oz-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.oz-modal-header h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.oz-close-btn {
+  border: none;
+  background: transparent;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+/* Body */
+.oz-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.oz-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.oz-label {
+  font-size: 0.8rem;
+  color: #0f1012;
+}
+
+.oz-value {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #0f172a;
+  text-align: right;
+}
+
+/* Footer */
+.oz-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.oz-primary-btn {
+  border-radius: 999px;
+  border: none;
+  padding: 6px 16px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  background: #0f766e;
+  color: #ffffff;
+}
+.oz-primary-btn:hover {
+  opacity: 0.93;
+}
+</style>
+
+<script>
+  document.addEventListener("click", function (e) {
+  const openBtn = e.target.closest("[data-open]");
+  if (openBtn) {
+    const selector = openBtn.getAttribute("data-open");
+    const modal = document.querySelector(selector);
+    if (modal) modal.classList.add("is-open");
+  }
+
+  const closeBtn = e.target.closest("[data-close]");
+  if (closeBtn) {
+    const modal = closeBtn.closest("[data-modal]");
+    if (modal) modal.classList.remove("is-open");
+  }
+});
+
+</script>

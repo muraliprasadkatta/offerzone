@@ -81,12 +81,15 @@
     .tab.active{ color:#fff; border-bottom:2px solid var(--prim) }
   </style>
 </head>
-<body>
+<body data-oz-already-claimed="{{ oz_already_claimed_today|yesno:'1,0' }}">
   <header>
+    <!-- <p>Your IP: {{ client_ip }}</p> -->
+
     <div class="brand">OfferZone</div>
     <div class="right">
       <a class="btn outline" href="#">Profile</a>
-      <a href="{% url 'offers:user_logout' %}">Sign out</a>
+
+      <a href="#">Status</a>
     </div>
   </header>
 
@@ -212,13 +215,15 @@
     <div class="tabs">
       <a class="tab active" href="#">Home</a>
       <a class="tab" href="#">Offers</a>
-      <a class="tab" href="#">Stamps</a>
       <a class="tab" href="#">Account</a>
+      <a href="{% url 'offers:user_logout' %}">Sign out</a>
+
     </div>
   </footer>
   {% include "user_interface/user_name_modal.html" %}
   {% include "user_interface/free_treat_calendar_modal.html" %}
   {% include "user_interface/scan_modal/scan_modal.html" %}
+  {% include "user_interface/scan_modal/already_claimed_modal.html" %}
 
 
   <!-- Scanner JS (moved to static) -->
@@ -315,6 +320,8 @@
     if (window.history && window.history.replaceState) {
       window.history.replaceState(null, '', window.location.href);
     }
-  </script>
+  </script>.
+
+  
 </body>
 </html>

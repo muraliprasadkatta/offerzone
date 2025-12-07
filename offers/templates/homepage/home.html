@@ -5,71 +5,214 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Home • OfferZone</title>
   <style>
-    body{margin:0;font-family:system-ui,Arial,sans-serif;background:#0b1020;color:#e8ecff}
-    header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:#11183a;border-bottom:1px solid #273164}
-    a{color:#bfc9ff;text-decoration:none} a:hover{opacity:.85}
-    .wrap{max-width:960px;margin:36px auto;padding:0 16px}
-    .card{background:#11183a;border:1px solid #273164;border-radius:16px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-    .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));margin-top:16px}
-    .tile{background:#0e1533;border:1px solid #2a376b;border-radius:12px;padding:16px}
-    .btn{display:inline-block;background:#4c74ff;color:#fff;padding:10px 14px;border-radius:10px;font-weight:600}
+    body{
+      margin:0;
+      font-family:system-ui,Arial,sans-serif;
+      background:#0b1020;
+      color:#e8ecff;
+    }
+    header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:16px 20px;
+      background:#11183a;
+      border-bottom:1px solid #273164;
+    }
+    a{color:#bfc9ff;text-decoration:none}
+    a:hover{opacity:.85}
 
+    .wrap{
+      max-width:960px;
+      margin:36px auto;
+      padding:0 16px;
+    }
+    .card{
+      background:#11183a;
+      border:1px solid #273164;
+      border-radius:16px;
+      padding:20px;
+      box-shadow:0 10px 30px rgba(0,0,0,.25);
+    }
+
+    /* main grid – left big box + 2 right boxes */
+    .grid{
+      display:grid;
+      gap:18px;
+      grid-template-columns:2fr 1fr 1fr;
+      margin-top:20px;
+    }
+
+    .tile{
+      background:#0e1533;
+      border:1px solid #2a376b;
+      border-radius:12px;
+      padding:16px;
+    }
+
+    .btn{
+      display:inline-block;
+      background:#4c74ff;
+      color:#fff;
+      padding:10px 14px;
+      border-radius:10px;
+      font-weight:600;
+    }
 
     /* mini + icon buttons */
-.btn--mini{ padding:8px 10px; border-radius:8px; font-size:14px; }
-.btn--icon{ display:inline-flex; align-items:center; gap:8px; }
-.btn--ghost{ background:#eaf0ff; color:#0b5cff; }
-.btn--icon svg{ width:16px; height:16px; display:block; }
+    .btn--mini{ padding:8px 10px; border-radius:8px; font-size:14px; }
+    .btn--icon{ display:inline-flex; align-items:center; gap:8px; }
+    .btn--ghost{ background:#eaf0ff; color:#0b5cff; }
+    .btn--icon svg{ width:16px; height:16px; display:block; }
+
+    /* ------- Branch big box ------- */
+    .branch-box{
+      min-height:360px;
+      display:flex;
+      flex-direction:column;
+    }
+    .branch-box small{
+      display:block;
+      margin-top:4px;
+    }
+
+    .branch-grid{
+      margin-top:16px;
+      display:grid;
+      grid-template-columns:repeat(3, 1fr); /* 3 columns of squares */
+      gap:12px;
+    }
+
+    .branch-pill{
+      background:#0b1028;
+      border:1px solid #2a376b;
+      border-radius:10px;
+      padding:24px 10px;
+      text-align:center;
+      font-size:15px;
+      font-weight:600;
+      cursor:pointer;
+      text-decoration:none;
+      color:#e8ecff;
+      transition:background .2s,border-color .2s,transform .1s;
+    }
+    .branch-pill:hover{
+      background:#182046;
+      border-color:#4c74ff;
+      transform:translateY(-1px);
+    }
+
+    /* Complaints box full width in second row */
+    .tile--full{
+      grid-column:1 / span 3;
+    }
+
+@media (max-width:768px){
+  .grid{
+    grid-template-columns:1fr;      /* oka column only */
+  }
+  .tile--full{
+    grid-column:auto;
+  }
+  /* mobile lo branches 2 columns */
+  .branch-grid{
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width:480px){
+  /* chala chinna screen – 1 column branches */
+  .branch-grid{
+    grid-template-columns:1fr;
+  }
+}
 
   </style>
-  
 </head>
 <body>
   <header>
     <strong>OfferZone</strong>
 
     <nav>
-  <span>Hi, {{ request.user.get_short_name|default:request.user.username }}</span>
-  &nbsp;•&nbsp; <a href="{% url 'offers:admin_logout' %}">Logout</a>
-  &nbsp;&nbsp;
-<a class="btn btn--mini btn--icon btn--ghost"
-   href="#"
-   data-open="#qrcodeModal" 
-   data-qr="offerzone://branch=1&desk=A1">  <!-- optional: mee payload -->
-  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 3h3v2H7v3H5V5a2 2 0 0 1 2-2Zm7 0h3a 2 2 0 0 1 2 2v3h-2V5h-3V3ZM5 16h2v3h3v2H7a2 2 0 0 1-2-2v-3Zm12 3v-3h2v3a2 2 0 0 1-2 2h-3v-2h3ZM8 8h8v8H8V8Z"/></svg>
-  qrcode
-</a>
-
-
-
-</nav>
+      <span>Hi, {{ request.user.get_short_name|default:request.user.username }}</span>
+      &nbsp;•&nbsp; <a href="{% url 'offers:admin_logout' %}">Logout</a>
+      &nbsp;&nbsp;
+      <a class="btn btn--mini btn--icon btn--ghost"
+         href="#"
+         data-open="#qrcodeModal"
+         data-qr="offerzone://branch=1&desk=A1">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M7 3h3v2H7v3H5V5a2 2 0 0 1 2-2Zm7 0h3a 2 2 0 0 1 2 2v3h-2V5h-3V3ZM5 16h2v3h3v2H7a2 2 0 0 1-2-2v-3Zm12 3v-3h2v3a2 2 0 0 1-2 2h-3v-2h3ZM8 8h8v8H8V8Z"/>
+        </svg>
+        qrcode
+      </a>
+    </nav>
   </header>
 
   <div class="wrap">
     <div class="card">
       <h2 style="margin:0 0 8px;">Home</h2>
       <p style="margin:0 0 12px;">Welcome! This is your dashboard starter.</p>
-        <a class="btn" href="#" data-open="#offerModal">Create Offer</a>
+
+      <a class="btn" href="#" data-open="#offerModal">Create Offer</a>
+
       <div class="grid">
-        <div class="tile"><strong>Today’s Offers</strong><br><small>0 items</small></div>
-        <div class="tile"><strong>Users</strong><br><small>0 total</small></div>
-        <div class="tile"><strong>Complaints</strong><br><small>none</small></div>
+        <!-- LEFT: big branches box -->
+        <div class="tile branch-box">
+          <strong>Branches</strong>
+          <small>
+            Total: {{ total_branches|default:"0" }}<br>
+            Logged in today: {{ branches_active_today|default:"0" }}
+          </small>
+
+          <h3 style="margin:14px 0 6px;font-size:14px;font-weight:600;opacity:.9;">
+            Branches (first 12)
+          </h3>
+
+          <div class="branch-grid">
+            {% for b in branches %}
+              <!-- click behavior later: change href as needed -->
+<a
+  class="branch-pill"
+  href="{% url 'offers:branch_detail' b.id %}"
+>
+  {{ b.name }}
+</a>
+
+            {% empty %}
+              <div>No branches yet.</div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- MIDDLE: today's offers -->
+        <div class="tile">
+          <strong>Today’s Offers</strong><br>
+          <small>0 items</small>
+        </div>
+
+        <!-- RIGHT: users -->
+        <div class="tile">
+          <strong>Users</strong><br>
+          <small>0 total</small>
+        </div>
+
+        <!-- SECOND ROW: complaints full width -->
+        <div class="tile tile--full">
+          <strong>Complaints</strong><br>
+          <small>none</small>
+        </div>
       </div>
     </div>
-    
   </div>
-
 
   {% include "homepage/create_offers_modal.html" %}
 
-
+  <script>
+    // Optional: make current page replace the previous entry
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState(null, '', window.location.href);
+    }
+  </script>
 </body>
 </html>
-
-<script>
-  // Optional: make current page replace the previous entry
-  if (window.history && window.history.replaceState) {
-    window.history.replaceState(null, '', window.location.href);
-  }
-</script>
-

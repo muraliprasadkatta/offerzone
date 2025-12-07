@@ -13,10 +13,13 @@ from .models import (
     Profile,
     UserLocationPing,
     QRPin,
+    QRTokenUsage,  
 )
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.utils import timezone
+
 
 User = get_user_model()
 admin.site.unregister(User)
@@ -223,24 +226,58 @@ class BranchOTPAdmin(admin.ModelAdmin):
     list_per_page = 50
 
 
+
 # =========================
 # LoginVisit
 # =========================
 
 @admin.register(LoginVisit)
 class LoginVisitAdmin(admin.ModelAdmin):
-    list_display  = ("id", "user_display", "visit_date", "source", "created_at")
-    list_filter   = ("source", "visit_date", "created_at")
-    search_fields = ("user__username", "user__email", "user__first_name", "user__last_name")
-    date_hierarchy = "visit_date"
+    list_display = (
+        "id",
+        "user_display",
+        "visit_date",
+        "source",
+        "ip_address",
+        "short_user_agent",
+        "created_at",
+    )
+    list_display_links = ("id", "user_display")
+    list_filter = ("source", "visit_date", "created_at")
+    search_fields = (
+        "user__username",
+        "user__email",
+        "user__first_name",
+        "user__last_name",
+        "ip_address",
+    )
     autocomplete_fields = ("user",)
-    ordering = ("-visit_date", "-created_at")
+    ordering = ("-created_at",)
+    date_hierarchy = "visit_date"
     list_per_page = 50
+    readonly_fields = (
+        "user",
+        "visit_date",
+        "source",
+        "ip_address",
+        "user_agent",
+        "created_at",
+    )
 
     def user_display(self, obj):
         u = obj.user
-        return (u.get_full_name() or u.first_name or u.username or u.email or str(u)).strip()
+        if not u:
+            return "-"
+        name = (u.get_full_name() or u.first_name or u.username or u.email or str(u)).strip()
+        return f"{name} ({u.id})"
     user_display.short_description = "User"
+
+    def short_user_agent(self, obj):
+        if not obj.user_agent:
+            return "-"
+        ua = obj.user_agent.strip()
+        return ua[:60] + "…" if len(ua) > 60 else ua
+    short_user_agent.short_description = "User-Agent"
 
 
 # =========================
@@ -249,6 +286,88 @@ class LoginVisitAdmin(admin.ModelAdmin):
 
 @admin.register(QRPin)
 class QRPinAdmin(admin.ModelAdmin):
-    list_display = ("id", "branch", "desk", "token", "expires_at", "used_at", "attempts", "created_at")
-    list_filter = ("branch", "desk")
-    search_fields = ("token",)
+    list_display = ("id", "branch", "desk", "token_short", "used", "expires_at", "used_at", "attempts", "created_at")
+    list_filter = ("branch", "desk", "used")
+    search_fields = ("token", "branch__name", "desk")
+    ordering = ("-created_at",)
+    list_per_page = 50
+
+    def token_short(self, obj):
+        return obj.token[:10] + "..." if obj.token else "-"
+    token_short.short_description = "Token"
+
+
+def format_dt(dt):
+    if not dt:
+        return "-"
+    return timezone.localtime(dt).strftime("%Y-%m-%d %H:%M:%S")
+
+
+# =========================
+# QrLandingEvent – QR scan details
+# =========================
+
+
+
+# admin.py
+
+from django.contrib import admin
+from .models import UserVisitEvent
+
+
+@admin.register(UserVisitEvent)
+class UserVisitEventAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "user",
+        "branch",
+        "visit_method",
+        "desk",
+        "token",
+        "created_at",
+    )
+    list_filter = (
+        "visit_method",
+        "branch",
+        "desk",
+        "created_at",
+    )
+    search_fields = (
+        "token",
+        "desk",
+        "branch__name",
+        "user__username",
+        "user__email",
+    )
+    date_hierarchy = "created_at"
+    ordering = ("-created_at",)
+    autocomplete_fields = ("user", "branch")
+
+
+
+from django.contrib import admin
+from .models import BranchStaff
+
+
+@admin.register(BranchStaff)
+class BranchStaffAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "email", "staff_id", "branch", "created_at")
+    list_filter = ("branch",)
+    search_fields = ("name", "email", "staff_id")
+    ordering = ("-id",)
+
+    # Read-only fields
+    readonly_fields = ("created_at",)
+
+    # Fields arrangement in admin form
+    fieldsets = (
+        ("Staff Details", {
+            "fields": ("name", "email", "mobile", "staff_id")
+        }),
+        ("Branch Info", {
+            "fields": ("branch",),
+        }),
+        ("Meta", {
+            "fields": ("created_at",),
+        }),
+    )

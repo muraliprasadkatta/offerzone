@@ -14,8 +14,12 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.cache import cache_control, never_cache
 from django.views.decorators.http import require_POST
+from .models import Branch,BranchStaff  # 👈 LoginVisit import important
+from .models import Branch, BranchOTP, BranchStaff
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 
-from .models import Branch, BranchOTP
+
 
 
 # ===== Config =====
@@ -64,9 +68,10 @@ def branch_login_view(request):
     return render(request, "branch/branch_registration/branch_login.html")
 
 
+
 def branch_check_view(request):
     """
-    GET /branch/check?name=...  → {ok: true, exists: bool, email?: "..."}
+    GET /branch/check?name=...  → {ok: true, exists: bool, email?: "...", staff?: [...]}
 
     Case-insensitive on Branch.name
     """
@@ -74,27 +79,41 @@ def branch_check_view(request):
     if not name:
         return JsonResponse({"ok": True, "exists": False})
 
-    obj = Branch.objects.filter(name__iexact=name).only("id", "email").first()
-    if not obj:
+    branch = Branch.objects.filter(name__iexact=name).only("id", "email", "name").first()
+    if not branch:
         return JsonResponse({"ok": True, "exists": False})
+
+    # Staff list for this branch (only staff_id set unna vallu)
+    staff_qs = (
+        BranchStaff.objects
+        .filter(branch=branch)
+        .exclude(staff_id__isnull=True)
+        .exclude(staff_id="")
+        .values("id", "name", "staff_id", "email")  # 🌟 email add chesam
+        .order_by("name")
+    )
 
     return JsonResponse({
         "ok": True,
         "exists": True,
-        "email": (obj.email or ""),
+        "email": (branch.email or ""),
+        "staff": list(staff_qs),
     })
-
+  
 
 @require_POST
 def branch_otp_send(request: HttpRequest):
     """
-    IN  : { "branch": "<branchcode>" }
+    IN  : { "branch": "<branchcode>", "identifier": "<email>" }
     OUT : { "ok": true } | { "ok": false, "error": "..." }
 
-    Uses Branch.email as the recipient. User OTP flow remains untouched.
+    identifier:
+      - If empty -> uses Branch.email
+      - If given -> must match branch email OR a staff email of that branch
     """
     data = _json(request)
     bn = _clean_branch(data.get("branch"))
+    raw_identifier = (data.get("identifier") or "").strip()
 
     if not bn:
         return JsonResponse({"ok": False, "error": "Branch required."}, status=400)
@@ -102,13 +121,44 @@ def branch_otp_send(request: HttpRequest):
     b = Branch.objects.filter(name__iexact=bn).only("id", "email", "name").first()
     if not b:
         return JsonResponse({"ok": False, "error": "Branch not found."}, status=404)
-    if not b.email:
-        return JsonResponse({"ok": False, "error": "No email configured for this branch."}, status=400)
 
-    identifier = b.email.strip()
+    # Decide which email to use
+    if raw_identifier:
+        identifier = raw_identifier
+    else:
+        if not b.email:
+            return JsonResponse(
+                {"ok": False, "error": "No email configured for this branch."},
+                status=400,
+            )
+        identifier = b.email.strip()
+
+    # ---- NEW: figure out whether this is branch email or staff email ----
+    identifier_norm = identifier.strip().lower()
+    staff_obj = None
+    allowed = False
+
+    # 1) branch main email match
+    if b.email and b.email.strip().lower() == identifier_norm:
+        allowed = True
+    else:
+        # 2) check staff email
+        staff_obj = BranchStaff.objects.filter(
+            branch=b,
+            email__iexact=identifier,
+        ).first()
+        if staff_obj:
+            allowed = True
+
+    if not allowed:
+        return JsonResponse(
+            {"ok": False, "error": "Email not linked to this branch."},
+            status=400,
+        )
+
     now = _now()
 
-    # Cooldown
+    # Cooldown per email identifier
     recent = (
         BranchOTP.objects
         .filter(identifier=identifier, created_at__gte=now - timedelta(seconds=RESEND_COOLDOWN_SEC))
@@ -122,7 +172,7 @@ def branch_otp_send(request: HttpRequest):
             status=429,
         )
 
-    # Window cap
+    # Window cap per email identifier
     since = now - timedelta(minutes=RESEND_WINDOW_MINS)
     if BranchOTP.objects.filter(identifier=identifier, created_at__gte=since).count() >= RESEND_WINDOW_MAX:
         return JsonResponse({"ok": False, "error": "Too many requests. Try later."}, status=429)
@@ -138,13 +188,23 @@ def branch_otp_send(request: HttpRequest):
         sent_count=1,
     )
 
-    # Send email
+    # ---- NEW: subject + extra line based on staff / branch ----
+    if staff_obj:
+        # staff email ki OTP
+        subject = f"Staff Login OTP · {b.name}"
+        who_line = f"Staff: {staff_obj.staff_id or ''} {staff_obj.name}".strip()
+    else:
+        # normal branch login
+        subject = f"Branch Login OTP · {b.name}"
+        who_line = f"Branch: {b.name}"
+
+    # Send email to chosen identifier
     try:
         send_mail(
-            subject=f"Branch Login OTP · {b.name}",
+            subject=subject,
             message=(
                 f"Your one-time code is {code}. It expires in 5 minutes.\n"
-                f"Branch: {b.name}"
+                f"{who_line}"
             ),
             from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@example.com"),
             recipient_list=[identifier],
@@ -157,30 +217,63 @@ def branch_otp_send(request: HttpRequest):
     return JsonResponse({"ok": True})
 
 
+
 @require_POST
 def branch_otp_verify(request: HttpRequest):
     """
-    IN : { "branch": "madhapura1", "otp": "123456" }
+    IN : { "branch": "madhapura1", "otp": "123456", "identifier": "<email>" }
     OUT: { "ok": true, "next": "/branch_home/" }  OR  { "ok": false, "error": "..." }
+
+    identifier:
+      - If empty -> falls back to Branch.email
+      - If given -> must be branch email or staff email of that branch
     """
     data = _json(request)
     bn = _clean_branch(data.get("branch"))
     otp = (data.get("otp") or "").strip()
+    raw_identifier = (data.get("identifier") or "").strip()
 
     if not bn:
         return JsonResponse({"ok": False, "error": "Branch required."}, status=400)
     if not otp:
         return JsonResponse({"ok": False, "error": "Enter OTP."}, status=400)
 
-    # Find branch + its email (recipient)
+    # Find branch
     b = Branch.objects.filter(name__iexact=bn).only("id", "email", "name").first()
-    if not b or not b.email:
+    if not b:
         return JsonResponse({"ok": False, "error": "Branch not found."}, status=404)
 
-    identifier = b.email.strip()
+    # Decide email identifier
+    if raw_identifier:
+        identifier = raw_identifier.strip()
+    else:
+        if not b.email:
+            return JsonResponse(
+                {"ok": False, "error": "No email configured for this branch."},
+                status=400,
+            )
+        identifier = b.email.strip()
+
+    # Validate identifier belongs to this branch (branch mail OR staff mail)
+    identifier_norm = identifier.strip().lower()
+    allowed = False
+
+    if b.email and b.email.strip().lower() == identifier_norm:
+        allowed = True
+    else:
+        allowed = BranchStaff.objects.filter(
+            branch=b, email__iexact=identifier_norm
+        ).exists()
+
+    if not allowed:
+        return JsonResponse(
+            {"ok": False, "error": "Email not linked to this branch."},
+            status=400,
+        )
+
     now = _now()
 
-    # Latest, unexpired, unused OTP for this branch email
+    # Latest, unexpired, unused OTP for this email
     row = (
         BranchOTP.objects
         .filter(identifier=identifier, used=False, expires_at__gte=now)
@@ -206,13 +299,46 @@ def branch_otp_verify(request: HttpRequest):
     if not ok:
         return JsonResponse({"ok": False, "error": "Invalid OTP."}, status=400)
 
-    # ✅ Success: set branch session
+    # ✅ Success
+    staff = None
+    if not (b.email and b.email.strip().lower() == identifier_norm):
+        # staff email ayyochu → fetch staff row
+        staff = BranchStaff.objects.filter(
+            branch=b,
+            email__iexact=identifier_norm
+        ).only("id", "name", "staff_id").first()
+
+    # main branch session
     request.session["branch_id"] = b.id
     request.session["branch_name"] = b.name
+
+    # staff session (if staff found)
+    if staff:
+        request.session["branch_staff_id"] = staff.id
+        request.session["branch_staff_name"] = staff.name
+        request.session["branch_staff_code"] = staff.staff_id or ""
+        print("BRANCH OTP DEBUG set staff:",
+              repr(staff.id), repr(staff.name), repr(staff.staff_id))
+    else:
+        # branch email dvara login ayithe old staff info clear cheddam
+        request.session.pop("branch_staff_id", None)
+        request.session.pop("branch_staff_name", None)
+        request.session.pop("branch_staff_code", None)
+        print("BRANCH OTP DEBUG branch login (no staff)")
+
     request.session.modified = True
 
     next_url = reverse("offers:branch_home")
     return JsonResponse({"ok": True, "next": next_url})
+
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
+from django.views.decorators.cache import never_cache
+from django.utils import timezone
+
+from .models import Branch, LoginVisit   # 👈 LoginVisit import important
 
 
 @never_cache
@@ -233,9 +359,79 @@ def branch_home_view(request):
     )
 
 
+
+
 def branch_logout_view(request):
     # only clear branch session keys (auth user session untouched)
     request.session.pop("branch_id", None)
     request.session.pop("branch_name", None)
+
+    # 🌟 staff session fields kuda clear cheddam
+    request.session.pop("branch_staff_id", None)
+    request.session.pop("branch_staff_name", None)
+    request.session.pop("branch_staff_code", None)
+
     request.session.modified = True
     return redirect(reverse("offers:branch_login"))
+
+
+
+import json
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
+
+@require_POST
+def branch_staff_create_view(request):
+    branch_id = request.session.get("branch_id")
+    if not branch_id:
+        return JsonResponse({"ok": False, "error": "Not logged in as a branch."}, status=403)
+
+    try:
+        data = json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid JSON."}, status=400)
+
+    raw_name   = (data.get("staff_name") or "").strip()
+    email      = (data.get("staff_email") or "").strip()
+    raw_staff_id = (data.get("staff_id") or "").strip()
+
+    if not raw_name or not email or not raw_staff_id:
+        return JsonResponse({"ok": False, "error": "Name, email, and staff ID are required."}, status=400)
+
+    # 🔐 normalize & validate staff NAME (uppercase, letters/spaces only, max 12)
+    name = raw_name.upper()
+    if len(name) > 12 or not all(ch.isalpha() or ch.isspace() for ch in name):
+        return JsonResponse(
+            {"ok": False, "error": "Staff name must be letters only (A–Z) and max 12 characters."},
+            status=400,
+        )
+
+    # 🔐 normalize & validate staff ID (max 8 chars, alphanumeric only)
+    staff_id = raw_staff_id.upper()
+    if len(staff_id) > 8 or not staff_id.isalnum():
+        return JsonResponse(
+            {"ok": False, "error": "Staff ID must be letters/numbers only, max 8 characters."},
+            status=400,
+        )
+
+    # 🔐 email validation
+    try:
+        validate_email(email)
+    except ValidationError:
+        return JsonResponse(
+            {"ok": False, "error": "Invalid email address."},
+            status=400,
+        )
+
+    # Optional: prevent duplicate staff_id within same branch
+    if BranchStaff.objects.filter(branch_id=branch_id, staff_id=staff_id).exists():
+        return JsonResponse({"ok": False, "error": "Staff ID already exists in this branch."}, status=400)
+
+    staff = BranchStaff.objects.create(
+        branch_id=branch_id,
+        name=name,
+        email=email,
+        staff_id=staff_id,
+    )
+
+    return JsonResponse({"ok": True, "id": staff.id})

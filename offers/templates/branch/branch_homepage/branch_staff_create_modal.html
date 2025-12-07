@@ -1,0 +1,344 @@
+<!-- === Add Staff Modal === -->
+<div id="addStaffModal"
+     data-modal
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="addStaffTitle"
+     style="
+       position:fixed;
+       inset:0;
+       background:rgba(0,0,0,.7);
+       align-items:center;
+       justify-content:center;
+       z-index:2000;
+     ">
+  <div style="
+        width:min(380px, 94vw);
+        background:#0c1230;
+        border:1px solid var(--border);
+        border-radius:14px;
+        padding:14px 16px 12px;
+        box-shadow:0 18px 40px rgba(0,0,0,.7);
+        display:flex;
+        flex-direction:column;
+        gap:10px;
+      ">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      <div>
+        <h2 id="addStaffTitle" style="margin:0;font-size:16px;font-weight:700;">
+          Add staff
+        </h2>
+        <div class="muted" style="font-size:12px;margin-top:2px;">
+          Enter staff details. Mobile number later add cheddam.
+        </div>
+      </div>
+
+      <button type="button"
+              data-close
+              aria-label="Close"
+              style="
+                border:1px solid var(--border);
+                background:transparent;
+                color:var(--muted);
+                width:28px;
+                height:28px;
+                border-radius:999px;
+                cursor:pointer;
+                font-weight:700;
+              ">
+        ✕
+      </button>
+    </div>
+
+    <!-- Body / form -->
+    <form id="addStaffForm" onsubmit="return false;" style="margin-top:6px;display:flex;flex-direction:column;gap:10px;">
+
+      <!-- Branch (non editable) -->
+      <label style="display:block;font-size:13px;">
+        <span style="display:block;margin-bottom:4px;font-weight:600;">Branch</span>
+        <input type="text"
+               name="branch_name"
+               value="{{ request.session.branch_name|default:'—' }}"
+               readonly
+               style="
+                 width:100%;
+                 padding:8px 10px;
+                 border-radius:8px;
+                 border:1px dashed var(--border);
+                 background:#050819;
+                 color:var(--muted);
+                 font-size:14px;
+                 cursor:not-allowed;
+               ">
+      </label>
+
+<!-- Staff name -->
+<label style="display:block;font-size:13px;">
+  <span style="display:block;margin-bottom:4px;font-weight:600;">Staff name</span>
+  <input type="text"
+         name="staff_name"
+         placeholder="e.g. RAMESH"
+         required
+         maxlength="12"
+         pattern="[A-Za-z ]{1,12}"
+         title="Use only letters (A–Z) and spaces, max 12 characters."
+         style="
+           width:100%;
+           padding:8px 10px;
+           border-radius:8px;
+           border:1px solid var(--border);
+           background:#050819;
+           color:var(--text);
+           font-size:14px;
+           text-transform:uppercase;  /* 👈 visually uppercase */
+         ">
+</label>
+
+<!-- 🌟 NEW: Staff ID -->
+<label style="display:block;font-size:13px;">
+  <span style="display:block;margin-bottom:4px;font-weight:600;">Create staff ID</span>
+  <input type="text"
+         name="staff_id"
+         placeholder="e.g. RAMESH01 or ST001"
+         required
+         maxlength="8"
+         pattern="[A-Za-z0-9]{1,8}"
+         title="Use only letters and numbers, max 8 characters."
+         style="
+           width:100%;
+           padding:8px 10px;
+           border-radius:8px;
+           border:1px solid var(--border);
+           background:#050819;
+           color:var(--text);
+           font-size:14px;
+         ">
+</label>
+
+
+<!-- Staff email -->
+<label style="display:block;font-size:13px;">
+  <span style="display:block;margin-bottom:4px;font-weight:600;">Staff email</span>
+  <input type="email"
+         name="staff_email"
+         placeholder="name@example.com"
+         required
+         pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$"
+         title="Enter a valid email address like name@example.com"
+         style="
+           width:100%;
+           padding:8px 10px;
+           border-radius:8px;
+           border:1px solid var(--border);
+           background:#050819;
+           color:var(--text);
+           font-size:14px;
+         ">
+</label>
+      <!-- (Optional) hint -->
+      <div class="muted" style="font-size:11px;">
+        Mobile number service onboard ayyaka add chestham. Ippudu basic info store chestham.
+      </div>
+
+      <!-- Footer buttons -->
+      <div style="margin-top:4px;display:flex;justify-content:flex-end;gap:8px;">
+        <button type="button"
+                data-close
+                class="btn"
+                style="
+                  background:transparent;
+                  border:1px solid var(--border);
+                  color:var(--muted);
+                  padding:8px 12px;
+                  font-weight:600;
+                ">
+          Cancel
+        </button>
+
+        <button type="submit"
+                class="btn"
+                id="addStaffSaveBtn">
+          Save
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Simple toast (success/error message) -->
+<div id="toast"
+     style="
+       position:fixed;
+       left:50%;
+       bottom:20px;
+       transform:translate(-50%,10px);
+       background:#16a34a; /* success default */
+       color:#e8ecff;
+       padding:8px 14px;
+       border-radius:999px;
+       font-size:13px;
+       border:1px solid rgba(0,0,0,.4);
+       box-shadow:0 8px 20px rgba(0,0,0,.6);
+       opacity:0;
+       pointer-events:none;
+       transition:opacity .18s ease, transform .18s ease;
+       z-index:3000;
+     ">
+</div>
+
+<script>
+  // small style: disabled button look
+  document.head.insertAdjacentHTML("beforeend", `
+    <style>
+      .btn[disabled]{
+        opacity:.6;
+        cursor:wait;
+      }
+    </style>
+  `);
+
+  // history trap
+  history.replaceState(null, '', location.pathname);
+  history.pushState(null, '', location.pathname);
+  window.addEventListener('popstate', function () {
+    location.replace("{% url 'offers:branch_home' %}");
+  });
+
+  // generic modal open/close handler
+  document.addEventListener("click", function (e) {
+    const openBtn = e.target.closest("[data-open]");
+    if (openBtn) {
+      e.preventDefault(); // avoid # jump
+      const selector = openBtn.getAttribute("data-open");
+      const modal = document.querySelector(selector);
+      if (modal) modal.classList.add("is-open");
+    }
+
+    const closeBtn = e.target.closest("[data-close]");
+    if (closeBtn) {
+      const modal = closeBtn.closest("[data-modal]");
+      if (modal) modal.classList.remove("is-open");
+    }
+  });
+
+  // ========= Toast helper =========
+  let toastTimeout;
+  function showToast(message, variant = "success") {
+    const toast = document.getElementById("toast");
+    if (!toast) return;
+
+    clearTimeout(toastTimeout);
+
+    toast.textContent = message;
+    toast.style.background = variant === "error" ? "#b91c1c" : "#16a34a";
+
+    // show
+    toast.style.opacity = "1";
+    toast.style.transform = "translate(-50%, 0)";
+
+    toastTimeout = setTimeout(() => {
+      toast.style.opacity = "0";
+      toast.style.transform = "translate(-50%, 10px)";
+    }, 2200);
+  }
+
+  // ========= Add Staff form submit =========
+  const addStaffForm = document.getElementById("addStaffForm");
+  const addStaffSaveBtn = document.getElementById("addStaffSaveBtn");
+
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(";").shift();
+  }
+
+  if (addStaffForm) {
+    addStaffForm.addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const fd = new FormData(addStaffForm);
+
+      // --- clean & validate staff NAME ---
+      let rawName  = String(fd.get("staff_name") || "").trim();
+      let staffName = rawName.toUpperCase();   // 👈 always uppercase
+
+      const namePattern = /^[A-Z ]{1,12}$/;    // only letters + space, max 12
+      if (!namePattern.test(staffName)) {
+        showToast("Staff name: letters only (A–Z), max 12 chars.", "error");
+        return;
+      }
+      // reflect back into field (optional but nice UX)
+      const nameInput = addStaffForm.querySelector('input[name="staff_name"]');
+      if (nameInput) nameInput.value = staffName;
+
+      // --- clean & validate staff ID ---
+      let rawId   = String(fd.get("staff_id") || "").trim();
+      let staffId = rawId.toUpperCase();
+
+      const idPattern = /^[A-Za-z0-9]{1,8}$/;
+      if (!idPattern.test(staffId)) {
+        showToast("Staff ID: letters & numbers only, max 8 chars.", "error");
+        return;
+      }
+
+      // --- clean & validate EMAIL ---
+      let email = String(fd.get("staff_email") || "").trim();
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailPattern.test(email)) {
+        showToast("Please enter a valid email address.", "error");
+        return;
+      }
+
+      const payload = {
+        staff_name: staffName,   // ✅ cleaned uppercase name
+        staff_email: email,      // ✅ trimmed valid email
+        staff_id: staffId,       // ✅ cleaned ID
+      };
+
+
+      try {
+        addStaffSaveBtn.disabled = true;
+        addStaffSaveBtn.textContent = "Saving...";
+
+        const res = await fetch("{% url 'offers:branch_staff_create' %}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken"),
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.ok) {
+          showToast(data.error || "Failed to add staff", "error");
+          return;
+        }
+
+        // success: close modal + reset form
+        const modal = document.getElementById("addStaffModal");
+        if (modal) modal.classList.remove("is-open");
+        addStaffForm.reset();
+
+        const branchInput = addStaffForm.querySelector('input[name="branch_name"]');
+        if (branchInput) {
+          branchInput.value = "{{ request.session.branch_name|default:'—' }}";
+        }
+
+        showToast("Staff added successfully ✅", "success");
+      } catch (err) {
+        console.error(err);
+        showToast("Something went wrong. Try again.", "error");
+      } finally {
+        addStaffSaveBtn.disabled = false;
+        addStaffSaveBtn.textContent = "Save";
+      }
+    });
+  }
+
+
+</script>
+
