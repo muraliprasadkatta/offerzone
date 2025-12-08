@@ -616,3 +616,37 @@ class UserVisitEvent(models.Model):
     def __str__(self):
         who = self.user or "Guest"
         return f"{who} @ {self.branch} ({self.visit_method})"
+
+
+
+
+# offers/models.py  (idea – already emi add cheyyakapote)
+from django.db import models
+from django.conf import settings
+
+class VisitConfirmPIN(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="visit_confirm_pins",
+        null=True,
+        blank=True,
+    )
+    branch = models.ForeignKey(
+        "Branch",
+        on_delete=models.CASCADE,
+        related_name="visit_confirm_pins",
+    )
+    desk = models.CharField(max_length=50, blank=True, default="")
+    token = models.CharField(max_length=255, blank=True, default="")  # optional: last_visit_token
+
+    pin_hash = models.CharField(max_length=128)
+    expires_at = models.DateTimeField()
+    used = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user or 'Guest'} @ {self.branch} (visit confirm PIN)"

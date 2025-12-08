@@ -34,13 +34,26 @@
         </div>
       </div>
 
-      <div class="qr-pin" aria-live="polite">
-        <div class="label">Manual PIN</div>
-        <div class="value">
-          <strong id="qrPin">————</strong>  <!-- 4-digit placeholder -->
-        </div>
-        <small class="muted">If camera fails, customer can enter this 4-digit PIN on their phone.</small>
-      </div>
+<div class="qr-pin" aria-live="polite">
+  <div class="label">Manual PIN</div>
+
+  <div class="value">
+    <strong id="qrPin">————</strong>  <!-- 4-digit placeholder -->
+
+    <!-- ⭐ NEW: Verify visit PIN button -->
+    <button type="button"
+            class="btn outline"
+            id="visitorPinGenerator">
+      Visit PIN generated
+    </button>
+
+  </div>
+
+  <small class="muted">
+    If camera fails, customer can enter this 4-digit PIN on their phone.
+  </small>
+</div>
+
 
 
 
@@ -60,6 +73,9 @@
     </div>
   </div>
 </div>
+
+{% include "offers/qr_generation/visitor_pin_generatemodal.html" %}
+
 
 <style>
 /* Shell (desktop as-is) */

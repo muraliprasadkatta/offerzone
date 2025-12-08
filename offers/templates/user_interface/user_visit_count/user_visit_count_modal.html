@@ -1,275 +1,128 @@
-<!-- offers/templates/user_interface/user_visit_count/user_visit_count_modal.html -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Visit Count Test</title>
+  <title>Visit Code</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
-    /* FULL SCREEN ROOT */
-    #vcTestRoot{
+    /* FULLSCREEN LIGHT BACKDROP */
+    #vcVisitOverlay{
       position:fixed;
       inset:0;
       z-index:50;
       display:flex;
       align-items:center;
       justify-content:center;
-      background:#020617;
+      background:#f3f4f6; /* light smoke */
       font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-      color:#e2e8f0;
+      color:#111827;
     }
 
-    /* DESKTOP CARD */
-    .vcTest-card{
-      width:min(420px,94vw);
-      max-height:92vh;
-      background:#020617;
+    /* BOTTOM CARD */
+    .vcBaseCard{
+      position:relative;
+      width:min(360px,94vw);
+      background:#ffffff;
       border-radius:18px;
-      border:1px solid rgba(148,163,184,.4);
-      box-shadow:0 18px 40px rgba(0,0,0,.7);
-      display:flex;
-      flex-direction:column;
-      overflow:hidden;
+      box-shadow:0 18px 40px rgba(15,23,42,.12);
+      padding:54px 18px 18px;   /* top extra space for floating card */
+      text-align:center;
     }
 
-    .vcTest-head{
-      padding:14px 16px;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      background:#0f172a;
-      border-bottom:1px solid rgba(148,163,184,.4);
-    }
-    .vcTest-title{font-weight:700;font-size:15px;}
-
-    .vcTest-body{
-      padding:16px;
-      flex:1 1 auto;
-      overflow-y:auto;
-      font-size:14px;
+    /* TOP FLOATING CARD (DIGITS) */
+    .vcCodeCard{
+      position:absolute;
+      left:50%;
+      top:0;
+      transform:translate(-50%,-50%);
+      min-width:220px;
+      background:#ffffff;
+      border-radius:14px;
+      box-shadow:0 12px 30px rgba(15,23,42,.18);
+      padding:14px 18px;
     }
 
-    .vcTest-foot{
-      padding:12px 16px;
-      border-top:1px solid rgba(148,163,184,.35);
-      background:#020617;
+    .vcDigits{
+      font-size:28px;
+      letter-spacing:0.35em;
+      text-align:center;
     }
 
-    .vcTest-btn{
-      width:100%;
-      padding:10px 12px;
-      border-radius:999px;
-      border:0;
-      cursor:pointer;
+    /* TEXT IN BOTTOM CARD */
+    .vcBodyText{
+      font-size:13px;
+      color:#4b5563;
+      line-height:1.6;
+    }
+
+    .vcBodyText strong{
       font-weight:600;
-      font-size:14px;
-      background:linear-gradient(135deg,#2563eb,#22c55e);
-      color:#f9fafb;
+      color:#111827;
     }
 
-    /* MOBILE: CARD TAKES FULL SCREEN */
-    @media (max-width:768px){
-      #vcTestRoot{
-        align-items:stretch;
-        justify-content:stretch;
-      }
-      .vcTest-card{
-        width:100vw;
-        height:100vh;
-        max-width:100vw;
-        max-height:100vh;
-        border-radius:0;
-        border:0;
-        box-shadow:none;
-      }
-      .vcTest-head{
-        padding-top:calc(12px + env(safe-area-inset-top,0px));
-        position:sticky;
-        top:0;
-        z-index:10;
-      }
-      .vcTest-body{
-        padding:16px 16px 8px;
-      }
-      .vcTest-foot{
-        padding:10px 16px calc(14px + env(safe-area-inset-bottom,0px));
-      }
-    }
-
-    /* SMALL HELP TEXT */
-    .vcTest-help{
-      font-size:11px;
-      opacity:.7;
-      margin-top:4px;
-    }
-
-    .vcTest-input{
+    /* BUTTON */
+    .vcPrimaryBtn{
+      margin-top:16px;
       width:100%;
-      padding:9px 11px;
-      border-radius:11px;
-      border:1px solid rgba(148,163,184,.55);
-      background:#020617;
-      color:#e5edff;
-      outline:none;
+      padding:9px 12px;
+      border-radius:999px;
+      border:1px solid #e5e7eb;
+      background:#111827;
+      color:#f9fafb;
+      font-size:14px;
+      font-weight:600;
+      cursor:pointer;
     }
 
-    .vcTest-input:focus{
-      border-color:#38bdf8;
-      box-shadow:0 0 0 1px rgba(56,189,248,.4);
-    }
-
-    .vcTest-label{
-      display:block;
-      margin-top:14px;
-      font-size:12px;
-      opacity:.8;
+    .vcPrimaryBtn:active{
+      transform:translateY(1px);
+      box-shadow:0 2px 8px rgba(15,23,42,.25) inset;
     }
   </style>
 </head>
 <body>
 
-{# visit_unit comes from backend: "qr_screenshot" or "qr_pin" #}
-<div id="vcTestRoot"
-     data-visit-unit="{{ visit_unit|default:'qr_screenshot' }}">
-  <div class="vcTest-card">
-    <div class="vcTest-head">
-      <div class="vcTest-title">
-        {{ branch_name|default:"Test Branch" }}
+<div id="vcVisitOverlay">
+  <div class="vcBaseCard">
+
+    <!-- TOP FLOATING NUMBER CARD -->
+    <div class="vcCodeCard">
+      <div id="vcVisitCode" class="vcDigits">
+        1&nbsp;2&nbsp;3&nbsp;4
       </div>
-      <button type="button"
-              onclick="alert('close click only for test')"
-              style="width:32px;height:32px;border-radius:999px;border:1px solid rgba(148,163,184,.5);background:#020617;color:#e5e7eb;cursor:pointer;">
-        ✕
-      </button>
     </div>
 
-    <div class="vcTest-body">
-      <p id="vcTestTitle"><strong>Visit Logging</strong></p>
-      <p id="vcTestDesc" style="font-size:12px;opacity:.8;">
-        <!-- Text will be updated by JS based on visit_unit -->
+    <!-- BOTTOM CONTENT -->
+    <div class="vcBodyText">
+      <p style="margin-bottom:10px;">
+        Ee number ni visit ayyaka staff vallaki chupiste
+        vallaki easy ga mark cheyadaniki use avuthundi mava.
+      </p>
+      <p style="margin:0;">
+        Later ikkada <strong>vere animation</strong> kuda add cheyyachu
+        (number pop-in, bounce, etc).
       </p>
 
-      <!-- ========== MODE: QR + SCREENSHOT ========== -->
-      <div id="vcBlockScreenshot">
-        <label class="vcTest-label">
-          Upload bill screenshot
-        </label>
-        <input id="vcTestFile"
-               type="file"
-               accept="image/*"
-               class="vcTest-input">
-        <div class="vcTest-help">
-          QR scan ayyaka vachina page yokka screenshot upload chey.
-        </div>
-      </div>
-
-      <!-- ========== MODE: QR + PIN ========== -->
-      <div id="vcBlockPin" style="margin-top:16px;">
-        <label class="vcTest-label" style="margin-top:0;">
-          Enter PIN from branch
-        </label>
-        <input id="vcTestPin"
-               type="tel"
-               inputmode="numeric"
-               maxlength="6"
-               pattern="[0-9]{4,6}"
-               class="vcTest-input"
-               placeholder="4-6 digit PIN">
-        <div class="vcTest-help">
-          Branch staff cheppina PIN (4–6 digits) ikkada enter chey.
-        </div>
-      </div>
-
-    </div>
-
-    <div class="vcTest-foot">
-      <button class="vcTest-btn"
-              type="button"
-              onclick="vcTestHandleSubmit()">
-        Dummy Submit
+      <button type="button"
+              class="vcPrimaryBtn"
+              onclick="vcGenerateCode()">
+        Confirm &amp; show number
       </button>
     </div>
+
   </div>
 </div>
 
 <script>
-  (function(){
-    const root      = document.getElementById('vcTestRoot');
-    const mode      = (root?.dataset.visitUnit || 'qr_screenshot').toLowerCase();
-    const fileBlock = document.getElementById('vcBlockScreenshot');
-    const pinBlock  = document.getElementById('vcBlockPin');
-    const titleEl   = document.getElementById('vcTestTitle');
-    const descEl    = document.getElementById('vcTestDesc');
-
-    // Mode-based UI text + visibility
-    if (mode === 'qr_pin') {
-      if (titleEl) titleEl.textContent = 'Enter PIN to log visit';
-      if (descEl) {
-        descEl.textContent =
-          'QR scan ayyaka, branch vallu istunna short PIN ni enter cheyyi. Screenshot upload avasaram ledu.';
-      }
-      if (fileBlock) fileBlock.style.display = 'none';
-      if (pinBlock)  pinBlock.style.display  = 'block';
-    } else {
-      // default: qr_screenshot
-      if (titleEl) titleEl.textContent = 'Upload screenshot to log visit';
-      if (descEl) {
-        descEl.textContent =
-          'QR scan taruvata ochina page ni screenshot teesukoni ikkada upload cheyyi. PIN adagamu.';
-      }
-      if (fileBlock) fileBlock.style.display = 'block';
-      if (pinBlock)  pinBlock.style.display  = 'none';
+  // DEMO: simple random 4-digit code.
+  // Real app lo backend nundi value set cheyyi.
+  function vcGenerateCode(){
+    const el = document.getElementById('vcVisitCode');
+    const code = String(Math.floor(1000 + Math.random() * 9000));
+    if (el){
+      el.textContent = code.split('').join(' ');
     }
-
-    // Expose mode globally if needed
-    window._vcVisitMode = mode;
-  })();
-
-  function vcTestHandleSubmit(){
-    const root = document.getElementById('vcTestRoot');
-    const mode = (root?.dataset.visitUnit || 'qr_screenshot').toLowerCase();
-
-    const fileInput = document.getElementById('vcTestFile');
-    const pinInput  = document.getElementById('vcTestPin');
-
-    const file = fileInput && fileInput.files && fileInput.files[0];
-    const pin  = (pinInput && pinInput.value || '').trim();
-    const pinIsValid = /^[0-9]{4,6}$/.test(pin);
-
-    if (mode === 'qr_screenshot') {
-      // only screenshot required
-      if (!file) {
-        alert('Mava, mundu bill screenshot select chey (QR screen photo).');
-        return;
-      }
-
-      alert(
-        'TEST ONLY (qr_screenshot):\n\n' +
-        'File selected: ' + file.name +
-        '\n\nActual upload logic ekkada hook cheyyi (AJAX / form submit).'
-      );
-      return;
-    }
-
-    if (mode === 'qr_pin') {
-      // only PIN required
-      if (!pinIsValid) {
-        alert('Branch nundi icchina 4-6 digit PIN correct ga enter chey.');
-        return;
-      }
-
-      alert(
-        'TEST ONLY (qr_pin):\n\n' +
-        'PIN entered: ' + pin +
-        '\n\nActual verify/save logic ekkada hook cheyyi (AJAX / form submit).'
-      );
-      return;
-    }
-
-    // fallback (ideally never reach)
-    alert('Unknown visit mode: ' + mode);
   }
 </script>
 

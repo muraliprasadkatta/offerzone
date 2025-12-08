@@ -1,0 +1,203 @@
+<!-- ===== Visit PIN Generate Modal (customer side) ===== -->
+<div id="visitPinGenerateModal"
+     class="oz-modal"
+     aria-hidden="true"
+     role="dialog"
+     aria-modal="true">
+
+  <div class="vp-card" role="document">
+    <div class="vp-head">
+      <div>
+        <strong>Visit PIN generated</strong>
+        <p class="vp-sub">
+          Ee 4-digit PIN ni branch staff ki cheppi, vallu system lo enter cheyamani cheppu mava.
+        </p>
+      </div>
+      <button
+        type="button"
+        class="vp-close"
+        onclick="closeVisitPinGenerateModal()"
+        aria-label="Close">
+        ✕
+      </button>
+
+    </div>
+
+    <div class="vp-body">
+      <label class="vp-label">
+        Visit PIN
+      </label>
+
+      <div class="vp-pin-row">
+        <div class="vp-pin-display" aria-label="Your visit PIN">
+          {{ pin }}
+        </div>
+      </div>
+
+      <p class="vp-help">
+        Ee PIN {{ branch.name }} lo ee visit kosam maatrame.
+        {{ expires_in }} seconds (~5 minutes) lopala use cheyyali, tarvatha expire aipothundi mava.
+      </p>
+
+      {% if already_today %}
+        <p class="vp-note">
+          Note: Ippati varaku ee branch lo oka visit already register ayyindi.
+          Staff tho once cross-check chesko mava.
+        </p>
+      {% endif %}
+    </div>
+
+    <div class="vp-actions">
+      <button type="button"
+              class="btn"
+              onclick="closeVisitPinGenerateModal()">
+        Done
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+/* ===== Visit PIN Generate Modal base (reuse vp- styles) ===== */
+#visitPinGenerateModal[aria-hidden="true"]{
+  display:none !important;
+}
+#visitPinGenerateModal{
+  position:fixed;
+  inset:0;
+  display:grid;
+  place-items:center;
+  background:rgba(0,0,0,.68);
+  z-index:10000;
+}
+
+#visitPinGenerateModal .vp-card{
+  width:min(360px, 94vw);
+  background:#ffffff;
+  color:#111827;
+  border-radius:18px;
+  box-shadow:0 18px 48px rgba(15,23,42,.18);
+  border:1px solid #e5e7eb;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+
+#visitPinGenerateModal .vp-head{
+  padding:12px 14px;
+  border-bottom:1px solid #e5e7eb;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:8px;
+}
+#visitPinGenerateModal .vp-head strong{
+  font-size:15px;
+}
+#visitPinGenerateModal .vp-sub{
+  margin:2px 0 0;
+  font-size:12px;
+  color:#6b7280;
+}
+
+#visitPinGenerateModal .vp-close{
+  border:none;
+  background:transparent;
+  cursor:pointer;
+  font-size:16px;
+  line-height:1;
+  padding:4px;
+  border-radius:999px;
+}
+#visitPinGenerateModal .vp-close:hover{
+  background:rgba(148,163,184,.18);
+}
+
+#visitPinGenerateModal .vp-body{
+  padding:14px 14px 12px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+#visitPinGenerateModal .vp-label{
+  font-size:13px;
+  font-weight:600;
+  color:#111827;
+}
+
+#visitPinGenerateModal .vp-pin-row{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  margin-top:2px;
+}
+
+#visitPinGenerateModal .vp-pin-display{
+  min-width:140px;
+  padding:12px 16px;
+  font-size:28px;
+  letter-spacing:0.35em;
+  text-align:center;
+  border-radius:14px;
+  border:1px solid #d1d5db;
+  background:#f9fafb;
+  font-weight:600;
+}
+
+#visitPinGenerateModal .vp-help{
+  margin:6px 0 0;
+  font-size:11px;
+  color:#6b7280;
+}
+
+#visitPinGenerateModal .vp-note{
+  margin:4px 0 0;
+  font-size:11px;
+  color:#b45309;
+}
+
+#visitPinGenerateModal .vp-actions{
+  margin:6px 14px 12px;
+  display:flex;
+  justify-content:flex-end;
+}
+
+/* .btn class ni already global ga use chesthunav anukuntunna */
+</style>
+
+<script>
+  function openVisitPinGenerateModal() {
+    const modal = document.getElementById('visitPinGenerateModal');
+    if (!modal) return;
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+  }
+
+  function closeVisitPinGenerateModal() {
+    const modal = document.getElementById('visitPinGenerateModal');
+    if (!modal) return;
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const openBtn  = document.getElementById('visitorPinGenerator');   // QR modal lo button
+    const modal    = document.getElementById('visitPinGenerateModal');
+
+    if (!openBtn || !modal) return;
+
+    // Button click → open
+    openBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      openVisitPinGenerateModal();
+    });
+
+    // Backdrop click → close
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) {
+        closeVisitPinGenerateModal();
+      }
+    });
+  });
+</script>

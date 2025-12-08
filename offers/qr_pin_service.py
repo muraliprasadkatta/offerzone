@@ -91,3 +91,127 @@ def verify_qr_pin(qrpin: QRPin, pin_input: str) -> bool:
     """
     expected_hash = _hash_pin(pin_input, qrpin.token, qrpin.branch_id)
     return expected_hash == qrpin.pin_hash
+
+
+
+# offers/qr_generation/views.py
+
+import random
+from datetime import timedelta
+
+from django.conf import settings
+from django.shortcuts import render
+from django.http import JsonResponse
+from django.utils import timezone
+from django.views.decorators.http import require_POST
+from django.views.decorators.cache import never_cache, cache_control
+from django.views.decorators.csrf import csrf_protect
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.hashers import make_password
+
+from offers.models import Branch, VisitConfirmPIN, UserVisitEvent  # 👈 new model import (see above)
+
+
+VISIT_CONFIRM_PIN_TTL = getattr(settings, "VISIT_CONFIRM_PIN_TTL", 5 * 60)  # 5 minutes
+
+
+def _gen_4_digit_pin() -> str:
+    # 0000–9999 or 1000–9999, nenu generic 4-digit istunna
+    return f"{random.randint(0, 9999):04d}"
+
+
+@require_POST
+@login_required
+@csrf_protect
+@never_cache
+@cache_control(no_cache=True, no_store=True, must_revalidate=True)
+def start_confirm_visit_pin(request):
+    """
+    Customer side lo 'Confirm Visit' button nunchi hit ayye view.
+
+    Goal:
+      - Current user + branch context base chesukoni 4-digit PIN generate cheyyadam
+      - Old QRPin system ki asalu touch cheyyakunda, separate VisitConfirmPIN row create cheyyadam
+      - PIN ni JSON or template lo return cheyyadam (customer ki chupinchadaniki)
+
+    Later:
+      - Branch side lo vere view (branch_views.py) lo
+        ee PIN ni verify chesi UserVisitEvent create chestam.
+    """
+
+    # ---- 1) Branch context (QR scan / visit intake taruvata) ----
+    branch_id = (
+        request.session.get("last_branch_id")
+        or request.session.get("branch_id")
+    )
+    if not branch_id:
+        return JsonResponse(
+            {"ok": False, "error": "Branch context not found. Please scan branch QR first."},
+            status=400,
+        )
+
+    branch = Branch.objects.filter(pk=branch_id).first()
+    if not branch:
+        return JsonResponse({"ok": False, "error": "Branch not found."}, status=404)
+
+    desk = request.session.get("last_branch_desk", "") or ""
+    token = request.session.get("last_visit_token", "") or ""
+
+    now_ts = timezone.now()
+
+    # (Optional but useful) — same user+branch+today ki already visit recorded aa?
+    # actual strict guard ni branch verify side lo kuda pettham, kani ikkada info kosam:
+    start_of_day = now_ts.replace(hour=0, minute=0, second=0, microsecond=0)
+    already_today = UserVisitEvent.objects.filter(
+        user=request.user,
+        branch=branch,
+        created_at__gte=start_of_day,
+    ).exists()
+
+    # ---- 2) 4-digit PIN generate ----
+    pin = _gen_4_digit_pin()
+    pin_hash = make_password(pin)  # 🔐 No relation to old QRPin hash
+
+    # (Optional) purana unused confirm PINs ni soft-expire cheyyachu (same user+branch)
+    VisitConfirmPIN.objects.filter(
+        user=request.user,
+        branch=branch,
+        used=False,
+        expires_at__lte=now_ts,
+    ).update(used=True)
+
+    # ---- 3) New VisitConfirmPIN row create ----
+    expires_at = now_ts + timedelta(seconds=VISIT_CONFIRM_PIN_TTL)
+
+    VisitConfirmPIN.objects.create(
+        user=request.user,
+        branch=branch,
+        desk=desk,
+        token=token,
+        pin_hash=pin_hash,
+        expires_at=expires_at,
+        used=False,
+    )
+
+    # ---- 4) Return: JSON or modal render ----
+    #
+    # A) If you want JSON only (SPA style):
+    # return JsonResponse({
+    #     "ok": True,
+    #     "pin": pin,
+    #     "branch_name": branch.name,
+    #     "expires_in": VISIT_CONFIRM_PIN_TTL,
+    #     "already_today": already_today,
+    # })
+    #
+    # B) If you want to render the modal template directly:
+    return render(
+        request,
+        "offers/qr_generation/conform_visitor_pin_modal.html",
+        {
+            "pin": pin,
+            "branch": branch,
+            "expires_in": VISIT_CONFIRM_PIN_TTL,
+            "already_today": already_today,
+        },
+    )

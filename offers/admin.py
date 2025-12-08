@@ -13,7 +13,10 @@ from .models import (
     Profile,
     UserLocationPing,
     QRPin,
-    QRTokenUsage,  
+    QRTokenUsage, 
+    UserVisitEvent, 
+    BranchStaff,
+    VisitConfirmPIN
 )
 
 from django.contrib.auth import get_user_model
@@ -323,25 +326,44 @@ class UserVisitEventAdmin(admin.ModelAdmin):
         "branch",
         "visit_method",
         "desk",
-        "staff_name",   # 👈 ADD
-        "staff_code",   # 👈 ADD
+        "staff_name",
+        "staff_code",
         "token",
         "created_at",
+    )
+
+    readonly_fields = ("created_at",)   # ⭐ DISPLAY IN ADMIN FORM
+
+    fieldsets = (
+        (None, {
+            "fields": (
+                "user",
+                "branch",
+                "visit_method",
+                "desk",
+                "staff_name",
+                "staff_code",
+                "token",
+            )
+        }),
+        ("Timestamps", {
+            "fields": ("created_at",),      # ⭐ SHOW HERE
+        }),
     )
 
     list_filter = (
         "visit_method",
         "branch",
         "desk",
-        "staff_code",    # (optional) filter by staff
+        "staff_code",
         "created_at",
     )
 
     search_fields = (
         "token",
         "desk",
-        "staff_name",     # 👈 search by staff name
-        "staff_code",     # 👈 search by staff code
+        "staff_name",
+        "staff_code",
         "branch__name",
         "user__username",
         "user__email",
@@ -377,4 +399,47 @@ class BranchStaffAdmin(admin.ModelAdmin):
         ("Meta", {
             "fields": ("created_at",),
         }),
+    )
+
+
+
+@admin.register(VisitConfirmPIN)
+class VisitConfirmPINAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "user",
+        "branch",
+        "desk",
+        "token",
+        "used",
+        "expires_at",
+        "created_at",
+    )
+    list_filter = (
+        "branch",
+        "desk",
+        "used",
+        "expires_at",
+        "created_at",
+    )
+    search_fields = (
+        "user__username",
+        "user__email",
+        "branch__name",
+        "desk",
+        "token",
+    )
+    ordering = ("-created_at",)
+    date_hierarchy = "created_at"
+    list_per_page = 50
+
+    readonly_fields = (
+        "user",
+        "branch",
+        "desk",
+        "token",
+        "pin_hash",
+        "expires_at",
+        "used",
+        "created_at",
     )
