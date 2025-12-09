@@ -20,31 +20,26 @@
         aria-label="Close">
         ✕
       </button>
-
     </div>
 
     <div class="vp-body">
-      <label class="vp-label">
-        Visit PIN
-      </label>
+      <label class="vp-label">Visit PIN</label>
 
       <div class="vp-pin-row">
-        <div class="vp-pin-display" aria-label="Your visit PIN">
-          {{ pin }}
+        <div class="vp-pin-display"
+             id="vpPinDisplay"
+             aria-label="Your visit PIN">
+          ----
         </div>
       </div>
 
-      <p class="vp-help">
-        Ee PIN {{ branch.name }} lo ee visit kosam maatrame.
-        {{ expires_in }} seconds (~5 minutes) lopala use cheyyali, tarvatha expire aipothundi mava.
+      <p class="vp-help" id="vpHelp">
+        <!-- JS fill chesthundi -->
       </p>
 
-      {% if already_today %}
-        <p class="vp-note">
-          Note: Ippati varaku ee branch lo oka visit already register ayyindi.
-          Staff tho once cross-check chesko mava.
-        </p>
-      {% endif %}
+      <p class="vp-note" id="vpNote" style="display:none;">
+        <!-- JS fill chesthundi (already_today ayithe) -->
+      </p>
     </div>
 
     <div class="vp-actions">
@@ -56,6 +51,8 @@
     </div>
   </div>
 </div>
+
+
 
 <style>
 /* ===== Visit PIN Generate Modal base (reuse vp- styles) ===== */
@@ -163,10 +160,22 @@
   justify-content:flex-end;
 }
 
+
+
+#visitPinGenerateModal .vp-pin-display.expired{
+  color:#9ca3af;
+  border-color:#e5e7eb;
+  background:#f3f4f6;
+}
+
 /* .btn class ni already global ga use chesthunav anukuntunna */
 </style>
 
 <script>
+  // timers track cheddaniki small globals
+  let vpCountdownInterval = null;
+  let vpAutoCloseTimeout  = null;
+
   function openVisitPinGenerateModal() {
     const modal = document.getElementById('visitPinGenerateModal');
     if (!modal) return;
@@ -179,6 +188,70 @@
     if (!modal) return;
     modal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('modal-open');
+
+    // ❌ old timers clear
+    if (vpCountdownInterval) {
+      clearInterval(vpCountdownInterval);
+      vpCountdownInterval = null;
+    }
+    if (vpAutoCloseTimeout) {
+      clearTimeout(vpAutoCloseTimeout);
+      vpAutoCloseTimeout = null;
+    }
+  }
+
+  // ✅ live timer helper
+  function startVisitPinTimer(expiresInSec, branchName) {
+    const pinEl  = document.getElementById('vpPinDisplay');
+    const helpEl = document.getElementById('vpHelp');
+
+    if (!pinEl || !helpEl) return;
+
+    // old timers clear
+    if (vpCountdownInterval) {
+      clearInterval(vpCountdownInterval);
+      vpCountdownInterval = null;
+    }
+    if (vpAutoCloseTimeout) {
+      clearTimeout(vpAutoCloseTimeout);
+      vpAutoCloseTimeout = null;
+    }
+
+    pinEl.classList.remove('expired');
+
+    const ttl = expiresInSec || 120; // backend 2 min
+    const startMs = Date.now();
+
+    function tick() {
+      const elapsedSec = Math.floor((Date.now() - startMs) / 1000);
+      const remaining  = ttl - elapsedSec;
+
+      if (remaining > 0) {
+        const approxMins = Math.max(1, Math.round(remaining / 60));
+        helpEl.textContent =
+          `Ee PIN ${branchName} lo ee visit kosam maatrame. ` +
+          `${remaining} seconds (~${approxMins} minutes) lopala use cheyyali, ` +
+          `tarvatha expire aipothundi mava.`;
+      } else {
+        // ✅ expire state
+        helpEl.textContent =
+          'Ee PIN expire ayyindi mava. Kotha PIN generate cheyyi.';
+
+        pinEl.classList.add('expired');
+
+        clearInterval(vpCountdownInterval);
+        vpCountdownInterval = null;
+
+        // 10s tarvatha auto-close
+        vpAutoCloseTimeout = setTimeout(() => {
+          closeVisitPinGenerateModal();
+        }, 10_000);
+      }
+    }
+
+    // immediate render + every 1s
+    tick();
+    vpCountdownInterval = setInterval(tick, 1000);
   }
 
   document.addEventListener('DOMContentLoaded', function () {
@@ -187,10 +260,64 @@
 
     if (!openBtn || !modal) return;
 
-    // Button click → open
-    openBtn.addEventListener('click', function (e) {
+    const pinEl   = document.getElementById('vpPinDisplay');
+    const helpEl  = document.getElementById('vpHelp');
+    const noteEl  = document.getElementById('vpNote');
+
+    // Button click → PIN generate + modal open
+    openBtn.addEventListener('click', async function (e) {
       e.preventDefault();
-      openVisitPinGenerateModal();
+
+      openBtn.disabled = true;
+      const oldLabel = openBtn.textContent;   // "Visit PIN generated"
+      openBtn.textContent = 'Generating…';
+
+      try {
+        const res = await fetch("{% url 'offers:branch_generate_visit_pin' %}", {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({})
+        });
+
+        if (!res.ok) {
+          throw new Error('HTTP ' + res.status);
+        }
+
+        const data = await res.json();
+        if (!data.ok) {
+          throw new Error(data.error || 'PIN generate avvaledu mava');
+        }
+
+        // PIN display
+        pinEl.textContent = data.pin || '----';
+
+        // Note (already_today unte) – ippatiki branch side kosam false
+        if (data.already_today) {
+          noteEl.style.display = 'block';
+          noteEl.textContent =
+            'Note: Ippati varaku ee branch lo oka visit already register ayyindi. ' +
+            'Staff tho once cross-check chesko mava.';
+        } else {
+          noteEl.style.display = 'none';
+          noteEl.textContent = '';
+        }
+
+        // Modal open + live countdown
+        openVisitPinGenerateModal();
+        startVisitPinTimer(data.expires_in || 120, data.branch_name || 'ee branch');
+      } catch (err) {
+        console.error('Visit PIN error:', err);
+        alert('PIN generate avvaledu mava. Konchem tarvatha malli try cheyyi.');
+      } finally {
+        // ✅ ikkade button normal ki tirigi ostundi
+        openBtn.disabled = false;
+        openBtn.textContent = oldLabel;
+      }
     });
 
     // Backdrop click → close
@@ -201,3 +328,4 @@
     });
   });
 </script>
+

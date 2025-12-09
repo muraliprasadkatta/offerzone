@@ -16,7 +16,8 @@ from .models import (
     QRTokenUsage, 
     UserVisitEvent, 
     BranchStaff,
-    VisitConfirmPIN
+    BranchGenerateVisitPin
+    
 )
 
 from django.contrib.auth import get_user_model
@@ -403,43 +404,33 @@ class BranchStaffAdmin(admin.ModelAdmin):
 
 
 
-@admin.register(VisitConfirmPIN)
-class VisitConfirmPINAdmin(admin.ModelAdmin):
+@admin.register(BranchGenerateVisitPin)
+class BranchGenerateVisitPinAdmin(admin.ModelAdmin):
     list_display = (
         "id",
-        "user",
         "branch",
         "desk",
-        "token",
+        "token_short",
         "used",
         "expires_at",
         "created_at",
     )
-    list_filter = (
-        "branch",
-        "desk",
-        "used",
-        "expires_at",
-        "created_at",
-    )
-    search_fields = (
-        "user__username",
-        "user__email",
-        "branch__name",
-        "desk",
-        "token",
-    )
+    list_filter = ("branch", "desk", "used", "expires_at", "created_at")
+    search_fields = ("branch__name", "desk", "token")
     ordering = ("-created_at",)
-    date_hierarchy = "created_at"
     list_per_page = 50
+    readonly_fields = ("pin_hash", "created_at")
 
-    readonly_fields = (
-        "user",
-        "branch",
-        "desk",
-        "token",
-        "pin_hash",
-        "expires_at",
-        "used",
-        "created_at",
+    fieldsets = (
+        ("PIN Info", {
+            "fields": ("branch", "desk", "token", "used", "expires_at")
+        }),
+        ("Security / Meta", {
+            "fields": ("pin_hash", "created_at"),
+            "description": "PIN hash is stored for security; original 4-digit PIN is never saved in plain text."
+        }),
     )
+
+    def token_short(self, obj):
+        return obj.token[:10] + "..." if obj.token else "-"
+    token_short.short_description = "Token"
