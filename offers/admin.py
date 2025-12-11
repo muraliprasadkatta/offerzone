@@ -411,19 +411,32 @@ class BranchGenerateVisitPinAdmin(admin.ModelAdmin):
         "branch",
         "desk",
         "token_short",
+        "staff_name",       # ⭐ added
+        "staff_code",       # ⭐ added
         "used",
+        "expired",
         "expires_at",
         "created_at",
     )
-    list_filter = ("branch", "desk", "used", "expires_at", "created_at")
-    search_fields = ("branch__name", "desk", "token")
-    ordering = ("-created_at",)
-    list_per_page = 50
+
+    list_filter = ("branch", "desk", "used", "expired", "expires_at", "created_at")
+
+    search_fields = ("branch__name", "desk", "token", "staff_name", "staff_code")
+
     readonly_fields = ("pin_hash", "created_at")
 
     fieldsets = (
         ("PIN Info", {
-            "fields": ("branch", "desk", "token", "used", "expires_at")
+            "fields": (
+                "branch",
+                "desk",
+                "token",
+                "staff_name",    # ⭐ added
+                "staff_code",    # ⭐ added
+                "used",
+                "expired",
+                "expires_at",
+            )
         }),
         ("Security / Meta", {
             "fields": ("pin_hash", "created_at"),
