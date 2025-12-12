@@ -6,7 +6,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
-    /* FULLSCREEN LIGHT BACKDROP */
+    :root{
+      --bg:#0b1020;
+      --card:#11183a;
+      --border:#273164;
+      --text:#e8ecff;
+      --muted:#b9c4ff;
+      --prim:#4c74ff;
+    }
+
+    /* FULLSCREEN DARK BACKDROP (OfferZone vibe) */
     #vcVisitOverlay{
       position:fixed;
       inset:0;
@@ -14,20 +23,36 @@
       display:flex;
       align-items:center;
       justify-content:center;
-      background:#f3f4f6; /* light smoke */
       font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-      color:#111827;
+      color:var(--text);
+
+      background:
+        radial-gradient(900px 500px at 30% 20%, rgba(76,116,255,.28), transparent 60%),
+        radial-gradient(800px 420px at 80% 70%, rgba(106,161,255,.20), transparent 55%),
+        linear-gradient(180deg, #0b1020 0%, #090d1a 100%);
     }
 
     /* BOTTOM CARD */
     .vcBaseCard{
       position:relative;
-      width:min(360px,94vw);
-      background:#ffffff;
-      border-radius:18px;
-      box-shadow:0 18px 40px rgba(15,23,42,.12);
-      padding:54px 18px 18px;   /* top extra space for floating card */
+      width:min(380px,94vw);
+      background:
+        radial-gradient(120% 80% at 50% 0%,
+          rgba(120,150,255,.18),
+          rgba(17,24,58,.92) 60%),
+        linear-gradient(180deg,
+          rgba(25,35,85,.95),
+          rgba(12,18,48,.95));
+      border: 1px solid rgba(170,200,255,.28);
+      border-radius: 22px;
+      box-shadow:
+        0 30px 70px rgba(0,0,0,.55),          /* depth */
+        0 0 0 1px rgba(255,255,255,.06) inset,/* inner edge */
+        0 0 90px rgba(76,116,255,.25);        /* outer glow */
+      padding:56px 18px 18px;
       text-align:center;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
     }
 
     /* TOP FLOATING CARD (DIGITS) */
@@ -36,48 +61,83 @@
       left:50%;
       top:0;
       transform:translate(-50%,-50%);
-      min-width:220px;
-      background:#ffffff;
+      min-width:240px;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+      border: 1px solid rgba(190,220,255,.35);
       border-radius:14px;
-      box-shadow:0 12px 30px rgba(15,23,42,.18);
+      box-shadow:
+        0 14px 34px rgba(0,0,0,.35),
+        0 0 0 1px rgba(255,255,255,.08) inset,
+        0 0 45px rgba(106,161,255,.35);
       padding:14px 18px;
     }
 
+    .vcBaseCard::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      border-radius:inherit;
+      pointer-events:none;
+
+      background:
+        linear-gradient(180deg,
+          rgba(255,255,255,.10),
+          rgba(255,255,255,0) 40%);
+
+      opacity:.6;
+}
+
+
     .vcDigits{
-      font-size:28px;
+      font-size:30px;
       letter-spacing:0.35em;
       text-align:center;
+      color:#ffffff;
+      font-weight:800;
     }
 
-    /* TEXT IN BOTTOM CARD */
+    /* TEXT */
     .vcBodyText{
       font-size:13px;
-      color:#4b5563;
+      color:var(--muted);
       line-height:1.6;
     }
 
     .vcBodyText strong{
-      font-weight:600;
-      color:#111827;
+      font-weight:700;
+      color:#ffffff;
     }
 
     /* BUTTON */
     .vcPrimaryBtn{
       margin-top:16px;
       width:100%;
-      padding:9px 12px;
+      padding:10px 12px;
       border-radius:999px;
-      border:1px solid #e5e7eb;
-      background:#111827;
-      color:#f9fafb;
+      border:1px solid rgba(39,49,100,.95);
+      background:var(--prim);
+      color:#fff;
       font-size:14px;
-      font-weight:600;
+      font-weight:700;
       cursor:pointer;
+      box-shadow:0 10px 26px rgba(76,116,255,.22);
     }
 
     .vcPrimaryBtn:active{
       transform:translateY(1px);
-      box-shadow:0 2px 8px rgba(15,23,42,.25) inset;
+      box-shadow:0 2px 10px rgba(0,0,0,.25) inset;
+    }
+
+    /* optional: tiny close (if needed later) */
+    .vcClose{
+      position:absolute; right:12px; top:12px;
+      width:34px; height:34px;
+      border-radius:12px;
+      border:1px solid rgba(39,49,100,.95);
+      background:rgba(14,26,72,.8);
+      color:var(--text);
+      cursor:pointer;
+      display:grid; place-items:center;
     }
   </style>
 </head>
@@ -86,27 +146,25 @@
 <div id="vcVisitOverlay">
   <div class="vcBaseCard">
 
-    <!-- TOP FLOATING NUMBER CARD -->
+    <!-- (optional close) -->
+    <!-- <button class="vcClose" onclick="document.getElementById('vcVisitOverlay').style.display='none'">✕</button> -->
+
     <div class="vcCodeCard">
-      <div id="vcVisitCode" class="vcDigits">
-        1&nbsp;2&nbsp;3&nbsp;4
-      </div>
+      <div id="vcVisitCode" class="vcDigits">1&nbsp;2&nbsp;3&nbsp;4</div>
     </div>
 
-    <!-- BOTTOM CONTENT -->
     <div class="vcBodyText">
-      <p style="margin-bottom:10px;">
+      <p>
         Ee number ni visit ayyaka staff vallaki chupiste
         vallaki easy ga mark cheyadaniki use avuthundi mava.
       </p>
-      <p style="margin:0;">
+
+      <p>
         Later ikkada <strong>vere animation</strong> kuda add cheyyachu
         (number pop-in, bounce, etc).
       </p>
 
-      <button type="button"
-              class="vcPrimaryBtn"
-              onclick="vcGenerateCode()">
+      <button type="button" class="vcPrimaryBtn" onclick="vcGenerateCode()">
         Confirm &amp; show number
       </button>
     </div>
@@ -115,14 +173,10 @@
 </div>
 
 <script>
-  // DEMO: simple random 4-digit code.
-  // Real app lo backend nundi value set cheyyi.
   function vcGenerateCode(){
     const el = document.getElementById('vcVisitCode');
     const code = String(Math.floor(1000 + Math.random() * 9000));
-    if (el){
-      el.textContent = code.split('').join(' ');
-    }
+    if (el) el.textContent = code.split('').join(' ');
   }
 </script>
 

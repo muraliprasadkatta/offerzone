@@ -691,14 +691,8 @@ window.OZScan = window.OZScan || {};
     const { fromHash = false } = opts || {};
     const d = ns.dom;
 
-    // 🔥 PRE-CHECK: ivvala already claim unte scanner e open avvakudadhu
-    if (st.alreadyClaimedToday) {
-        if (window.OZScan.showAlreadyClaimed) {
-            window.OZScan.showAlreadyClaimed();
-        }
-        return;
-    }
-
+    // ❌ NO global “already claimed today” block here anymore
+    // Back-end + per-branch check will handle limits.
 
     d.modal.classList.add('show');
     document.body.style.overflow = 'hidden';
@@ -709,6 +703,7 @@ window.OZScan = window.OZScan || {};
       st.scanPushed = true;
     }
   };
+
 
   ns.closeModal = function (arg) {
     let force = false;
@@ -807,39 +802,6 @@ window.OZScan = window.OZScan || {};
   const st = ns.state;
 
 
-  // 🔥 LOCAL SESSION LO "EE TOKEN IVVALA ALREADY CLAIM AYYINDI" MEMORY
-  const CLAIM_KEY = "oz_scan_claim_state";
-
-  function todayStr() {
-    // yyyy-mm-dd (browser local date)
-    try {
-      return new Date().toISOString().slice(0, 10);
-    } catch {
-      return "";
-    }
-  }
-
-  function loadClaimState() {
-    try {
-      const raw = sessionStorage.getItem(CLAIM_KEY);
-      if (!raw) return null;
-      return JSON.parse(raw);
-    } catch {
-      return null;
-    }
-  }
-
-  function saveClaimState(token) {
-    try {
-      const payload = {
-        token: String(token || ""),
-        date: todayStr(),
-      };
-      sessionStorage.setItem(CLAIM_KEY, JSON.stringify(payload));
-    } catch {
-      // safari/incognito issues unna ignore cheyyi
-    }
-  }
 
 
   async function seedToPayloadUrlIfNeeded(v) {
@@ -904,19 +866,19 @@ window.OZScan = window.OZScan || {};
         return;
       }
 
-      // 🔥 ONE-PER-DAY (QR) CASE – STORE IN SESSION
+      // 🔥 ONE-PER-DAY (QR) CASE – already claimed today
       if (data.already_claimed_today) {
-        // ee browser/session + ee token + ee date ki memory petti pettam
-        const pure = token.trim();
-        saveClaimState(pure);
-
-
-        alert("Nuvvu ivvala already claim chesavu mava. Status page lo chusko 😊");
-
+        // cute inline status + smooth redirect to status page
+        ns.showStatus(true, "Ivvala visit already count ayyindi mava 😄 Status page open avutundi…");
         ns.setVerifying(false);
-        window.location.replace("/"); // home ki teesuku vellu
-        return; // IMPORTANT
+
+        setTimeout(() => {
+          window.location.replace("/user-visit-count/");
+        }, 900); // 0.9s delay just to let the user read
+        return;
       }
+
+
 
       const next =
         data.next || `/visit-count/intake/?token=${encodeURIComponent(token)}`;
@@ -940,19 +902,6 @@ window.OZScan = window.OZScan || {};
       const token = extractTokenFromUrl(resolved);
       if (!token) throw new Error("No token found");
 
-      // 🔥 SHORT-CIRCUIT:
-      // ee session lo, ee roju, ee token already "ivvala claim chesavu" ani telsithe
-      // backend ki call pettakunda directga popup + redirect
-      const cs = loadClaimState();
-      if (cs && cs.token === token && cs.date === todayStr()) {
-        alert(
-          "Nuvvu ivvala already claim chesavu mava. Status page lo chusko 😊"
-        );
-        ns.setVerifying(false);
-        window.location.replace("/");
-        return;
-      }
-
       ns.setVerifying(true);
       await onScanSuccess(token);
     } catch (err) {
@@ -962,7 +911,6 @@ window.OZScan = window.OZScan || {};
       ns.openModal();
     }
   };
-
 
 })(window.OZScan);
 
@@ -1010,9 +958,12 @@ window.OZScan = window.OZScan || {};
 
         // 🔥 ONE-PER-DAY (PIN) CASE
         if (data.already_claimed_today) {
-          alert("Nuvvu ivvala already claim chesavu mava. Status page lo chusko 😊");
-          window.location.replace('/');   // or your home URL
-          return;                         // IMPORTANT
+          ns.showStatus(true, "Ivvala visit already count ayyindi mava 😄 Status page open avutundi…");
+
+          setTimeout(() => {
+            window.location.replace("/user-visit-count/");
+          }, 900);
+          return;
         }
 
 

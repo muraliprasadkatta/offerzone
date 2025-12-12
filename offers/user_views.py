@@ -883,4 +883,16 @@ def user_visit_count_view(request):
 
 
 
+from django.shortcuts import render, redirect
+
+def user_status_view(request):
+    # (Optional) auth required anukunte uncomment
+    # if not request.user.is_authenticated:
+    #     return redirect("offers:user_login")
+
+    return render(
+        request,
+        "user_interface/user_status_view/user_status.html"
+    )
+
 

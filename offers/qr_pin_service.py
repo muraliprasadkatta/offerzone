@@ -110,10 +110,11 @@ from .models import Branch, BranchGenerateVisitPin, UserVisitEvent  # BranchGene
 from django.conf import settings
 import random
 
-VISIT_CONFIRM_PIN_TTL = getattr(settings, "VISIT_CONFIRM_PIN_TTL", 2 * 60)  # 2 minutes
+VISIT_CONFIRM_PIN_TTL = getattr(settings, "VISIT_CONFIRM_PIN_TTL", 1 * 60)  # 2 minutes
 
 def _gen_4_digit_pin() -> str:
     return f"{random.randint(0, 9999):04d}"
+
 
 
 @require_POST
@@ -125,9 +126,11 @@ def branch_generate_visit_pin(request):
     STAFF SIDE:
       - Branch_home / QR modal nunchi hit avthundi
       - Branch login (session["branch_id"]) base chesukoni PIN generate chestundi
+      - Staff info kuda session nunchi attach cheddam (staff_name, staff_code)
       - User login ('request.user') required kadu
     """
-    # ---- 1) Branch session check (staff side) ----
+
+    # ---- 1) Branch session check ----
     branch_id = request.session.get("branch_id")
     if not branch_id:
         return JsonResponse(
@@ -139,25 +142,41 @@ def branch_generate_visit_pin(request):
     if not branch:
         return JsonResponse({"ok": False, "error": "Branch not found."}, status=404)
 
-    desk = request.session.get("branch_desk", "") or request.session.get("last_branch_desk", "") or ""
-    token = ""  # later attach visit token if needed
+    # ---- 2) Desk + Staff info from session ----
+    desk = (
+        request.session.get("branch_desk")
+        or request.session.get("last_branch_desk")
+        or ""
+    )
+
+    staff_name = (request.session.get("branch_staff_name") or "").strip()
+    staff_code = (request.session.get("branch_staff_code") or "").strip()
+
+    # ⭐ Fallback: branch email tho login ayithe
+    # staff_name = "<branch> (BRANCH)" ani snapshot store cheddam
+    if not staff_name:
+        staff_name = f"{branch.name} (BRANCH)"
+        staff_code = ""
+
+
+
+    token = ""  # later visit-token attach cheyyali anukunte ikkada set cheyyachu
 
     now_ts = timezone.now()
 
-    # Optional: old unused PINs for this branch expire cheddam
+    # ---- 3) Old expired pins cleanup (optional but neat) ----
     BranchGenerateVisitPin.objects.filter(
         branch=branch,
-        used=False,
+        expired=False,
         expires_at__lte=now_ts,
-    ).update(used=True)
+    ).update(expired=True)
 
-    # ---- 2) 4-digit PIN generate ----
+    # ---- 4) New PIN generate ----
     pin = _gen_4_digit_pin()
     pin_hash = make_password(pin)
-
     expires_at = now_ts + timedelta(seconds=VISIT_CONFIRM_PIN_TTL)
 
-    # NOTE: ikkada user lekunda branch-level PIN create chesthunam
+    # ---- 5) Visit PIN row create ----
     visit_pin = BranchGenerateVisitPin.objects.create(
         branch=branch,
         desk=desk,
@@ -165,17 +184,26 @@ def branch_generate_visit_pin(request):
         pin_hash=pin_hash,
         expires_at=expires_at,
         used=False,
+        # 🌟 staff attach
+        staff_name=staff_name,
+        staff_code=staff_code,
     )
-
 
     # already_today ippudu *customer-specific* ga calc cheyyalem;
     # branch level info kavali ante later design cheddam.
     already_today = False
 
-    return JsonResponse({
-        "ok": True,
-        "pin": pin,
-        "branch_name": branch.name,
-        "expires_in": VISIT_CONFIRM_PIN_TTL,
-        "already_today": already_today,
-    })
+    # ---- 6) Frontend ki respond ----
+    return JsonResponse(
+        {
+            "ok": True,
+            "pin": pin,  # 👈 modal lo chupinchadaniki
+            "branch_name": branch.name,
+            "expires_in": VISIT_CONFIRM_PIN_TTL,
+            "already_today": already_today,
+            # optional: debugging / display kosam staff info kuda pampistunna
+            "staff_name": staff_name,
+            "staff_code": staff_code,
+            "desk": desk,
+        }
+    )

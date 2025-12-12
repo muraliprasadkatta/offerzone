@@ -55,8 +55,6 @@
 </div>
 
 
-
-
         <div class="qr-help">
           <p><strong>How to use:</strong></p>
           <ol>
@@ -365,7 +363,26 @@ window.OZQR = {
 /* Events + auto-open persistence */
 (() => {
   const OZ = window.OZQR;
-  OZ.AUTO={OPEN_KEY:'ozqr_open', SEED_KEY:'ozqr_seed'};
+
+  // ⭐ New: Detect current branch from <body>
+  function getBranchKey() {
+    const b = document.body;
+    if (!b || !b.dataset) return "default";
+    return (
+      b.dataset.branchUid ||  // branch.public_id
+      b.dataset.branchId  ||  // fallback: branch.id
+      "default"
+    );
+  }
+
+  const BRANCH_KEY = getBranchKey();
+
+  // ⭐ New: per-branch storage keys
+  OZ.AUTO = {
+    OPEN_KEY: `ozqr_open:${BRANCH_KEY}`,
+    SEED_KEY: `ozqr_seed:${BRANCH_KEY}`,
+  };
+
 
   OZ.saveOpenState=(seed='')=>{ try{ sessionStorage.setItem(OZ.AUTO.OPEN_KEY,'1'); if(seed) sessionStorage.setItem(OZ.AUTO.SEED_KEY,seed);}catch(_){ } };
   OZ.clearOpenState=()=>{ try{ sessionStorage.removeItem(OZ.AUTO.OPEN_KEY); sessionStorage.removeItem(OZ.AUTO.SEED_KEY);}catch(_){ } };

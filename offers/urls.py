@@ -48,6 +48,8 @@ urlpatterns = [
     path("qrg/scan-verify/", uviews.scan_verify, name="scan_verify"),
     path("visit-count/intake/",uviews.user_visit_intake_view,name="user_visit_intake"),
     path("user-visit-count/",uviews.user_visit_count_view,name="user_visit_count"),
+    path("user-status/", uviews.user_status_view, name="user_status"),
+
 
     path("branch_offers_in_userinterface/<int:branch_id>/",uviews.branch_offers_in_userinterface,name="branch_offers_in_userinterface"),
 

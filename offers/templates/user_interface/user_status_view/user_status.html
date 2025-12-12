@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Status • OfferZone</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+:root{
+  --bg:#0b1020;
+  --card:#11183a;
+  --border:#273164;
+  --text:#e8ecff;
+  --muted:#b9c4ff;
+  --prim:#4c74ff;
+  --good:#22c55e;
+  --warn:#fbbf24;
+  --bad:#ef4444;
+
+  --stroke: rgba(170,190,255,.14);
+  --stroke2: rgba(170,190,255,.08);
+}
+
+*{ box-sizing:border-box }
+html,body{
+  margin:0; padding:0;
+  width:100%; height:100%;
+  background:var(--bg);
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  color:var(--text);
+  overflow-x:hidden;
+}
+img, video, svg, canvas { max-width:100%; height:auto; display:block; }
+* { min-width:0; }
+
+/* FULLSCREEN WRAP */
+.oz-status-wrap{
+  position:fixed;
+  inset:0;
+  z-index:60;
+  overflow-y:auto;
+  overflow-x:hidden;
+  -webkit-overflow-scrolling: touch;
+  display:block;
+
+  padding:
+    calc(16px + env(safe-area-inset-top))
+    0
+    calc(16px + env(safe-area-inset-bottom));
+
+  background:
+    radial-gradient(900px 500px at 30% 20%, rgba(76,116,255,.28), transparent 60%),
+    radial-gradient(800px 420px at 80% 70%, rgba(106,161,255,.20), transparent 55%),
+    linear-gradient(180deg,#0b1020,#090d1a);
+}
+
+/* MAIN CARD (edge-to-edge) */
+.oz-status-card{
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  border-radius: 0;
+  padding: 20px 18px 18px;
+
+  background:
+    radial-gradient(120% 80% at 50% 0%,
+      rgba(120,150,255,.20),
+      rgba(17,24,58,.96) 60%);
+
+  border: 0;
+  box-shadow:
+    0 40px 90px rgba(0,0,0,.6),
+    0 0 90px rgba(76,116,255,.25),
+    0 0 0 1px rgba(255,255,255,.06) inset;
+}
+
+/* Header */
+.oz-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:14px;
+  flex-wrap:wrap;
+}
+.oz-page-title{
+  font-size:20px;
+  font-weight:900;
+  letter-spacing:.2px;
+  margin:0;
+}
+.oz-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(120,150,255,.25);
+  background:rgba(15,22,64,.65);
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700;
+  max-width:100%;
+  white-space:nowrap;
+}
+
+/* GROUP CONTAINERS */
+.oz-group{
+  border:1px solid var(--stroke2);
+  background: rgba(255,255,255,.03);
+  border-radius:22px;
+  padding:12px;
+  box-shadow:
+    0 18px 50px rgba(0,0,0,.28),
+    0 0 0 1px rgba(255,255,255,.04) inset;
+  margin-bottom:18px;
+}
+.oz-group:last-child{ margin-bottom:0; }
+
+.oz-group-head{
+  padding-bottom:10px;
+  border-bottom:1px solid rgba(170,190,255,.10);
+  margin-bottom:12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.oz-group-title{
+  margin:0;
+  font-size:12px;
+  letter-spacing:.22px;
+  color:#dbe6ff;
+  font-weight:1000;
+  text-transform:uppercase;
+}
+
+/* SECTION BOX */
+.oz-box{
+  position:relative;
+  border:1px solid var(--stroke2);
+  background: rgba(15,22,64,.78);
+  box-shadow:
+    0 10px 26px rgba(0,0,0,.22),
+    0 0 0 1px rgba(255,255,255,.03) inset;
+  border-radius:18px;
+  padding:16px 16px;
+  margin-bottom:16px;
+  overflow:hidden;
+}
+.oz-box:last-child{ margin-bottom:0; }
+
+.oz-box::before{
+  content:"";
+  position:absolute; inset:0;
+  background:radial-gradient(120% 80% at 50% 0%, rgba(255,255,255,.08), transparent 55%);
+  pointer-events:none;
+  opacity:.7;
+}
+
+.oz-box-head{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:14px;
+}
+.oz-box-title{
+  margin:0;
+  font-size:13px;
+  letter-spacing:.2px;
+  color:#dbe6ff;
+  font-weight:900;
+  text-transform:uppercase;
+}
+.oz-box-sub{
+  position:relative;
+  margin:0;
+  font-size:12.5px;
+  color:var(--muted);
+  line-height:1.5;
+}
+
+/* ✅ Visit Check-in Flow (dull + neat) */
+.flow-row{
+  position:relative;
+  display:block;
+
+  background: linear-gradient(180deg, rgba(246,248,252,.92), rgba(240,244,250,.88));
+  border: 1px solid rgba(11,16,32,.10);
+  border-radius:22px;
+  padding:16px;
+  box-shadow:
+    0 14px 34px rgba(0,0,0,.10),
+    0 0 0 1px rgba(255,255,255,.40) inset;
+  overflow:hidden;
+}
+
+.flow-row::after{
+  content:"";
+  position:absolute;
+  inset:-40% -20% auto -20%;
+  height:120px;
+  background: radial-gradient(closest-side, rgba(76,116,255,.10), transparent 70%);
+  pointer-events:none;
+}
+
+.flow-title{ position:relative; margin:0; font-size:13px; font-weight:900; color:#0b1020; }
+.flow-sub{ position:relative; margin:2px 0 0; font-size:12px; color: rgba(11,16,32,.68); line-height:1.35; }
+
+/* ✅ FLOW: start | center | end + dashed line not overlapping */
+.flow-diagram{
+  --circle: 34px;
+  margin-top:12px;
+  position:relative;
+
+  display:grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items:start;
+
+  padding: 0 calc(var(--circle) / 2);
+  width:100%;
+  justify-items:center;
+}
+
+.flow-diagram::before{
+  content:"";
+  position:absolute;
+  left: calc(var(--circle) / 2);
+  right: calc(var(--circle) / 2);
+  top: calc(var(--circle) / 2);
+  transform: translateY(-50%);
+  border-top: 2px dashed rgba(11,16,32,.26);
+  z-index:0;
+}
+
+.flow-node{
+  position:relative;
+  z-index:1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+}
+
+.flow-node:first-child{ justify-self:start; }
+.flow-node:last-child{  justify-self:end;  }
+
+.flow-circle{
+  width:var(--circle);
+  height:var(--circle);
+  border-radius:999px;
+
+  background: rgba(245,248,255,.96);
+  border: 2px solid rgba(11,16,32,.18);
+  box-shadow: 0 1px 0 rgba(255,255,255,.65) inset;
+}
+
+.flow-label{
+  font-size:12px;
+  font-weight:900;
+  color: rgba(11,16,32,.74);
+  text-align:center;
+  line-height:1.15;
+  white-space:nowrap;
+}
+
+/* Restaurant */
+.rest-name{
+  position:relative;
+  margin:6px 0 2px;
+  font-size:22px;
+  font-weight:1000;
+  letter-spacing:.3px;
+  color:#ffffff;
+}
+.rest-meta{
+  position:relative;
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:10px;
+}
+.meta-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(120,150,255,.22);
+  background:rgba(11,16,32,.35);
+  color:#c7d2ff;
+  font-size:12px;
+  font-weight:700;
+  max-width:100%;
+}
+
+/* Offers */
+.offer-list{
+  position:relative;
+  margin:0;
+  padding:0;
+  list-style:none;
+  display:grid;
+  gap:8px;
+}
+.offer-item{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:10px;
+
+  padding:10px 10px;
+  border-radius:14px;
+  border:1px solid rgba(120,150,255,.18);
+  background:rgba(11,16,32,.25);
+}
+.offer-item strong{ font-size:13px; color:#fff; display:block; margin-bottom:2px; }
+.offer-item span{ font-size:12px; color:var(--muted); line-height:1.35; }
+.offer-tag{
+  font-size:11px;
+  font-weight:900;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(120,150,255,.25);
+  background:rgba(76,116,255,.14);
+  color:#dbe6ff;
+  white-space:nowrap;
+}
+
+/* Visit rows */
+.visit-row{
+  position:relative;
+  display:grid;
+  grid-template-columns:26px 1fr auto;
+  gap:10px;
+  align-items:center;
+
+  padding:10px 10px;
+  border-radius:14px;
+  border:1px solid rgba(120,150,255,.18);
+  background:rgba(11,16,32,.25);
+  margin-bottom:8px;
+}
+.visit-row:last-child{ margin-bottom:0; }
+.ico{
+  width:22px;height:22px;border-radius:999px;
+  display:grid;place-items:center;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.06);
+  font-weight:900; font-size:12px;
+}
+.ico.ok{ color:var(--good); box-shadow:0 0 18px rgba(34,197,94,.25); }
+.ico.pending{ color:var(--warn); box-shadow:0 0 18px rgba(251,191,36,.22); }
+.ico.fail{ color:var(--bad); box-shadow:0 0 18px rgba(239,68,68,.20); }
+
+.visit-row strong{ font-size:13px; color:#fff; display:block; }
+.visit-row small{ font-size:12px; color:var(--muted); }
+
+.state{
+  font-size:12px; font-weight:900;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(120,150,255,.20);
+  background:rgba(255,255,255,.06);
+  color:#dbe6ff;
+  white-space:nowrap;
+}
+.state.ok{ border-color:rgba(34,197,94,.35); background:rgba(34,197,94,.10); }
+.state.pending{ border-color:rgba(251,191,36,.35); background:rgba(251,191,36,.10); }
+.state.fail{ border-color:rgba(239,68,68,.35); background:rgba(239,68,68,.10); }
+
+/* Button */
+.oz-status-btn{
+  width:100%;
+  padding:13px 16px;
+  border-radius:999px;
+  border:1px solid rgba(120,150,255,.45);
+  background:var(--prim);
+  color:#fff;
+  font-size:15px;
+  font-weight:900;
+  cursor:pointer;
+  box-shadow:0 14px 34px rgba(76,116,255,.45);
+  margin-top:10px;
+}
+.oz-status-btn:active{
+  transform:translateY(1px);
+  box-shadow:0 4px 12px rgba(0,0,0,.35) inset;
+}
+
+/* Responsive */
+@media (max-width:720px){
+  /* ✅ keep edge-to-edge on mobile too */
+  .oz-status-card{
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border-radius: 0;
+    padding: 18px 14px 14px;
+  }
+  .rest-name{ font-size:19px; }
+  .meta-pill{ font-size:11.5px; padding:6px 9px; }
+}
+@media (max-width:420px){
+  .flow-row{ padding:14px; border-radius:20px; }
+  .flow-diagram{ --circle: 32px; }
+  .flow-label{ font-size:11.5px; }
+}
+  </style>
+</head>
+
+<body>
+  <div class="oz-status-wrap">
+    <div class="oz-status-card">
+
+      <!-- Top header -->
+      <div class="oz-top">
+        <h1 class="oz-page-title">Status</h1>
+        <span class="oz-chip">🎁 Check reward</span>
+      </div>
+
+      <!-- GROUP 1 -->
+      <section class="oz-group">
+        <div class="oz-group-head">
+          <h3 class="oz-group-title">Check-in & Restaurant</h3>
+          <span class="oz-chip">Live</span>
+        </div>
+
+        <!-- Restaurant -->
+        <div class="oz-box">
+          <div class="oz-box-head">
+            <h2 class="oz-box-title">Restaurant</h2>
+            <span class="oz-chip">Live</span>
+          </div>
+
+          <div class="rest-name">Gastro Glide</div>
+          <p class="oz-box-sub">Restaurant details ikkada later add cheddham mava.</p>
+
+          <div class="rest-meta">
+            <span class="meta-pill">📍 Location: —</span>
+            <span class="meta-pill">⏰ Open: —</span>
+            <span class="meta-pill">☎️ Contact: —</span>
+          </div>
+        </div>
+
+        <!-- Visit Check-in Flow -->
+        <div class="oz-box">
+          <div class="oz-box-head">
+            <h2 class="oz-box-title">Visit Check-in Flow</h2>
+            <span class="oz-chip">How it works</span>
+          </div>
+
+          <div class="flow-row">
+            <p class="flow-title">QR Scan or Visit PIN</p>
+            <p class="flow-sub">User QR scan chesthadu leka 4-digit visit PIN enter chesthadu.</p>
+
+            <div class="flow-diagram" aria-label="Visit Check-in Flow">
+              <div class="flow-node">
+                <div class="flow-circle"></div>
+                <div class="flow-label">QR Scan</div>
+              </div>
+
+              <div class="flow-node">
+                <div class="flow-circle"></div>
+                <div class="flow-label">Visit PIN</div>
+              </div>
+
+              <div class="flow-node">
+                <div class="flow-circle"></div>
+                <div class="flow-label">Visit Success</div>
+              </div>
+            </div>
+          </div>
+
+          <p class="oz-box-sub" style="margin-top:10px;">
+            (Later: Already claimed today / invalid QR / invalid PIN paths kuda add cheddham.)
+          </p>
+        </div>
+      </section>
+
+      <!-- GROUP 2 -->
+      <section class="oz-group">
+        <div class="oz-group-head">
+          <h3 class="oz-group-title">Offers & Visit Status</h3>
+          <span class="oz-chip">Today</span>
+        </div>
+
+        <!-- Offers -->
+        <div class="oz-box">
+          <div class="oz-box-head">
+            <h2 class="oz-box-title">Offers</h2>
+            <span class="oz-chip">Today</span>
+          </div>
+
+          <ul class="offer-list">
+            <li class="offer-item">
+              <div>
+                <strong>Free Treat on 5 Visits</strong>
+                <span>Complete 5 visits to unlock your treat.</span>
+              </div>
+              <span class="offer-tag">Visit Reward</span>
+            </li>
+
+            <li class="offer-item">
+              <div>
+                <strong>10% Cashback</strong>
+                <span>Available on selected items today.</span>
+              </div>
+              <span class="offer-tag">Cashback</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Visit Status -->
+        <div class="oz-box">
+          <div class="oz-box-head">
+            <h2 class="oz-box-title">Visit Status</h2>
+            <span class="oz-chip">This branch</span>
+          </div>
+
+          <div class="visit-row">
+            <span class="ico ok">✓</span>
+            <div>
+              <strong>Visit #1</strong>
+              <small>Recorded successfully</small>
+            </div>
+            <span class="state ok">Success</span>
+          </div>
+
+          <div class="visit-row">
+            <span class="ico pending">⏳</span>
+            <div>
+              <strong>Visit #2</strong>
+              <small>Waiting for confirmation</small>
+            </div>
+            <span class="state pending">Pending</span>
+          </div>
+
+          <div class="visit-row">
+            <span class="ico fail">✕</span>
+            <div>
+              <strong>Visit #3</strong>
+              <small>Could not verify</small>
+            </div>
+            <span class="state fail">Failed</span>
+          </div>
+
+          <button class="oz-status-btn" type="button" onclick="window.history.back()">
+            Check your reward
+          </button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</body>
+</html>

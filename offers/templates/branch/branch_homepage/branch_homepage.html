@@ -146,8 +146,12 @@
       display:flex;           /* flex because our backdrop uses flex-center */
     }
   </style>
+
 </head>
-<body>
+<body
+  data-branch-id="{{ branch.id }}"
+  data-branch-uid="{{ branch.public_id }}"
+>
 <div class="wrap">
 
   <!-- Top bar -->

@@ -632,7 +632,16 @@ class BranchGenerateVisitPin(models.Model):
     # PIN storage
     pin_hash = models.CharField(max_length=128)
     expires_at = models.DateTimeField()
+
+    # 👉 used = real PIN usage (future verify view lo set chestham)
     used = models.BooleanField(default=False)
+
+    # 👉 NEW: expired = time ayyi poindi, auto mark chestham
+    expired = models.BooleanField(default=False)
+
+    # optional snapshots
+    staff_name = models.CharField(max_length=255, blank=True, default="")
+    staff_code = models.CharField(max_length=100, blank=True, default="")
 
     created_at = models.DateTimeField(auto_now_add=True)
 
