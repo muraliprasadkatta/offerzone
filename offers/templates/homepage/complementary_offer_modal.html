@@ -92,22 +92,31 @@
 </div>
 
 
-          <div class="freeplate-2col">
-        <label class="freeplate-field">
-          <span>Visit unit</span>
-          <select name="visit_unit">
-            <!-- QR scan + screenshot upload -->
-            <option value="qr_screenshot" selected>
-              QR scan + screenshot upload
-            </option>
+      <div class="freeplate-2col">
+<label class="freeplate-field">
+  <span>Visit unit</span>
+  <select name="visit_unit">
+    <!-- Existing -->
+    <option value="qr_screenshot">
+      QR scan + screenshot upload
+    </option>
 
-            <!-- QR scan + PIN entry (waiter) -->
-            <option value="qr_pin">
-              QR scan + PIN at outlet
-            </option>
-          </select>
-        </label>
+    <!-- Default & Most Secure -->
+    <option value="qr_pin" selected>
+      QR scan + PIN at outlet
+    </option>
 
+    <!-- 🔥 NEW OPTION – నీ ఐడియా ప్రకారం 🔥 -->
+    <option value="qr_payment_proof">
+      QR scan + payment proof (bill amount / screenshot)
+    </option>
+  </select>
+
+  <!-- Simple Static Hint (నీకు కావాల్సినట్టు) -->
+  <small class="freeplate-hint" id="visitUnitHint">
+    Selected option ప్రకారం user visit count జరుగుతుంది.
+  </small>
+</label>
 
           <label class="freeplate-field">
             <span>De-dupe window</span>

@@ -1,89 +1,168 @@
-from django.db import models
+# offers/models.py
 
-# Create your models here.
-# app: offers/models.py
-from django.db import models
-from django.utils import timezone
-# at top of models.py & utils_qr.py
+from decimal import Decimal, ROUND_HALF_UP
+import secrets
+
 from django.conf import settings
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.core.validators import (
+    MinValueValidator,
+    MaxValueValidator,
+    RegexValidator,
+)
 from django.db import models
 from django.db.models.functions import Lower
-from django.core.exceptions import ValidationError
-from decimal import Decimal, ROUND_HALF_UP
-from django.db import models
+from django.utils import timezone
 
+class QRToken(models.Model):
+    """
+    ✅ Single source of truth for a QR token.
+    QR scan OR PIN verify — whichever happens first will mark this token as used.
+    """
 
-
-from django.db import models
-from django.contrib.auth import get_user_model
-
-
-
-class QRPin(models.Model):
-    branch = models.ForeignKey(
-        "offers.Branch",           # string ref ok
-        on_delete=models.CASCADE,
-        related_name="qr_pins",
+    USED_VIA_CHOICES = (
+        ("", "Unknown"),
+        ("scan", "QR Scan"),
+        ("pin", "PIN Verify"),
     )
-    desk = models.CharField(
-        max_length=12,
+
+    branch = models.ForeignKey(
+        "offers.Branch",
+        on_delete=models.CASCADE,
+        related_name="qr_tokens",
+    )
+    desk = models.CharField(max_length=12, blank=True, default="")
+
+    # token string (same token used in /qrg/redeem/<token>)
+    token = models.CharField(max_length=200, unique=True, db_index=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+
+    # ✅ unified usage status (scan/pin both affect this)
+    used = models.BooleanField(default=False, db_index=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    used_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="used_qr_tokens",
+    )
+
+    used_via = models.CharField(
+        max_length=16,
+        choices=USED_VIA_CHOICES,
         blank=True,
         default="",
-        help_text="Optional desk/counter label, e.g. A1, Main, Cash-1",
-    )
-
-    # QR token itself
-    token = models.CharField(
-        max_length=200,
-        unique=True,              # token globally unique
         db_index=True,
     )
 
-    # PIN ni plain ga kaakunda hash store cheddam
-    pin_hash = models.CharField(
-        max_length=128,
-    )
-
-    used = models.BooleanField(default=False)          # 👈 ADD THIS
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField()
-
-    # future use kosam
-    used_at = models.DateTimeField(null=True, blank=True)
-    attempts = models.PositiveSmallIntegerField(default=0)
-
-    # ⭐ NEW: staff info snapshot (optional)
+    # ⭐ snapshots (who issued the QR at branch side)
     staff_name = models.CharField(max_length=255, blank=True, default="")
     staff_code = models.CharField(max_length=100, blank=True, default="")
 
+    # optional audit helpers (nice to have)
+    last_error = models.CharField(max_length=120, blank=True, default="")
+    last_seen_at = models.DateTimeField(null=True, blank=True)  # whenever token was attempted
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["branch", "created_at"]),
+            models.Index(fields=["branch", "expires_at", "used"]),
+            models.Index(fields=["token", "expires_at"]),
+        ]
+
+    def is_expired(self, now=None) -> bool:
+        now = now or timezone.now()
+        return self.expires_at < now
+
+    def mark_used(self, user=None, via="scan", now=None):
+        """
+        Call this when you ACCEPT the scan/pin as valid.
+        (View lo transaction + select_for_update tho call chestham later.)
+        """
+        now = now or timezone.now()
+        self.used = True
+        self.used_at = now
+        self.used_by = user
+        self.used_via = via or ""
+        self.save(update_fields=["used", "used_at", "used_by", "used_via"])
 
     def __str__(self):
-        return f"QRPin({self.branch_id}, {self.desk}, {self.token[:8]}...)"
+        return f"QRToken({self.branch_id}, used={self.used}, token={self.token[:8]}...)"
 
 
+class YashPin(models.Model):
+    """
+    ✅ PIN record linked to one QRToken.
+    PIN verify success => mark this used + also mark QRToken used.
+    """
 
+    branch = models.ForeignKey(
+        "offers.Branch",
+        on_delete=models.CASCADE,
+        related_name="yash_pins",
+    )
+    desk = models.CharField(max_length=12, blank=True, default="")
 
-from django.db import models
-from django.utils import timezone
+    # 1 PIN belongs to 1 token (simple + no confusion)
+    qr_token = models.OneToOneField(
+        "offers.QRToken",
+        on_delete=models.CASCADE,
+        related_name="yash_pin",
+    )
 
-class QRTokenUsage(models.Model):
-    token = models.CharField(max_length=255, unique=True)
-    used = models.BooleanField(default=False)
+    # store only hash (no raw pin)
+    pin_hash = models.CharField(max_length=128, db_index=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+
+    used = models.BooleanField(default=False, db_index=True)
     used_at = models.DateTimeField(null=True, blank=True)
 
-    def mark_used(self):
-        if not self.used:
-            self.used = True
-            self.used_at = timezone.now()
-            self.save(update_fields=["used", "used_at"])
+    used_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="used_yash_pins",
+    )
+
+    # brute-force / audit
+    attempts = models.PositiveSmallIntegerField(default=0)
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
+
+    # ⭐ staff snapshot (same as QRToken usually, but keep for safety)
+    staff_name = models.CharField(max_length=255, blank=True, default="")
+    staff_code = models.CharField(max_length=100, blank=True, default="")
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["branch", "created_at"]),
+            models.Index(fields=["expires_at", "used"]),
+            models.Index(fields=["pin_hash", "expires_at"]),
+        ]
+
+    def is_expired(self, now=None) -> bool:
+        now = now or timezone.now()
+        return self.expires_at < now
+
+    def mark_used(self, user=None, now=None):
+        now = now or timezone.now()
+        self.used = True
+        self.used_at = now
+        self.used_by = user
+        self.save(update_fields=["used", "used_at", "used_by"])
 
     def __str__(self):
-        return f"{self.token} (used={self.used})"
+        return f"YashPin({self.branch_id}, used={self.used}, token={self.qr_token_id})"
+
 
 
 User = get_user_model()
@@ -115,15 +194,7 @@ class LoginVisit(models.Model):
 
 
 
-# offers/models.py
-from django.db import models
 
-from django.core.validators import RegexValidator
-from django.core.exceptions import ValidationError
-from django.db import models
-from django.db.models.functions import Lower
-
-import secrets
 
 # Crockford-like alphabet: easy to read, confuse ayyye chars lekunda
 _BRANCH_PID_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
@@ -141,13 +212,6 @@ branch_name_validator = RegexValidator(
 )
 
 
-from decimal import Decimal, ROUND_HALF_UP
-
-from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator, MaxValueValidator
-from django.db import models
-from django.db.models.functions import Lower
-from django.utils import timezone
 
 # ee imports already untaayi ani assume chestunna:
 # from .validators import branch_name_validator
@@ -383,6 +447,7 @@ class ComplementaryOffer(models.Model):
     VISIT_UNIT_CHOICES = [
         ("qr_screenshot", "QR scan + screenshot upload"),
         ("qr_pin", "QR scan + PIN at outlet"),
+        ("qr_payment_proof", "QR scan + payment proof (bill amount / screenshot)"),
     ]
 
     DEDUPE_UNIT_CHOICES = [
@@ -520,7 +585,7 @@ class ComplementaryOffer(models.Model):
 # ------------------------------------------------------
 # user_logic
 
-from django.db import models
+
 
 class LoginOTP(models.Model):
     email = models.EmailField(db_index=True)
@@ -541,9 +606,6 @@ class LoginOTP(models.Model):
     def __str__(self):
         return f"{self.email} (used={self.used})"
 
-# offers/models.py
-from django.db import models
-from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
@@ -557,9 +619,7 @@ class Profile(models.Model):
         return self.display_name or f"Profile({self.user_id})"
 
 
-# offers/models.py
-from django.conf import settings
-from django.db import models
+
 
 class UserLocationPing(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="location_pings")
@@ -573,10 +633,6 @@ class UserLocationPing(models.Model):
         indexes = [models.Index(fields=["user","-created_at"])]
 
 
-
-
-from django.conf import settings
-from django.db import models
 
 
 class UserVisitEvent(models.Model):
@@ -635,9 +691,11 @@ class BranchGenerateVisitPin(models.Model):
 
     # 👉 used = real PIN usage (future verify view lo set chestham)
     used = models.BooleanField(default=False)
+    used_at = models.DateTimeField(null=True, blank=True)  # ← NEW
 
     # 👉 NEW: expired = time ayyi poindi, auto mark chestham
     expired = models.BooleanField(default=False)
+    expired_at = models.DateTimeField(null=True, blank=True)  # ← NEW
 
     # optional snapshots
     staff_name = models.CharField(max_length=255, blank=True, default="")
@@ -650,3 +708,60 @@ class BranchGenerateVisitPin(models.Model):
 
     def __str__(self):
         return f"{self.branch} / desk={self.desk} (visit PIN)"
+
+
+
+
+class UserVerifyVisitPin(models.Model):
+    branch = models.ForeignKey(
+        "Branch",
+        on_delete=models.CASCADE,
+        related_name="user_verified_visit_pins",
+    )
+
+    desk = models.CharField(max_length=50, blank=True, default="")
+    token = models.CharField(max_length=255, blank=True, default="")
+
+    # 🔐 PIN hash (same pin multiple users try cheyyakunda audit kosam)
+    pin_hash = models.CharField(max_length=128)
+
+    # ⏳ validity
+    expires_at = models.DateTimeField()
+
+    # ✅ status
+    used = models.BooleanField(default=False)
+    expired = models.BooleanField(default=False)
+
+    # 👤 USER SIDE info
+    used_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="verified_visit_pins",
+    )
+
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    # 👨‍💼 staff snapshot (branch side)
+    staff_name = models.CharField(max_length=255, blank=True, default="")
+    staff_code = models.CharField(max_length=100, blank=True, default="")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def mark_used(self, user=None):
+        if not self.used:
+            self.used = True
+            self.used_by = user
+            self.used_at = timezone.now()
+            self.save(update_fields=["used", "used_by", "used_at"])
+
+    def __str__(self):
+        who = self.used_by.email if self.used_by else "Guest"
+        return f"{self.branch} | {who} | PIN-used"
+
+
+

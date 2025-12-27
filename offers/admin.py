@@ -12,8 +12,6 @@ from .models import (
     LoginOTP,
     Profile,
     UserLocationPing,
-    QRPin,
-    QRTokenUsage, 
     UserVisitEvent, 
     BranchStaff,
     BranchGenerateVisitPin
@@ -92,12 +90,12 @@ class ComplementaryOfferAdmin(admin.ModelAdmin):
     form = ComplementaryOfferAdminForm
 
     list_display = (
-        "id", "title", "kind", "segment", "issuance_mode",
+        "id", "title", "kind","visit_unit", "segment", "issuance_mode",
         "redeem_type", "is_active", "all_branches", "start_at", "end_at"
     )
     list_display_links = ("id", "title")
     list_filter  = (
-        "kind", "segment", "issuance_mode", "redeem_type",
+        "kind","visit_unit", "segment", "issuance_mode", "redeem_type",
         "is_active", "all_branches", "start_at",
     )
     search_fields = (
@@ -284,27 +282,180 @@ class LoginVisitAdmin(admin.ModelAdmin):
     short_user_agent.short_description = "User-Agent"
 
 
-# =========================
-# QRPin
-# =========================
 
-@admin.register(QRPin)
-class QRPinAdmin(admin.ModelAdmin):
-    list_display = ("id", "branch", "desk", "token_short", "used", "expires_at", "used_at", "attempts", "created_at")
-    list_filter = ("branch", "desk", "used")
-    search_fields = ("token", "branch__name", "desk")
-    ordering = ("-created_at",)
-    list_per_page = 50
-
-    def token_short(self, obj):
-        return obj.token[:10] + "..." if obj.token else "-"
-    token_short.short_description = "Token"
 
 
 def format_dt(dt):
     if not dt:
         return "-"
     return timezone.localtime(dt).strftime("%Y-%m-%d %H:%M:%S")
+
+
+from django.contrib import admin
+from .models import QRToken, YashPin
+from django.utils import timezone
+
+
+@admin.register(QRToken)
+class QRTokenAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "branch",
+        "desk",
+        "token_short",
+        "used",
+        "used_via",
+        "used_by",
+        "expires_at",
+        "used_at",
+        "created_at",
+    )
+
+    list_filter = (
+        "branch",
+        "desk",
+        "used",
+        "used_via",
+        "expires_at",
+        "created_at",
+    )
+
+    search_fields = (
+        "token",
+        "branch__name",
+        "desk",
+        "staff_name",
+        "staff_code",
+        "used_by__email",
+    )
+
+    readonly_fields = (
+        "created_at",
+        "used_at",
+        "last_seen_at",
+    )
+
+    ordering = ("-created_at",)
+    list_per_page = 50
+    autocomplete_fields = ("branch", "used_by")
+
+    fieldsets = (
+        ("Token Info", {
+            "fields": (
+                "branch",
+                "desk",
+                "token",
+                "expires_at",
+            )
+        }),
+        ("Usage Status", {
+            "fields": (
+                "used",
+                "used_via",
+                "used_by",
+                "used_at",
+            )
+        }),
+        ("Staff Snapshot", {
+            "fields": (
+                "staff_name",
+                "staff_code",
+            )
+        }),
+        ("Audit", {
+            "fields": (
+                "last_error",
+                "last_seen_at",
+                "created_at",
+            )
+        }),
+    )
+
+    def token_short(self, obj):
+        return obj.token[:10] + "..." if obj.token else "-"
+    token_short.short_description = "Token"
+
+
+
+@admin.register(YashPin)
+class YashPinAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "branch",
+        "desk",
+        "qr_token",
+        "used",
+        "used_by",
+        "expires_at",
+        "used_at",
+        "attempts",
+        "created_at",
+    )
+
+    list_filter = (
+        "branch",
+        "desk",
+        "used",
+        "expires_at",
+        "created_at",
+    )
+
+    search_fields = (
+        "qr_token__token",
+        "branch__name",
+        "desk",
+        "staff_name",
+        "staff_code",
+        "used_by__email",
+    )
+
+    readonly_fields = (
+        "pin_hash",
+        "created_at",
+        "used_at",
+        "last_attempt_at",
+    )
+
+    ordering = ("-created_at",)
+    list_per_page = 50
+    autocomplete_fields = ("branch", "qr_token", "used_by")
+
+    fieldsets = (
+        ("PIN Info", {
+            "fields": (
+                "branch",
+                "desk",
+                "qr_token",
+                "expires_at",
+            )
+        }),
+        ("Usage Status", {
+            "fields": (
+                "used",
+                "used_by",
+                "used_at",
+            )
+        }),
+        ("Security / Attempts", {
+            "fields": (
+                "pin_hash",
+                "attempts",
+                "last_attempt_at",
+            )
+        }),
+        ("Staff Snapshot", {
+            "fields": (
+                "staff_name",
+                "staff_code",
+            )
+        }),
+        ("Meta", {
+            "fields": (
+                "created_at",
+            )
+        }),
+    )
+
 
 
 # =========================
@@ -373,6 +524,15 @@ class UserVisitEventAdmin(admin.ModelAdmin):
     date_hierarchy = "created_at"
     ordering = ("-created_at",)
     autocomplete_fields = ("user", "branch")
+
+
+
+
+
+
+
+
+
 
 
 from django.contrib import admin
@@ -447,3 +607,29 @@ class BranchGenerateVisitPinAdmin(admin.ModelAdmin):
     def token_short(self, obj):
         return obj.token[:10] + "..." if obj.token else "-"
     token_short.short_description = "Token"
+
+
+
+# offers/admin.py
+from django.contrib import admin
+from .models import UserVerifyVisitPin
+
+
+@admin.register(UserVerifyVisitPin)
+class UserVerifyVisitPinAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "branch",
+        "desk",
+        "token",
+        "used",
+        "expired",
+        "used_by",
+        "used_at",
+        "expires_at",
+        "created_at",
+    )
+    list_filter = ("used", "expired", "branch", "created_at", "used_at")
+    search_fields = ("token", "desk", "branch__name", "used_by__email", "staff_name", "staff_code")
+    readonly_fields = ("created_at", "used_at")
+    ordering = ("-created_at",)

@@ -18,6 +18,14 @@ from .models import Branch,BranchStaff  # 👈 LoginVisit import important
 from .models import Branch, BranchOTP, BranchStaff
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
+import hashlib
+from django.db import transaction
+from datetime import timedelta
+from random import randint
+
+from .models import QRToken, YashPin, Branch
+from .qr_token_utils import mint_qr_token
+
 
 
 
@@ -361,6 +369,7 @@ def branch_home_view(request):
 
 
 
+
 def branch_logout_view(request):
     # only clear branch session keys (auth user session untouched)
     request.session.pop("branch_id", None)
@@ -376,11 +385,16 @@ def branch_logout_view(request):
 
 
 
+
+
 import json
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_protect
 
 @require_POST
+@csrf_protect
+
 def branch_staff_create_view(request):
     branch_id = request.session.get("branch_id")
     if not branch_id:
@@ -435,3 +449,9 @@ def branch_staff_create_view(request):
     )
 
     return JsonResponse({"ok": True, "id": staff.id})
+
+
+
+
+
+

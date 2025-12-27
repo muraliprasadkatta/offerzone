@@ -140,6 +140,67 @@
   }
 </style>
 
+<style>
+  /* ===== Small popup inside scan modal ===== */
+.ozpop{
+  position:absolute;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:60;
+  pointer-events:auto;
+}
+.ozpop.show{display:flex}
+
+.ozpop::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:rgba(4,6,20,.55);
+  backdrop-filter: blur(3px);
+}
+
+.ozpop__box{
+  position:relative;
+  width:min(360px, 92%);
+  border-radius:16px;
+  border:1px solid var(--border);
+  background:rgba(15,23,60,.98);
+  box-shadow:0 18px 50px rgba(0,0,0,.55);
+  padding:14px 14px 12px;
+  z-index:1;
+}
+.ozpop__title{
+  font-weight:800;
+  color:#e8ecff;
+  margin-bottom:6px;
+  font-size:14px;
+}
+.ozpop__msg{
+  color:#cfe1ff;
+  opacity:.95;
+  font-size:13px;
+  line-height:1.35;
+}
+.ozpop__actions{
+  display:flex;
+  justify-content:flex-end;
+  margin-top:12px;
+}
+.ozpop__btn{
+  background:#0f1640;
+  border:1px solid var(--border);
+  color:#e8ecff;
+  padding:8px 14px;
+  border-radius:12px;
+  cursor:pointer;
+  font-weight:700;
+}
+.ozpop__btn:active{transform:scale(.98)}
+
+</style>
+
 
 <div id="scanModal" class="ozm" aria-hidden="true">
   <div class="ozm__dialog">
@@ -184,11 +245,25 @@
       </div>
 
 
+      <!-- 🔥 Scan Result Popup -->
+<div class="ozpop" id="scanPopup" aria-hidden="true">
+  <div class="ozpop__box" role="dialog" aria-modal="true" aria-labelledby="scanPopTitle">
+    <div class="ozpop__title" id="scanPopTitle">Message</div>
+    <div class="ozpop__msg" id="scanPopMsg">...</div>
+
+    <div class="ozpop__actions">
+      <button type="button" class="ozpop__btn" id="scanPopOkBtn">OK</button>
+    </div>
+  </div>
+</div>
+
+
+
 <div class="qr-form">
 
   <div class="oz-sep">or enter PIN</div>
   <label class="oz-label" for="qrPinInput">Enter 4-digit PIN</label>
-  <input id="qrPinInput" class="oz-input" type="number" inputmode="numeric"
+  <input id="qrPinInput" class="oz-input" type="tel" inputmode="numeric"
         pattern="[0-9]*" maxlength="4" placeholder="1234" />
 
 
@@ -205,14 +280,12 @@
 
 
 
-
 <!-- scan-core.js -->
 
 <!-- (config + DOM refs + common helpers + verifying state) -->
 
 
 <script>
-  // ozscan/scan-core.js
 window.OZScan = window.OZScan || {};
 
 (function (ns) {
@@ -223,7 +296,7 @@ window.OZScan = window.OZScan || {};
     REPEAT_EVERY: 65,
   };
 
-  // ---- DOM refs (fill in initDom) ----
+  // ---- DOM refs ----
   ns.dom = {
     tile: null,
     modal: null,
@@ -238,6 +311,10 @@ window.OZScan = window.OZScan || {};
     zoomPlus: null,
     zoomBubble: null,
     scanStateText: null,
+    scanPopup: null,
+    scanPopMsg: null,
+    scanPopOkBtn: null,
+    scanPopTitle: null,
   };
 
   // ---- Runtime state ----
@@ -254,33 +331,31 @@ window.OZScan = window.OZScan || {};
     holdTimer: null,
     repeatTimer: null,
     wasHolding: false,
-
-    // 🔥 NEW: backend lo compute chesina per-day flag
-    alreadyClaimedToday:
-      (document.body &&
-        document.body.dataset &&
-        document.body.dataset.ozAlreadyClaimed === "1") || false,
   };
 
-  // ===== DOM init (called once on DOMContentLoaded) =====
+  // ===== DOM init =====
   ns.initDom = function () {
     const d = ns.dom;
-    d.tile         = document.getElementById('tapToScan');
-    d.modal        = document.getElementById('scanModal');
-    d.closeBtn     = document.getElementById('scanCloseBtn');
-    d.statusEl     = document.getElementById('qrStatus');
-    d.scanEdge     = document.querySelector('.qr-edge');
-    d.scanChip     = document.getElementById('scanVerifyingChip');
-    d.pinInput     = document.getElementById('qrPinInput');
-    d.pinBtn       = document.getElementById('qrPinSubmit');
-    d.zoomRange    = document.getElementById('zoomRange');
-    d.zoomMinus    = document.getElementById('zoomMinus');
-    d.zoomPlus     = document.getElementById('zoomPlus');
-    d.zoomBubble   = document.getElementById('zoomBubble');
+    d.tile          = document.getElementById('tapToScan');
+    d.modal         = document.getElementById('scanModal');
+    d.closeBtn      = document.getElementById('scanCloseBtn');
+    d.statusEl      = document.getElementById('qrStatus');
+    d.scanEdge      = document.querySelector('.qr-edge');
+    d.scanChip      = document.getElementById('scanVerifyingChip');
+    d.pinInput      = document.getElementById('qrPinInput');
+    d.pinBtn        = document.getElementById('qrPinSubmit');
+    d.zoomRange     = document.getElementById('zoomRange');
+    d.zoomMinus     = document.getElementById('zoomMinus');
+    d.zoomPlus      = document.getElementById('zoomPlus');
+    d.zoomBubble    = document.getElementById('zoomBubble');
     d.scanStateText = document.getElementById('scanStateText');
+    d.scanPopup     = document.getElementById('scanPopup');
+    d.scanPopMsg    = document.getElementById('scanPopMsg');
+    d.scanPopOkBtn  = document.getElementById('scanPopOkBtn');
+    d.scanPopTitle  = document.getElementById('scanPopTitle');
   };
 
-  // ===== Common helpers (status, cookie, zoom text) =====
+  // ===== Common helpers =====
   ns.showStatus = function (ok, msg) {
     const el = ns.dom.statusEl;
     if (!el) return;
@@ -314,35 +389,46 @@ window.OZScan = window.OZScan || {};
   };
 
   ns.setScanning = function (on) {
-    const d = ns.dom;
-    const st = d.scanStateText;
+    const st = ns.dom.scanStateText;
     if (st && !ns.state.isVerifying) {
       st.textContent = on ? 'Scanning…' : 'Paused';
     }
   };
 
-  // ===== Verifying overlay state (blur + lock) =====
+  // ===== Verifying overlay state =====
   ns.setVerifying = function (on) {
     const d = ns.dom;
     ns.state.isVerifying = !!on;
 
-    if (d.scanEdge) {
-      d.scanEdge.classList.toggle('scan--verifying', !!on);
-    }
+    if (d.scanEdge) d.scanEdge.classList.toggle('scan--verifying', !!on);
+    if (d.scanStateText) d.scanStateText.textContent = on ? 'Verifying…' : 'Scanning…';
 
-    if (d.scanStateText) {
-      d.scanStateText.textContent = on ? 'Verifying…' : 'Scanning…';
-    }
+    if (!on) ns.setScanning(true);
+  };
 
-    if (!on) {
-      ns.setScanning(true);
+  // ===== Popup inside modal =====
+  ns.openPopup = function (title, msg) {
+    const d = ns.dom;
+    ns.setVerifying(true);
+    if (d.scanPopTitle) d.scanPopTitle.textContent = title || 'Message';
+    if (d.scanPopMsg) d.scanPopMsg.textContent = msg || '';
+    if (d.scanPopup) {
+      d.scanPopup.classList.add('show');
+      d.scanPopup.setAttribute('aria-hidden', 'false');
     }
   };
 
+  ns.closePopup = function () {
+    const d = ns.dom;
+    if (d.scanPopup) {
+      d.scanPopup.classList.remove('show');
+      d.scanPopup.setAttribute('aria-hidden', 'true');
+    }
+    ns.setVerifying(false);
+  };
+
 })(window.OZScan);
-
 </script>
-
 
 
 <!-- 2) scan-camera.js  (zoom helpers + camera start/stop) -->
@@ -677,155 +763,154 @@ window.OZScan = window.OZScan || {};
 
 <script>
   // ozscan/scan-modal.js
-window.OZScan = window.OZScan || {};
+  window.OZScan = window.OZScan || {};
 
-(function (ns) {
-  const cfg = ns.cfg;
-  const st  = ns.state;
+  (function (ns) {
+    const cfg = ns.cfg;
+    const st  = ns.state;
 
-  function isScanHash() {
-    return location.hash === cfg.SCAN_HASH;
-  }
-
-  ns.openModal = function (opts = {}) {
-    const { fromHash = false } = opts || {};
-    const d = ns.dom;
-
-    // ❌ NO global “already claimed today” block here anymore
-    // Back-end + per-branch check will handle limits.
-
-    d.modal.classList.add('show');
-    document.body.style.overflow = 'hidden';
-    ns.startScanner();
-
-    if (!fromHash && !st.scanPushed) {
-      history.pushState({ ozScan: true }, '', cfg.SCAN_HASH);
-      st.scanPushed = true;
-    }
-  };
-
-
-  ns.closeModal = function (arg) {
-    let force = false;
-    let fromPop = false;
-
-    if (typeof arg === 'boolean') {
-      force = arg;
-    } else if (typeof arg === 'object' && arg) {
-      force = !!arg.force;
-      fromPop = !!arg.fromPop;
+    function isScanHash() {
+      return location.hash === cfg.SCAN_HASH;
     }
 
-    const d = ns.dom;
+    ns.openModal = function (opts = {}) {
+      const { fromHash = false } = opts || {};
+      const d = ns.dom;
 
-    try {
-      ns.stopScanner();
-    } catch {}
+      d.modal.classList.add('show');
+      document.body.style.overflow = 'hidden';
 
-    if (force) {
-      try {
-        const r = document.getElementById('qr-reader');
-        r && (r.innerHTML = '');
-      } catch {}
-    }
+      ns.startScanner();   // 🔥 scanner STARTS here
 
-    d.modal.classList.remove('show');
-    document.body.style.overflow = '';
-    ns.hideStatus();
-    ns.setVerifying(false);
-
-    if (st.scanPushed && !fromPop) {
-      st.scanPushed = false;
-      if (isScanHash()) history.back();
-    }
-  };
-
-  function initModalTriggers() {
-    ns.initDom();
-    const d = ns.dom;
-
-    d.closeBtn?.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      ns.closeModal(true);
-    });
-
-    d.modal?.addEventListener('click', (e) => {
-      if (e.target === d.modal) ns.closeModal();
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && d.modal?.classList.contains('show')) {
-        ns.closeModal();
+      if (!fromHash && !st.scanPushed) {
+        history.pushState({ ozScan: true }, '', cfg.SCAN_HASH);
+        st.scanPushed = true;
       }
-    });
+    };
 
-    d.tile?.addEventListener('click', () => ns.openModal());
-    d.tile?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        ns.openModal();
+    ns.closeModal = function (arg) {
+      let force = false;
+      let fromPop = false;
+
+      if (typeof arg === 'boolean') {
+        force = arg;
+      } else if (typeof arg === 'object' && arg) {
+        force = !!arg.force;
+        fromPop = !!arg.fromPop;
       }
-    });
 
-    window.addEventListener('popstate', () => {
-      if (d.modal.classList.contains('show')) {
-        ns.closeModal({ fromPop: true });
+      const d = ns.dom;
+
+      try { ns.stopScanner(); } catch {}
+
+      if (force) {
+        try {
+          const r = document.getElementById('qr-reader');
+          r && (r.innerHTML = '');
+        } catch {}
+      }
+
+      d.modal.classList.remove('show');
+      document.body.style.overflow = '';
+      ns.hideStatus();
+      ns.setVerifying(false);
+      ns.closePopup?.();   // 🔥 popup cleanup
+
+      if (st.scanPushed && !fromPop) {
         st.scanPushed = false;
-      } else if (isScanHash()) {
+        if (isScanHash()) history.back();
+      }
+    };
+
+    function initModalTriggers() {
+      ns.initDom();
+      const d = ns.dom;   // ✅ FIX: declare FIRST
+
+      // 🔥 popup OK button
+      d.scanPopOkBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        ns.closePopup();        // unlock scanner
+      });
+
+      d.closeBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        ns.closeModal(true);
+      });
+
+      d.modal?.addEventListener('click', (e) => {
+        if (e.target === d.modal) ns.closeModal();
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && d.modal?.classList.contains('show')) {
+          ns.closeModal();
+        }
+      });
+
+      d.tile?.addEventListener('click', () => ns.openModal());
+      d.tile?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          ns.openModal();
+        }
+      });
+
+      window.addEventListener('popstate', () => {
+        if (d.modal.classList.contains('show')) {
+          ns.closeModal({ fromPop: true });
+          st.scanPushed = false;
+        } else if (isScanHash()) {
+          ns.openModal({ fromHash: true });
+          st.scanPushed = true;
+        } else {
+          st.scanPushed = false;
+        }
+      });
+
+      if (isScanHash()) {
         ns.openModal({ fromHash: true });
         st.scanPushed = true;
-      } else {
-        st.scanPushed = false;
       }
-    });
-
-    if (isScanHash()) {
-      ns.openModal({ fromHash: true });
-      st.scanPushed = true;
     }
-  }
 
-  document.addEventListener('DOMContentLoaded', initModalTriggers);
-})(window.OZScan);
-
+    document.addEventListener('DOMContentLoaded', initModalTriggers);
+  })(window.OZScan);
 </script>
 
 
-<!-- 4) scan-qr.js  (token helpers + QR → /qrg/scan-verify/) -->
 
+<!-- 4) scan-qr.js  (token helpers + QR → /qrg/scan-verify/) -->
 <script>
-  // ozscan/scan-qr.js
 window.OZScan = window.OZScan || {};
 
 (function (ns) {
   const st = ns.state;
 
-
-
-
   async function seedToPayloadUrlIfNeeded(v) {
-    v = String(v || '').trim();
+    v = String(v || "").trim();
 
     if (/\/qrg\/(?:redeem|t)\//.test(v)) return v;
 
-    if (/^[A-Za-z0-9._\-=:]+$/.test(v) && (v.includes('.') || v.includes(':'))) {
-      return location.origin + '/qrg/redeem/' + v;
+    // raw token => convert to redeem URL
+    if (/^[A-Za-z0-9._\-=:]+$/.test(v) && (v.includes(".") || v.includes(":"))) {
+      return location.origin + "/qrg/redeem/" + v;
     }
 
-    if (v.startsWith('offerzone://')) {
-      const qp = v.split('://')[1];
+    // optional deep link
+    if (v.startsWith("offerzone://")) {
+      const qp = v.split("://")[1];
       const usp = new URLSearchParams(qp);
-      const branch = usp.get('branch') || '';
-      const desk = usp.get('desk') || '';
-      const url = new URL('/qrg/start', location.origin);
-      if (branch) url.searchParams.set('branch', branch);
-      if (desk)   url.searchParams.set('desk', desk);
+      const branch = usp.get("branch") || "";
+      const desk = usp.get("desk") || "";
+      const url = new URL("/qrg/start", location.origin);
+      if (branch) url.searchParams.set("branch", branch);
+      if (desk) url.searchParams.set("desk", desk);
 
-      const res = await fetch(url, { headers: { Accept: 'application/json' } });
-      const data = await res.json();
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok || data.ok === false || !data.payload) {
-        throw new Error(data.error || 'Could not mint QR');
+        throw new Error(data.error || "Could not mint QR");
       }
       return data.payload;
     }
@@ -834,7 +919,7 @@ window.OZScan = window.OZScan || {};
   }
 
   function extractTokenFromUrl(u) {
-    const m = String(u || '').match(/\/qrg\/(?:redeem|t)\/([^?#\s]+)/i);
+    const m = String(u || "").match(/\/qrg\/(?:redeem|t)\/([^?#\s]+)/i);
     return m ? decodeURIComponent(m[1]) : null;
   }
 
@@ -854,46 +939,37 @@ window.OZScan = window.OZScan || {};
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok || data.ok === false) {
-        if (data.error === "Already used") {
-          ns.showStatus(
-            false,
-            "This QR has already been used. Ask staff for a new code."
-          );
+        const err = data.error || "QR verification failed.";
+        const low = String(err).toLowerCase();
+
+        if (low.includes("expired")) {
+          ns.openPopup("QR Expired", "Ee QR expire ayyindi mava. Staff daggara new QR tiskondi.");
+        } else if (low.includes("already used")) {
+          ns.openPopup("QR Already Used", "Ee QR already use ayyindi mava. Staff daggara new QR tiskondi.");
         } else {
-          ns.showStatus(false, data.error || "QR verification failed.");
+          ns.openPopup("Scan Failed", err);
         }
-        ns.setVerifying(false);
         return;
       }
 
-      // 🔥 ONE-PER-DAY (QR) CASE – already claimed today
-      if (data.already_claimed_today) {
-        // cute inline status + smooth redirect to status page
-        ns.showStatus(true, "Ivvala visit already count ayyindi mava 😄 Status page open avutundi…");
-        ns.setVerifying(false);
+      // ✅ NEW FLOW: backend decides next (status page OR visit pin modal page)
+      const next = data.next || "/";
 
-        setTimeout(() => {
-          window.location.replace("/user-visit-count/");
-        }, 900); // 0.9s delay just to let the user read
-        return;
-      }
+      ns.setVerifying(true);
+      ns.stopScanner?.();
 
+      setTimeout(() => {
+        window.location.replace(next);
+      }, 120);
 
-
-      const next =
-        data.next || `/visit-count/intake/?token=${encodeURIComponent(token)}`;
-
-      window.location.replace(next);
     } catch (err) {
       console.error("QR verify error", err);
-      ns.showStatus(false, "Network error. Please try again.");
+      ns.openPopup("Network error", "Try again mava.");
       ns.setVerifying(false);
     }
   }
 
-
-  
-  // public: scanner will call this
+  // public: scanner calls this
   ns.handlePayload = async function (v) {
     if (st.isVerifying) return;
 
@@ -904,47 +980,44 @@ window.OZScan = window.OZScan || {};
 
       ns.setVerifying(true);
       await onScanSuccess(token);
+
     } catch (err) {
       console.error("Scan handle error", err);
       ns.setVerifying(false);
-      alert(err.message || "Scan failed. Please try again.");
-      ns.openModal();
+      ns.openPopup("Scan failed", err.message || "Try again mava.");
     }
   };
 
 })(window.OZScan);
-
 </script>
 
 
-
 <!-- 5) scan-pin.js (PIN verify separate) -->
-
 <script>
-  // ozscan/scan-pin.js
 window.OZScan = window.OZScan || {};
 
 (function (ns) {
   function initPinVerify() {
     const d = ns.dom;
 
-    d.pinBtn?.addEventListener('click', async () => {
-      let pin = (d.pinInput?.value || '').trim();
-      pin = pin.replace(/\D/g, '').slice(0, 4);
+    d.pinBtn?.addEventListener("click", async () => {
+      let pin = (d.pinInput?.value || "").trim();
+      pin = pin.replace(/\D/g, "").slice(0, 4);
 
       if (!/^\d{4}$/.test(pin)) {
-        ns.showStatus(false, 'Enter a valid 4-digit PIN.');
+        ns.showStatus(false, "Enter a valid 4-digit PIN.");
         return;
       }
 
-      ns.showStatus(true, 'Verifying PIN…');
+      ns.setVerifying(true);
+      ns.showStatus(true, "Verifying PIN…");
 
       try {
-        const res = await fetch('/qrg/pin-verify/', {
-          method: 'POST',
+        const res = await fetch("/qrg/pin-verify/", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': ns.getCookie('csrftoken') || '',
+            "Content-Type": "application/json",
+            "X-CSRFToken": ns.getCookie("csrftoken") || "",
           },
           body: JSON.stringify({ pin }),
         });
@@ -952,42 +1025,39 @@ window.OZScan = window.OZScan || {};
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok || data.ok === false) {
-          ns.showStatus(false, data.error || 'PIN verification failed.');
+          ns.showStatus(false, data.error || "PIN verification failed.");
+          ns.setVerifying(false);
           return;
         }
 
-        // 🔥 ONE-PER-DAY (PIN) CASE
-        if (data.already_claimed_today) {
-          ns.showStatus(true, "Ivvala visit already count ayyindi mava 😄 Status page open avutundi…");
+        // ✅ NEW FLOW: backend decides next (status page OR visit pin modal page)
+        const next = data.next || "/";
 
-          setTimeout(() => {
-            window.location.replace("/user-visit-count/");
-          }, 900);
-          return;
-        }
+        ns.setVerifying(true);
+        ns.stopScanner?.();
 
-
-        const next = data.next || '/visit-count/intake/';
-        window.location.replace(next);
-
+        setTimeout(() => {
+          window.location.replace(next);
+        }, 80);
 
       } catch (err) {
-        console.error('PIN verify error', err);
-        ns.showStatus(false, 'Network error. Please try again.');
+        console.error("PIN verify error", err);
+        ns.showStatus(false, "Network error. Please try again.");
+        ns.setVerifying(false);
       }
     });
 
-    d.pinInput?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
+    d.pinInput?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
         e.preventDefault();
         d.pinBtn?.click();
       }
     });
   }
 
-  document.addEventListener('DOMContentLoaded', initPinVerify);
+  document.addEventListener("DOMContentLoaded", initPinVerify);
 })(window.OZScan);
-
 </script>
+
 
 

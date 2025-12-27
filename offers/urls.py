@@ -43,12 +43,23 @@ urlpatterns = [
     path("branch/logout/", bviews.branch_logout_view, name="branch_logout"),
     path("branch/staff/create/",bviews.branch_staff_create_view,name="branch_staff_create"),
 
+
     # offers/urls.py
     path("qrg/pin-verify/", uviews.pin_verify, name="pin_verify"),
     path("qrg/scan-verify/", uviews.scan_verify, name="scan_verify"),
-    path("visit-count/intake/",uviews.user_visit_intake_view,name="user_visit_intake"),
-    path("user-visit-count/",uviews.user_visit_count_view,name="user_visit_count"),
+
+    path(
+        "visit-count/intake/",uviews.user_visit_intake_redirect_view,name="user_visit_intake"),
+        path("qrg/confirm-branch-visit/", uviews.confirm_branch_visit, name="confirm_branch_visit"),
+
+
+    path("visit/pin/", uviews.user_visit_pin_page_view, name="user_visit_pin_page"),
     path("user-status/", uviews.user_status_view, name="user_status"),
+    path(
+        "visit-pin/verify/",
+        uviews.user_verify_visit_pin,
+        name="user_verify_visit_pin"
+    ),
 
 
     path("branch_offers_in_userinterface/<int:branch_id>/",uviews.branch_offers_in_userinterface,name="branch_offers_in_userinterface"),

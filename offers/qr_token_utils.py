@@ -9,7 +9,6 @@ import time
 from django.conf import settings
 from django.utils import timezone
 
-from .models import QRTokenUsage   # 👈 new import
 
 
 # ------------------------------
@@ -66,17 +65,11 @@ def mint_qr_token(branch_id: int, desk: str, ttl_seconds: int) -> str:
 # ------------------------------
 # PARSE / VERIFY TOKEN (+ already-used logic)
 # ------------------------------
-def parse_qr_token(token: str, *, mark_used: bool = False, allow_used: bool = False) -> dict:
+def parse_qr_token(token: str) -> dict:
+    
     """
-    Verify, decode and return dict: {"bid", "desk", "exp"}
-
-    - Raises ValueError if:
-        * bad format
-        * bad signature
-        * expired
-        * already used (if allow_used=False)
-
-    - If mark_used=True, DB lo QRTokenUsage row ni used=True ga mark chesthundi.
+    Only cryptographic + expiry validation.
+    DB usage handled via QRPin separately.
     """
     # 1) format
     try:
@@ -92,25 +85,12 @@ def parse_qr_token(token: str, *, mark_used: bool = False, allow_used: bool = Fa
     # 3) decode payload
     doc = json.loads(b64url_decode(payload_b64))
 
-    # 4) expiry check
+    # 4) expiry
     if int(doc.get("exp", 0)) < int(time.time()):
         raise ValueError("Expired")
 
-    bid = int(doc.get("bid"))
-    desk = str(doc.get("desk") or "A1")[:12]
-    exp = int(doc["exp"])
-
-    # 5) already-used check in DB
-    usage, created = QRTokenUsage.objects.get_or_create(token=token)
-
-    if usage.used and not allow_used:
-        # QR already taken / used
-        raise ValueError("Already used")
-
-    # 6) mark used if asked
-    if mark_used and not usage.used:
-        usage.used = True
-        usage.used_at = timezone.now()
-        usage.save(update_fields=["used", "used_at"])
-
-    return {"bid": bid, "desk": desk, "exp": exp}
+    return {
+        "bid": int(doc["bid"]),
+        "desk": str(doc.get("desk") or "A1")[:12],
+        "exp": int(doc["exp"]),
+    }

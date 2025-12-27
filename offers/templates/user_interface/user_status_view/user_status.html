@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   <title>Status • OfferZone</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <style>
 :root{
@@ -85,8 +85,8 @@ img, video, svg, canvas { max-width:100%; height:auto; display:block; }
 }
 .oz-page-title{
   font-size:20px;
-  font-weight:900;
-  letter-spacing:.2px;
+  font-weight:600;
+  letter-spacing:0.2px;
   margin:0;
 }
 .oz-chip{
@@ -103,6 +103,14 @@ img, video, svg, canvas { max-width:100%; height:auto; display:block; }
   max-width:100%;
   white-space:nowrap;
 }
+.oz-chip,
+.meta-pill,
+.offer-tag,
+.state{
+  font-weight:500;      /* 🔥 main slim feel */
+  letter-spacing:0.3px;
+}
+
 
 /* GROUP CONTAINERS */
 .oz-group{
@@ -130,8 +138,8 @@ img, video, svg, canvas { max-width:100%; height:auto; display:block; }
 
 .oz-group-title{
   margin:0;
-  font-size:12px;
-  letter-spacing:.22px;
+  font-weight:600;
+  letter-spacing:0.4px;
   color:#dbe6ff;
   font-weight:1000;
   text-transform:uppercase;
@@ -212,61 +220,80 @@ img, video, svg, canvas { max-width:100%; height:auto; display:block; }
 .flow-title{ position:relative; margin:0; font-size:13px; font-weight:900; color:#0b1020; }
 .flow-sub{ position:relative; margin:2px 0 0; font-size:12px; color: rgba(11,16,32,.68); line-height:1.35; }
 
-/* ✅ FLOW: start | center | end + dashed line not overlapping */
+/* ✅ CLEAN FLOW: left at left border, right at right border, middle exact center */
 .flow-diagram{
   --circle: 34px;
-  margin-top:12px;
+  --pad: 6px;            /* circles border ki daggara/dooram */
+  --lineY: 17px;         /* circle center (half of --circle) */
+  --dash: 6px;           /* dash length (bars) */
+  --gapDash: 6px;        /* dash gap */
+
   position:relative;
-
-  display:grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  align-items:start;
-
-  padding: 0 calc(var(--circle) / 2);
-  width:100%;
-  justify-items:center;
+  margin-top:12px;
+  padding: 0 var(--pad);
 }
 
-.flow-diagram::before{
-  content:"";
+/* one single bar line behind circles */
+.flow-track{
   position:absolute;
-  left: calc(var(--circle) / 2);
-  right: calc(var(--circle) / 2);
-  top: calc(var(--circle) / 2);
+
+  /* 🔥 FINAL FIX */
+left:  calc(var(--pad) + var(--circle) + 12px);   /* ✅ QR side extra dash cut */
+right: calc(var(--pad) + var(--circle));          /* ✅ right side same */
+
+
+  top: var(--lineY);
+  height:2px;
+
+  background: repeating-linear-gradient(
+    to right,
+    rgba(11,16,32,.28) 0 var(--dash),
+    transparent var(--dash) calc(var(--dash) + var(--gapDash))
+  );
+
   transform: translateY(-50%);
-  border-top: 2px dashed rgba(11,16,32,.26);
   z-index:0;
 }
 
-.flow-node{
+
+/* 3 nodes exactly left / center / right */
+.flow-nodes{
+  display:grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items:start;
+  justify-items:center;
   position:relative;
   z-index:1;
+}
+
+.flow-node{
   display:flex;
   flex-direction:column;
   align-items:center;
   gap:8px;
-  min-width:0;
 }
 
-.flow-node:first-child{ justify-self:start; }
-.flow-node:last-child{  justify-self:end;  }
+.flow-node.left{ justify-self:start; }
+.flow-node.mid{ justify-self:center; }
+.flow-node.right{ justify-self:end; }
 
 .flow-circle{
   width:var(--circle);
   height:var(--circle);
   border-radius:999px;
-
   background: rgba(245,248,255,.96);
   border: 2px solid rgba(11,16,32,.18);
   box-shadow: 0 1px 0 rgba(255,255,255,.65) inset;
 }
 
+/* labels equal look */
 .flow-label{
   font-size:12px;
   font-weight:900;
   color: rgba(11,16,32,.74);
   text-align:center;
   line-height:1.15;
+  width:110px;
   white-space:nowrap;
 }
 
@@ -396,7 +423,6 @@ img, video, svg, canvas { max-width:100%; height:auto; display:block; }
 
 /* Responsive */
 @media (max-width:720px){
-  /* ✅ keep edge-to-edge on mobile too */
   .oz-status-card{
     width: 100%;
     max-width: none;
@@ -407,10 +433,25 @@ img, video, svg, canvas { max-width:100%; height:auto; display:block; }
   .rest-name{ font-size:19px; }
   .meta-pill{ font-size:11.5px; padding:6px 9px; }
 }
+
 @media (max-width:420px){
-  .flow-row{ padding:14px; border-radius:20px; }
-  .flow-diagram{ --circle: 32px; }
-  .flow-label{ font-size:11.5px; }
+  /* tweak flow for tiny screens (more bars + tighter) */
+  .flow-diagram{
+    --circle: 30px;
+
+    /* 🔥 MAIN CHANGE */
+    --pad: 0px;        /* left & right circle border daggara */
+
+    --lineY: 15px;
+    --dash: 4px;
+    --gapDash: 4px;
+  }
+    .flow-row{ padding-left:16px; padding-right:16px; }
+
+  .flow-label{
+    width:90px;
+    white-space:normal;
+  }
 }
   </style>
 </head>
@@ -418,6 +459,29 @@ img, video, svg, canvas { max-width:100%; height:auto; display:block; }
 <body>
   <div class="oz-status-wrap">
     <div class="oz-status-card">
+
+
+<div class="rest-meta" style="margin-top:12px;">
+  <span class="meta-pill">📅 Today (all branches): {{ today_total_all }}</span>
+  <span class="meta-pill">🏢 Branches visited today: {{ today_unique_branches }}</span>
+</div>
+<div style="margin-top:12px;">
+  {% for b in per_branch_today %}
+    <div class="visit-row">
+      <span class="ico ok">✓</span>
+      <div>
+        <strong>{{ b.branch__name }}</strong>
+        <small>Today visits: {{ b.today_visits }} • Last: {{ b.last_visit|date:"Y-m-d H:i" }}</small>
+      </div>
+      <span class="state ok">Today</span>
+    </div>
+  {% empty %}
+    <p class="oz-box-sub">Today no visits yet.</p>
+  {% endfor %}
+</div>
+
+
+
 
       <!-- Top header -->
       <div class="oz-top">
@@ -460,20 +524,25 @@ img, video, svg, canvas { max-width:100%; height:auto; display:block; }
             <p class="flow-title">QR Scan or Visit PIN</p>
             <p class="flow-sub">User QR scan chesthadu leka 4-digit visit PIN enter chesthadu.</p>
 
+            <!-- ✅ NEW CLEAN FLOW MARKUP -->
             <div class="flow-diagram" aria-label="Visit Check-in Flow">
-              <div class="flow-node">
-                <div class="flow-circle"></div>
-                <div class="flow-label">QR Scan</div>
-              </div>
+              <div class="flow-track" aria-hidden="true"></div>
 
-              <div class="flow-node">
-                <div class="flow-circle"></div>
-                <div class="flow-label">Visit PIN</div>
-              </div>
+              <div class="flow-nodes">
+                <div class="flow-node left">
+                  <div class="flow-circle"></div>
+                  <div class="flow-label">QR Scan</div>
+                </div>
 
-              <div class="flow-node">
-                <div class="flow-circle"></div>
-                <div class="flow-label">Visit Success</div>
+                <div class="flow-node mid">
+                  <div class="flow-circle"></div>
+                  <div class="flow-label">Visit PIN</div>
+                </div>
+
+                <div class="flow-node right">
+                  <div class="flow-circle"></div>
+                  <div class="flow-label">Visit Success</div>
+                </div>
               </div>
             </div>
           </div>

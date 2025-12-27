@@ -20,7 +20,6 @@ from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 
 from .models import ComplementaryOffer, Branch
-from .qr_pin_service import generate_qr_token_and_pin  # (still here if you uncomment API later)
 
 # ---- helpers -------------------------------------------------
 
@@ -198,7 +197,6 @@ def branch_detail_view(request, branch_id):
 
 
 
-
 # ---- save complementary offer (exclude_staff, branches, extra_nths) ---------
 
 
@@ -215,7 +213,6 @@ def complementary_offer_save(request):
         FIXED_FALLBACK_LEN   = 6
 
         # ---------- Nth + numbers ----------
-        # nth optional: empty -> None
         nth_val = parse_positive_int(p.get("nth"), default=None, min_value=1)
 
         dedupe_value       = parse_positive_int(p.get("dedupe_value"),       default=1,  min_value=1)
@@ -223,7 +220,7 @@ def complementary_offer_save(request):
         total_cap          = parse_positive_int(p.get("total_cap"),          default=0,  min_value=0)
         daily_cap          = parse_positive_int(p.get("daily_cap"),          default=0,  min_value=0)
 
-        # ---------- extra milestones (each optional) ----------
+        # ---------- extra milestones ----------
         raw_extra  = p.getlist("extra_nths[]")
         extra_nths = []
         for item in raw_extra:
@@ -233,8 +230,6 @@ def complementary_offer_save(request):
             n = parse_positive_int(item, default=None, min_value=1)
             if n is not None:
                 extra_nths.append(n)
-
-        # uniq + sorted; can be empty list, that’s fine
         extra_nths = sorted(set(extra_nths))
 
         # ---------- create offer ----------
@@ -243,9 +238,10 @@ def complementary_offer_save(request):
             title="Complementary Offer",
             count_start=p.get("count_start", "user_registration"),
             backfill=_b(p.get("backfill")),
-            nth=nth_val,                      # may be None
+            nth=nth_val,
             repeat=_b(p.get("repeat")),
-            visit_unit=p.get("visit_unit", "qr_screenshot"),
+            # 🔥 DEFAULT: QR scan + PIN at outlet (most secure)
+            visit_unit=p.get("visit_unit", "qr_pin"),
             dedupe_value=dedupe_value,
             dedupe_unit=p.get("dedupe_unit", "day"),
             per_user_limit=p.get("per_user_limit", "per_multiple"),
@@ -265,7 +261,7 @@ def complementary_offer_save(request):
         )
 
         if hasattr(ComplementaryOffer, "extra_nths"):
-            offer_kwargs["extra_nths"] = extra_nths   # [] or [..]
+            offer_kwargs["extra_nths"] = extra_nths
 
         offer = ComplementaryOffer(**offer_kwargs)
 

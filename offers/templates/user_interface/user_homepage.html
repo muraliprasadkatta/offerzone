@@ -187,6 +187,23 @@
         {% else %}
           <div class="branch-meta">— location not set</div>
         {% endif %}
+
+
+          <!-- ✅ ADD THIS HERE (location tarvaatha) -->
+  {% if b.offer_start %}
+    <div class="branch-meta">
+      🗓 {{ b.offer_start|date:"d M Y" }}
+      {% if b.offer_end %}
+        – {{ b.offer_end|date:"d M Y" }}
+      {% else %}
+        – onwards
+      {% endif %}
+    </div>
+  {% else %}
+    <div class="branch-meta">🗓 No active offer</div>
+  {% endif %}
+
+  
       </a>
       {% endfor %}
     </div>

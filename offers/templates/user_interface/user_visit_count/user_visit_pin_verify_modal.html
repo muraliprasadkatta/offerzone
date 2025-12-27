@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Verify Visit PIN</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    :root{
+      --bg:#0b1020;
+      --card:#11183a;
+      --border:#273164;
+      --text:#e8ecff;
+      --muted:#b9c4ff;
+      --prim:#4c74ff;
+      --bad:#ff4c6a;
+      --good:#22c55e;
+    }
+
+    html, body{
+      height:100%;
+      margin:0;
+    }
+    body{
+      background: var(--bg);
+    }
+
+    #vcVisitOverlay{
+      position:fixed;
+      inset:0;
+      z-index:50;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      color:var(--text);
+
+      background:
+        radial-gradient(900px 500px at 30% 20%, rgba(76,116,255,.28), transparent 60%),
+        radial-gradient(800px 420px at 80% 70%, rgba(106,161,255,.20), transparent 55%),
+        linear-gradient(180deg, #0b1020 0%, #090d1a 100%);
+    }
+
+    .vcBaseCard{
+      position:relative;
+      width:min(420px,94vw);
+      background:
+        radial-gradient(120% 80% at 50% 0%,
+          rgba(120,150,255,.18),
+          rgba(17,24,58,.92) 60%),
+        linear-gradient(180deg,
+          rgba(25,35,85,.95),
+          rgba(12,18,48,.95));
+      border: 1px solid rgba(170,200,255,.28);
+      border-radius: 22px;
+      box-shadow:
+        0 30px 70px rgba(0,0,0,.55),
+        0 0 0 1px rgba(255,255,255,.06) inset,
+        0 0 90px rgba(76,116,255,.25);
+      padding:56px 18px 18px;
+      text-align:center;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .vcCodeCard{
+      position:absolute;
+      left:50%;
+      top:0;
+      transform:translate(-50%,-50%);
+      min-width:280px;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+      border: 1px solid rgba(190,220,255,.35);
+      border-radius:14px;
+      box-shadow:
+        0 14px 34px rgba(0,0,0,.35),
+        0 0 0 1px rgba(255,255,255,.08) inset,
+        0 0 45px rgba(106,161,255,.35);
+      padding:14px 18px;
+    }
+
+    .vcDigits{
+      font-size:22px;
+      letter-spacing:.06em;
+      text-align:center;
+      color:#ffffff;
+      font-weight:900;
+    }
+
+    .vcHint{
+      margin-top:6px;
+      font-size:11px;
+      color:rgba(185,196,255,.9);
+    }
+
+    .vcBodyText{
+      font-size:13px;
+      color:var(--muted);
+      line-height:1.6;
+      margin-top:6px;
+    }
+
+    .vcPinRow{
+      margin:14px 0 8px;
+      display:flex;
+      justify-content:center;
+      gap:10px;
+    }
+    .vcPinBox{
+      width:44px;
+      height:54px;
+      border-radius:14px;
+      border:1px solid rgba(190,220,255,.25);
+      background:rgba(255,255,255,.06);
+      color:#fff;
+      text-align:center;
+      font-size:22px;
+      font-weight:900;
+      outline:none;
+    }
+    .vcPinBox:focus{
+      border-color: rgba(76,116,255,.95);
+      box-shadow: 0 0 0 3px rgba(76,116,255,.22);
+    }
+
+    .vcStatus{
+      margin-top:10px;
+      font-size:12px;
+      line-height:1.4;
+      min-height:18px;
+    }
+    .vcStatus.ok{ color: var(--good); }
+    .vcStatus.bad{ color: var(--bad); }
+
+    .vcPrimaryBtn{
+      margin-top:14px;
+      width:100%;
+      padding:10px 12px;
+      border-radius:999px;
+      border:1px solid rgba(39,49,100,.95);
+      background:var(--prim);
+      color:#fff;
+      font-size:14px;
+      font-weight:900;
+      cursor:pointer;
+      box-shadow:0 10px 26px rgba(76,116,255,.22);
+    }
+    .vcPrimaryBtn:active{ transform:translateY(1px); }
+
+    .vcGhostBtn{
+      margin-top:10px;
+      width:100%;
+      padding:10px 12px;
+      border-radius:999px;
+      border:1px solid rgba(190,220,255,.22);
+      background:rgba(255,255,255,.06);
+      color:#fff;
+      font-size:13px;
+      font-weight:800;
+      cursor:pointer;
+    }
+
+    /* mobile upgrades */
+    @media (max-width: 420px){
+      .vcBaseCard{
+        width: min(92vw, 420px);
+        padding: 62px 16px 16px;
+      }
+      .vcCodeCard{ min-width: 300px; }
+      .vcPinBox{
+        width: 52px;
+        height: 60px;
+        font-size: 24px;
+        border-radius: 16px;
+      }
+      .vcPinRow{ gap: 12px; }
+      .vcPrimaryBtn, .vcGhostBtn{
+        padding: 12px 14px;
+        font-size: 15px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="vcVisitOverlay" aria-hidden="false">
+  <div class="vcBaseCard">
+
+    <div class="vcCodeCard">
+      <div class="vcDigits">Enter Visit PIN</div>
+      <div class="vcHint">Customer cheppina 4-digit PIN ni enter cheyyi mava</div>
+    </div>
+
+    <div class="vcBodyText">
+      <div class="vcPinRow" aria-label="Enter 4 digit PIN">
+        <input class="vcPinBox" inputmode="numeric" maxlength="1" id="p1" />
+        <input class="vcPinBox" inputmode="numeric" maxlength="1" id="p2" />
+        <input class="vcPinBox" inputmode="numeric" maxlength="1" id="p3" />
+        <input class="vcPinBox" inputmode="numeric" maxlength="1" id="p4" />
+      </div>
+
+      <div id="vcStatus" class="vcStatus"></div>
+
+    <button type="button" id="vcVerifyBtn" class="vcPrimaryBtn" onclick="vcVerifyPin()">
+      Verify PIN
+    </button>
+
+
+      <button type="button" class="vcGhostBtn" onclick="vcClearPin()">
+        Clear
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  function setStatus(msg, type){
+    const el = document.getElementById('vcStatus');
+    el.className = 'vcStatus' + (type ? (' ' + type) : '');
+    el.textContent = msg || '';
+  }
+
+  function getPin(){
+    const ids = ['p1','p2','p3','p4'];
+    return ids.map(id => (document.getElementById(id).value || '').trim()).join('');
+  }
+
+  function vcClearPin(){
+    ['p1','p2','p3','p4'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    setStatus('');
+    document.getElementById('p1')?.focus();
+  }
+
+  function wirePinBoxes(){
+    const boxes = ['p1','p2','p3','p4'].map(id => document.getElementById(id));
+    boxes.forEach((box, i) => {
+      if (!box) return;
+
+      box.addEventListener('input', () => {
+        box.value = (box.value || '').replace(/\D/g,'').slice(0,1);
+        if (box.value && i < boxes.length - 1) boxes[i+1].focus();
+      });
+
+      box.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !box.value && i > 0) boxes[i-1].focus();
+        if (e.key === 'Enter') vcVerifyPin();
+
+      });
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    wirePinBoxes();
+    document.getElementById('p1')?.focus();
+  });
+
+  // UI demo only
+async function vcVerifyPin(){
+  const pin = getPin();
+  if (!/^\d{4}$/.test(pin)){
+    setStatus('4 digits correct ga enter cheyyi mava.', 'bad');
+    return;
+  }
+
+  const btn = document.getElementById('vcVerifyBtn');
+  btn.disabled = true;
+  setStatus('Verifying…', '');
+
+  try{
+    const res = await fetch("{% url 'offers:user_verify_visit_pin' %}", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCookie("csrftoken"),
+        "Accept": "application/json",
+      },
+      body: JSON.stringify({ pin })
+    });
+
+    const data = await res.json().catch(()=> ({}));
+
+    if (!res.ok || !data.ok){
+      setStatus(data.error || "Invalid / Expired PIN.", "bad");
+      btn.disabled = false;
+      return;
+    }
+
+    // 🔥 SUCCESS CASE - MODIFIED
+    setStatus("Visit recorded successfully! Taking you to your status... 🚀", "ok");
+
+    // 1.2 seconds wait chesi redirect cheyyi (smooth animation feel)
+    setTimeout(() => {
+      // Backend nunchi direct correct URL vastundi
+      if (data.redirect_url) {
+        window.location.href = data.redirect_url;
+      }
+    }, 1500);  // 1.5 sec better feel
+
+  }catch(e){
+    console.error(e);
+    setStatus("Network issue mava. Malli try cheyyi.", "bad");
+    btn.disabled = false;
+  }
+  // finally lo button enable cheyyakunda undali, because redirect avtundi
+}
+
+
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return '';
+}
+
+
+</script>
+
+</body>
+</html>

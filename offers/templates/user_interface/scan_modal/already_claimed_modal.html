@@ -2,69 +2,55 @@
 <div id="scanAlreadyModal" class="oz-toast-backdrop" aria-hidden="true">
   <div class="oz-toast" role="dialog" aria-modal="true">
     <div class="oz-toast-header">
-      <div class="oz-toast-icon">
-        <span>✓</span>
-      </div>
+      <div class="oz-toast-icon"><span>✓</span></div>
       <div class="oz-toast-title">Offer already received</div>
     </div>
+
     <p class="oz-toast-body">
       Ur already received this offer today mava. Status page lo chusko 😊
     </p>
+
     <div class="oz-toast-actions">
-      <button type="button" class="oz-toast-btn" id="scanAlreadyOkBtn">
-        OK
-      </button>
+      <button type="button" class="oz-toast-btn" id="scanAlreadyOkBtn">OK</button>
     </div>
   </div>
 </div>
 
-
 <style>
-    /* ===== Already-claimed toast modal ===== */
-.oz-toast-backdrop{
-  position:fixed;
-  inset:0;
-  display:none;
-  align-items:center;
-  justify-content:center;
-  background:rgba(0,0,0,.55);
-  z-index:9999;
-}
-.oz-toast-backdrop.show{ display:flex; }
+  .oz-toast-backdrop{
+    position:fixed; inset:0;
+    display:none; align-items:center; justify-content:center;
+    background:rgba(0,0,0,.55); z-index:9999;
+  }
+  .oz-toast-backdrop.show{ display:flex; }
 
-.oz-toast{
-  width:min(360px,90vw);
-  background:radial-gradient(circle at top,#273bff 0,#11183a 40%,#0b1020 100%);
-  border-radius:18px;
-  border:1px solid rgba(111,140,255,.7);
-  box-shadow:0 18px 50px rgba(0,0,0,.7);
-  padding:16px 18px 14px;
-  color:#e8ecff;
-}
-.oz-toast-header{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  margin-bottom:6px;
-}
-.oz-toast-icon{
-  width:28px; height:28px; border-radius:999px;
-  background:rgba(29,78,216,.95);
-  display:flex; align-items:center; justify-content:center;
-  font-size:16px;
-  box-shadow:0 0 0 1px rgba(191,219,254,.6);
-}
-.oz-toast-title{ font-weight:700; letter-spacing:.2px; font-size:14px; }
-.oz-toast-body{ margin:4px 0 12px; font-size:13px; color:#c7d4ff; }
-.oz-toast-actions{ display:flex; justify-content:flex-end; }
-.oz-toast-btn{
-  min-width:80px; padding:8px 14px;
-  border-radius:999px; border:0;
-  background:#4c74ff; color:#fff; font-weight:600; font-size:13px;
-  cursor:pointer;
-}
-.oz-toast-btn:active{ transform:scale(.97); }
-
+  .oz-toast{
+    width:min(360px,90vw);
+    background:radial-gradient(circle at top,#273bff 0,#11183a 40%,#0b1020 100%);
+    border-radius:18px;
+    border:1px solid rgba(111,140,255,.7);
+    box-shadow:0 18px 50px rgba(0,0,0,.7);
+    padding:16px 18px 14px;
+    color:#e8ecff;
+  }
+  .oz-toast-header{ display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+  .oz-toast-icon{
+    width:28px; height:28px; border-radius:999px;
+    background:rgba(29,78,216,.95);
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px;
+    box-shadow:0 0 0 1px rgba(191,219,254,.6);
+  }
+  .oz-toast-title{ font-weight:700; letter-spacing:.2px; font-size:14px; }
+  .oz-toast-body{ margin:4px 0 12px; font-size:13px; color:#c7d4ff; }
+  .oz-toast-actions{ display:flex; justify-content:flex-end; }
+  .oz-toast-btn{
+    min-width:80px; padding:8px 14px;
+    border-radius:999px; border:0;
+    background:#4c74ff; color:#fff; font-weight:600; font-size:13px;
+    cursor:pointer;
+  }
+  .oz-toast-btn:active{ transform:scale(.97); }
 </style>
 
 <script>
@@ -74,22 +60,45 @@
 
     window.OZScan = window.OZScan || {};
 
+    // show modal + (optional) stop camera outside too if you want
     window.OZScan.showAlreadyClaimed = function () {
       wrap?.classList.add("show");
       wrap?.setAttribute("aria-hidden", "false");
     };
 
-    function close() {
+    function closeAndResume() {
+      // 1) close modal
       wrap?.classList.remove("show");
       wrap?.setAttribute("aria-hidden", "true");
+
+      // 2) IMPORTANT: reset lock + remove "Verifying" status
+      window.OZScan?.setVerifying?.(false);
+      window.OZScan?.hideStatus?.();
+
+      // 3) OPTIONAL: clear pin input (nice UX)
+      try {
+        const pin = document.getElementById("qrPinInput");
+        if (pin) pin.value = "";
+      } catch {}
+
+      // 4) restart scanner ONLY if scan modal is open
+      const scanModal = document.getElementById("scanModal");
+      if (scanModal && scanModal.classList.contains("show")) {
+        // camera ni malli start cheyyi
+        window.OZScan?.startScanner?.();
+      }
     }
 
-    btn?.addEventListener("click", close);
+    btn?.addEventListener("click", closeAndResume);
+
     wrap?.addEventListener("click", (e) => {
-      if (e.target === wrap) close();
+      if (e.target === wrap) closeAndResume();
     });
+
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") close();
+      if (e.key === "Escape" && wrap?.classList.contains("show")) {
+        closeAndResume();
+      }
     });
   })();
 </script>
