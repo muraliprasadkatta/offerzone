@@ -23,14 +23,15 @@
   <div class="topbar">
     <a href="{% url 'offers:admin_home' %}" class="back">← Back</a>
 
-    <a href="#"
-       class="btn"
-       data-open="#freeplateModal"
-       data-noreset="1"
-       data-branch-id="{{ branch.id }}"
-       data-branch-name="{{ branch.name|escapejs }}">
-      Create Offer
-    </a>
+<a href="#"
+   class="btn"
+   data-open="#freeplateModal"
+   data-noreset="1"
+   data-branch-id="{{ branch.id }}"
+   data-branch-name="{{ branch.name|escapejs }}">
+  Edit Offer
+</a>
+
   </div>
 
   <div class="box">

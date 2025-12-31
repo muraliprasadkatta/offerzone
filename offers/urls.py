@@ -33,7 +33,7 @@ urlpatterns = [
     # path("admin/api/qr/generate/",aviews.api_generate_counter_qr,name="api_generate_counter_qr",),
     path("admin/branch/<int:branch_id>/",aviews.branch_detail_view, name="branch_detail"),
     path("admin/branch/<int:branch_id>/offer-json/", aviews.offer_json_for_branch, name="offer_json_for_branch"),
-
+    path("admin/branch/<int:branch_id>/visit-started-json/", aviews.branch_visit_started_json, name="branch_visit_started_json"),
 
 
     path("qrg/", include(("offers.qr_generation.urls", "qrgen"), namespace="qrgen")),

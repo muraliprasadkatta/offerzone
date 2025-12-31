@@ -168,13 +168,32 @@ def admin_home(request):
         .count()
     )
 
+    # ✅ 7) Offer active status for each branch (date-based only)
+    now = timezone.now()
+
+    for b in branches:
+        offer = (
+            ComplementaryOffer.objects
+            .filter(kind="complementary_offer")
+            .filter(Q(all_branches=True) | Q(eligible_branches=b))
+            .order_by("-id")
+            .first()
+        )
+
+        # default: not active
+        b.offer_is_active = False
+
+        if offer and offer.start_at:
+            # Active if started and not ended
+            if offer.start_at <= now and (offer.end_at is None or offer.end_at >= now):
+                b.offer_is_active = True
+
     ctx = {
         "branches": branches,
         "total_branches": total_branches,
         "branches_active_today": branches_active_today,
     }
     return render(request, "homepage/home.html", ctx)
-
 
 @login_required(login_url="offers:admin_login")
 @user_passes_test(_is_superuser, login_url="offers:admin_login")
@@ -211,12 +230,21 @@ def complementary_offer_save(request):
     if request.method != "POST":
         return HttpResponseBadRequest("POST required")
 
+    from django.db.models import Q
+    from django.utils import timezone
+    from .models import UserVisitEvent  # ✅ history source
+
     p = request.POST
 
     try:
         FIXED_ISSUANCE_MODE   = "auto"
         FIXED_REDEEM_METHODS  = "qr"
         FIXED_FALLBACK_LEN    = 6
+
+        now = timezone.now()  # ✅ added
+
+        # ✅ edit mode id (frontend hidden input should set this)
+        offer_id = parse_positive_int(p.get("offer_id") or p.get("id"), default=None, min_value=1)
 
         # ---------- Nth + numbers ----------
         nth_val = parse_positive_int(p.get("nth"), default=None, min_value=1)
@@ -238,7 +266,29 @@ def complementary_offer_save(request):
                 extra_nths.append(n)
         extra_nths = sorted(set(extra_nths))
 
-        # ---------- create offer ----------
+        # --- branches (need early for history check) ---
+        all_branches_val = (p.get("all_branches") or "").lower()
+        all_branches = all_branches_val in ("on", "true", "1")
+
+        # parse branch_ids JSON
+        try:
+            raw_ids    = p.get("branch_ids") or "[]"
+            parsed     = json.loads(raw_ids)
+            branch_ids = [int(x) for x in parsed]
+            branch_ids = list(dict.fromkeys(branch_ids))[:200]
+        except Exception:
+            branch_ids = []
+
+        # ✅ fallback source branch id (branch detail edit case)
+        source_branch_id = parse_positive_int(
+            p.get("source_branch_id"),
+            default=None,
+            min_value=1
+        )
+        if (not all_branches) and (not branch_ids) and source_branch_id:
+            branch_ids = [source_branch_id]
+
+        # ---------- offer kwargs (common for create/update) ----------
         offer_kwargs = dict(
             kind="complementary_offer",
             title="Complementary Offer",
@@ -263,63 +313,103 @@ def complementary_offer_save(request):
             fallback_code_length=FIXED_FALLBACK_LEN,
             segment=p.get("segment", "all"),
             exclude_admin=_b(p.get("exclude_admin")),
+            all_branches=all_branches,
         )
 
         if hasattr(ComplementaryOffer, "extra_nths"):
             offer_kwargs["extra_nths"] = extra_nths
 
-        offer = ComplementaryOffer(**offer_kwargs)
+        # ✅ custom segment fields
+        allow_key  = (p.get("allow_key") or "phone").strip()
+        allow_list = (p.get("allow_users") or "").strip()
 
-        if offer.segment == "custom":
-            offer.allow_key  = (p.get("allow_key") or "phone").strip()
-            offer.allow_list = (p.get("allow_users") or "").strip()
+        # --- time fields parse helper (applies to both create/update) ---
+        def _apply_time_fields(obj):
+            if isinstance(obj.active_from, str) and obj.active_from:
+                obj.active_from = datetime.strptime(obj.active_from, "%H:%M").time()
+            if isinstance(obj.active_to, str) and obj.active_to:
+                obj.active_to = datetime.strptime(obj.active_to, "%H:%M").time()
 
-        # --- time fields ---
-        if isinstance(offer.active_from, str) and offer.active_from:
-            offer.active_from = datetime.strptime(offer.active_from, "%H:%M").time()
-        if isinstance(offer.active_to, str) and offer.active_to:
-            offer.active_to = datetime.strptime(offer.active_to, "%H:%M").time()
-
-        # --- branches ---
-        all_branches_val = (p.get("all_branches") or "").lower()
-        offer.all_branches = all_branches_val in ("on", "true", "1")
-
-        # parse branch_ids JSON
-        try:
-            raw_ids    = p.get("branch_ids") or "[]"
-            parsed     = json.loads(raw_ids)
-            branch_ids = [int(x) for x in parsed]
-            branch_ids = list(dict.fromkeys(branch_ids))[:200]
-        except Exception:
-            raw_ids = p.get("branch_ids")
-            branch_ids = []
-
-        # ✅ fallback source branch id (branch detail edit case)
-        source_branch_id = parse_positive_int(
-            p.get("source_branch_id"),
-            default=None,
-            min_value=1
-        )
-        if (not offer.all_branches) and (not branch_ids) and source_branch_id:
-            branch_ids = [source_branch_id]
-
-        # ✅ PRINT DEBUG (see terminal)
+        # ✅ PRINT DEBUG
         print("\n========== complementary_offer_save DEBUG ==========")
-        print("path:", request.path)
-        print("user:", getattr(request.user, "username", None), "superuser:", getattr(request.user, "is_superuser", None))
-        print("all_branches:", offer.all_branches, "| raw:", p.get("all_branches"))
+        print("offer_id:", offer_id)
+        print("all_branches:", all_branches, "| raw:", p.get("all_branches"))
         print("source_branch_id:", p.get("source_branch_id"), "=> parsed:", source_branch_id)
-        print("branch_ids raw:", p.get("branch_ids"))
-        print("branch_ids parsed/final:", branch_ids)
-        print("count_start:", p.get("count_start"), "| visit_unit:", p.get("visit_unit"))
+        print("branch_ids final:", branch_ids)
         print("start_at:", p.get("start_at"), "| end_at:", p.get("end_at"))
-        print("nth:", p.get("nth"), "=>", nth_val, "| repeat:", p.get("repeat"))
         print("===================================================\n")
 
         with transaction.atomic():
+            cloned = False
+            replaced_offer_id = None
+
+            # ✅ HISTORY CHECK ONLY WHEN EDITING
+            has_history = False
+            is_expired = False
+            lock_edit = False
+
+            if offer_id:
+                # history means: any visit event exists for these branches (current selection)
+                # (as-is from your code; later we can improve to use OLD offer scope)
+                if all_branches:
+                    has_history = UserVisitEvent.objects.exists()
+                else:
+                    if branch_ids:
+                        has_history = UserVisitEvent.objects.filter(branch_id__in=branch_ids).exists()
+                    else:
+                        has_history = False
+
+                # fetch old offer row (lock it)
+                old = ComplementaryOffer.objects.select_for_update().filter(id=offer_id).first()
+                if not old:
+                    # if invalid id, treat as new
+                    offer_id = None
+                else:
+                    replaced_offer_id = old.id
+
+                    # ✅ NEW: expired check (if expired => history ignored)
+                    is_expired = bool(old.end_at and old.end_at < now)
+
+                    # ✅ NEW: lock only when NOT expired + has_history
+                    lock_edit = bool(has_history and (not is_expired))
+
+            # ✅ DECIDE: update vs create-new
+            if offer_id and (not lock_edit):
+                # ---- UPDATE SAME ROW ----
+                offer = ComplementaryOffer.objects.select_for_update().get(id=offer_id)
+                for k, v in offer_kwargs.items():
+                    setattr(offer, k, v)
+
+                if offer.segment == "custom":
+                    offer.allow_key = allow_key
+                    offer.allow_list = allow_list
+                else:
+                    offer.allow_key = ""
+                    offer.allow_list = ""
+
+                _apply_time_fields(offer)
+
+            else:
+                # ---- CREATE NEW ROW (new OR locked edit) ----
+                offer = ComplementaryOffer(**offer_kwargs)
+
+                if offer.segment == "custom":
+                    offer.allow_key = allow_key
+                    offer.allow_list = allow_list
+                else:
+                    offer.allow_key = ""
+                    offer.allow_list = ""
+
+                _apply_time_fields(offer)
+
+                if offer_id and lock_edit:
+                    cloned = True
+
+            # ✅ validate + save
             offer.full_clean()
             offer.save()
 
+            # ✅ branches m2m set
             if offer.all_branches:
                 offer.eligible_branches.clear()
             else:
@@ -329,22 +419,67 @@ def complementary_offer_save(request):
                 else:
                     offer.eligible_branches.clear()
 
-        return JsonResponse({"ok": True, "id": offer.id, "message": "Offer saved"})
+        return JsonResponse({
+            "ok": True,
+            "id": offer.id,
+            "message": "Offer saved",
+            "cloned": bool(cloned),
+            "replaced_offer_id": replaced_offer_id,
+
+            # optional debug flags
+            "has_history": bool(has_history),
+            "is_expired": bool(is_expired),
+            "locked": bool(lock_edit),
+        })
 
     except Exception as e:
         print("\n❌ complementary_offer_save ERROR:", repr(e))
         return JsonResponse({"ok": False, "error": str(e)}, status=400)
 
-# ---- branches APIs (superuser only) --------------------------
-
-
 _name_re = re.compile(r"^[a-z0-9]+$")
 
 
 
+from django.db.models import Q
+from django.utils import timezone
+from django.contrib.admin.views.decorators import staff_member_required
+from django.views.decorators.http import require_GET
+from django.http import JsonResponse
 
+from .models import Branch, ComplementaryOffer, UserVisitEvent
 
+@require_GET
+@staff_member_required
+def branch_visit_started_json(request, branch_id: int):
+    try:
+        branch = Branch.objects.get(id=branch_id)
+    except Branch.DoesNotExist:
+        return JsonResponse({"ok": False, "error": "Branch not found"}, status=404)
 
+    # latest offer for this branch
+    offer = (ComplementaryOffer.objects
+        .filter(kind="complementary_offer")
+        .filter(Q(all_branches=True) | Q(eligible_branches=branch))
+        .order_by("-id")
+        .first()
+    )
+
+    if not offer or not offer.start_at:
+        return JsonResponse({"ok": True, "branch_id": branch_id, "started": False})
+
+    # ✅ REAL VISIT CHECK (user visited after offer start)
+    started = UserVisitEvent.objects.filter(
+        branch=branch,
+        created_at__gte=offer.start_at
+    ).exists()
+
+    return JsonResponse({
+        "ok": True,
+        "branch_id": branch_id,
+        "offer_id": offer.id,
+        "offer_start_at": offer.start_at.isoformat(),
+        "started": started
+    })
 
 
 

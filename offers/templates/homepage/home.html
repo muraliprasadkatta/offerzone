@@ -4,11 +4,12 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Home • OfferZone</title>
+
   <style>
     body{
       margin:0;
       font-family:system-ui,Arial,sans-serif;
-      background:#0b1020;
+      background:#0b1020;              /* ✅ keep dark */
       color:#e8ecff;
     }
     header{
@@ -83,23 +84,37 @@
       gap:12px;
     }
 
+    /* ✅ Branch pills BASE = WHITE (highlight) */
     .branch-pill{
-      background:#0b1028;
-      border:1px solid #2a376b;
-      border-radius:10px;
+      background:#ffffff;            /* ✅ white */
+      border:2px solid #e5e7eb;
+      border-radius:12px;
       padding:24px 10px;
       text-align:center;
       font-size:15px;
-      font-weight:600;
+      font-weight:700;
       cursor:pointer;
       text-decoration:none;
-      color:#e8ecff;
-      transition:background .2s,border-color .2s,transform .1s;
+      color:#0b1020;                 /* dark text */
+      transition:transform .1s,border-color .2s,box-shadow .2s;
     }
     .branch-pill:hover{
-      background:#182046;
-      border-color:#4c74ff;
       transform:translateY(-1px);
+      box-shadow:0 10px 20px rgba(0,0,0,.18);
+    }
+
+    /* ✅ ACTIVE offer → GREEN */
+    .branch-pill--active{
+      border-color:#16a34a;
+      background:#ecfdf5;  /* light green tint */
+      color:#065f46;
+    }
+
+    /* ✅ NOT ACTIVE (expired / none) → RED */
+    .branch-pill--inactive{
+      border-color:#ef4444;
+      background:#fef2f2;  /* light red tint */
+      color:#7f1d1d;
     }
 
     /* Complaints box full width in second row */
@@ -107,28 +122,18 @@
       grid-column:1 / span 3;
     }
 
-@media (max-width:768px){
-  .grid{
-    grid-template-columns:1fr;      /* oka column only */
-  }
-  .tile--full{
-    grid-column:auto;
-  }
-  /* mobile lo branches 2 columns */
-  .branch-grid{
-    grid-template-columns:repeat(2, minmax(0, 1fr));
-  }
-}
+    @media (max-width:768px){
+      .grid{ grid-template-columns:1fr; }
+      .tile--full{ grid-column:auto; }
+      .branch-grid{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
+    }
 
-@media (max-width:480px){
-  /* chala chinna screen – 1 column branches */
-  .branch-grid{
-    grid-template-columns:1fr;
-  }
-}
-
+    @media (max-width:480px){
+      .branch-grid{ grid-template-columns:1fr; }
+    }
   </style>
 </head>
+
 <body>
   <header>
     <strong>OfferZone</strong>
@@ -137,16 +142,16 @@
       <span>Hi, {{ request.user.get_short_name|default:request.user.username }}</span>
       &nbsp;•&nbsp; <a href="{% url 'offers:admin_logout' %}">Logout</a>
       &nbsp;&nbsp;
-<a class="btn btn--mini btn--icon btn--ghost"
-   href="#"
-   data-open="#qrcodeModal"
-   data-qr="upi://pay?pa=8464020826@ptsbi&amp;pn=OfferZone&amp;cu=INR&amp;tn=Payment">
-  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M7 3h3v2H7v3H5V5a2 2 0 0 1 2-2Zm7 0h3a 2 2 0 0 1 2 2v3h-2V5h-3V3ZM5 16h2v3h3v2H7a2 2 0 0 1-2-2v-3Zm12 3v-3h2v3a2 2 0 0 1-2 2h-3v-2h3ZM8 8h8v8H8V8Z"/>
-  </svg>
-  testqr
-</a>
 
+      <a class="btn btn--mini btn--icon btn--ghost"
+         href="#"
+         data-open="#qrcodeModal"
+         data-qr="upi://pay?pa=8464020826@ptsbi&amp;pn=OfferZone&amp;cu=INR&amp;tn=Payment">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M7 3h3v2H7v3H5V5a2 2 0 0 1 2-2Zm7 0h3a 2 2 0 0 1 2 2v3h-2V5h-3V3ZM5 16h2v3h3v2H7a2 2 0 0 1-2-2v-3Zm12 3v-3h2v3a2 2 0 0 1-2 2h-3v-2h3ZM8 8h8v8H8V8Z"/>
+        </svg>
+        testqr
+      </a>
     </nav>
   </header>
 
@@ -172,14 +177,11 @@
 
           <div class="branch-grid">
             {% for b in branches %}
-              <!-- click behavior later: change href as needed -->
-<a
-  class="branch-pill"
-  href="{% url 'offers:branch_detail' b.id %}"
->
-  {{ b.name }}
-</a>
-
+              <a
+                class="branch-pill {% if b.offer_is_active %}branch-pill--active{% else %}branch-pill--inactive{% endif %}"
+                href="{% url 'offers:branch_detail' b.id %}">
+                {{ b.name }}
+              </a>
             {% empty %}
               <div>No branches yet.</div>
             {% endfor %}
@@ -210,29 +212,21 @@
   {% include "homepage/create_offers_modal.html" %}
   {% include "homepage/testqr_modal.html" %}
 
-
   <script>
-    // Optional: make current page replace the previous entry
     if (window.history && window.history.replaceState) {
       window.history.replaceState(null, '', window.location.href);
     }
   </script>
 
-<script>
-  // ✅ Before leaving Home, always clear hash (so next page won't auto-open modal)
-  document.addEventListener('click', (e) => {
-    const a = e.target.closest('a.branch-pill');
-    if (!a) return;
+  <script>
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest('a.branch-pill');
+      if (!a) return;
 
-    // remove any #... before navigation
-    if (location.hash) {
-      history.replaceState(null, '', location.pathname + location.search);
-    }
-  }, true); // capture = true (runs before navigation)
-</script>
-
-
-
-
+      if (location.hash) {
+        history.replaceState(null, '', location.pathname + location.search);
+      }
+    }, true);
+  </script>
 </body>
 </html>
