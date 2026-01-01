@@ -7,15 +7,62 @@
     .box{background:#11183a;padding:20px;border-radius:14px;border:1px solid #253060;max-width:500px;margin:auto;}
     .back{color:#7fa7ff;text-decoration:none;margin-bottom:20px;display:inline-block;}
     .topbar{max-width:500px;margin:0 auto 14px;display:flex;justify-content:space-between;align-items:center;gap:12px;}
-    .btn{display:inline-block;background:#4c74ff;color:#fff;padding:10px 14px;border-radius:10px;font-weight:600;text-decoration:none;border:1px solid rgba(255,255,255,.08);}
+
+    .btn{
+      display:inline-block;background:#4c74ff;color:#fff;padding:10px 14px;border-radius:10px;
+      font-weight:600;text-decoration:none;border:1px solid rgba(255,255,255,.08);
+    }
     .btn:hover{opacity:.9}
+
+    /* ✅ disabled state for <a> button */
+    .btn.is-disabled{
+      opacity:.45;
+      cursor:not-allowed;
+      pointer-events:none;
+      filter:saturate(.6);
+    }
+
+    /* ✅ Visit-start badge */
+    .fp-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:6px 10px;
+      border-radius:999px;
+      font-size:13px;
+      font-weight:800;
+      border:1px solid #e5e7eb;
+      background:#f8fafc;
+      color:#0b1020;
+      white-space:nowrap;
+    }
+    .fp-badge b{ font-weight:900; }
+    .fp-badge--no{ background:#fef2f2; border-color:#fecaca; color:#7f1d1d; }
+    .fp-badge--yes{ background:#ecfdf5; border-color:#bbf7d0; color:#065f46; }
+
+    .visit-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin:10px 0 6px;
+    }
+
+    .hint{
+      font-size:12px;
+      color:#a8b3d6;
+      margin:6px 0 0;
+      line-height:1.35;
+    }
   </style>
+
   <script>
-  if (location.hash) {
-    const baseUrl = location.pathname + location.search;
-    history.replaceState(null, '', baseUrl);
-  }
-</script>
+    // remove hash if present (your existing)
+    if (location.hash) {
+      const baseUrl = location.pathname + location.search;
+      history.replaceState(null, '', baseUrl);
+    }
+  </script>
 </head>
 
 <body>
@@ -23,15 +70,18 @@
   <div class="topbar">
     <a href="{% url 'offers:admin_home' %}" class="back">← Back</a>
 
-<a href="#"
-   class="btn"
-   data-open="#freeplateModal"
-   data-noreset="1"
-   data-branch-id="{{ branch.id }}"
-   data-branch-name="{{ branch.name|escapejs }}">
-  Edit Offer
-</a>
-
+    <!-- ✅ Default disabled until status check completes -->
+    <a href="#"
+       id="editOfferBtn"
+       class="btn is-disabled"
+       aria-disabled="true"
+       title="Checking offer status…"
+       data-open="#freeplateModal"
+       data-noreset="1"
+       data-branch-id="{{ branch.id }}"
+       data-branch-name="{{ branch.name|escapejs }}">
+      Edit Offer
+    </a>
   </div>
 
   <div class="box">
@@ -40,6 +90,18 @@
     <p><strong>Branch ID:</strong> {{ branch.id }}</p>
     <p><strong>Public ID:</strong> {{ branch.public_id }}</p>
     <p><strong>Email:</strong> {{ branch.email|default:"Not set" }}</p>
+
+    <div class="visit-row">
+      <strong>Already visit start:</strong>
+      <span id="visitStartedBadge" class="fp-badge fp-badge--no">
+        <b id="visitStartedVal">No</b>
+      </span>
+    </div>
+
+    <p id="editLockHint" class="hint" style="display:none;">
+      Visits already started for this branch after offer start. Edit is locked (only while offer is active).
+    </p>
+
     <p><strong>Coordinates:</strong>
       {% if branch.latitude %}
         {{ branch.latitude }}, {{ branch.longitude }}
@@ -54,13 +116,100 @@
     <p>No users linked yet.</p>
   </div>
 
-  <!-- ✅ ONLY include here -->
   {% include "homepage/complementary_offer_modal.html" %}
 
+  <script>
+  (function(){
+    const bid   = "{{ branch.id }}";
+    const badge = document.getElementById('visitStartedBadge');
+    const valEl = document.getElementById('visitStartedVal');
 
+    const editBtn = document.getElementById('editOfferBtn');
+    const hintEl  = document.getElementById('editLockHint');
 
+    function setVisitStartedBadge(isStarted){
+      if (!badge || !valEl) return;
 
+      if (isStarted){
+        valEl.textContent = 'Yes';
+        badge.classList.remove('fp-badge--no');
+        badge.classList.add('fp-badge--yes');
+      } else {
+        valEl.textContent = 'No';
+        badge.classList.remove('fp-badge--yes');
+        badge.classList.add('fp-badge--no');
+      }
+    }
+
+    function setEditDisabled(disabled, title){
+      if (!editBtn) return;
+
+      if (disabled){
+        editBtn.classList.add('is-disabled');
+        editBtn.setAttribute('aria-disabled', 'true');
+        editBtn.setAttribute('title', title || 'Edit locked');
+      } else {
+        editBtn.classList.remove('is-disabled');
+        editBtn.removeAttribute('aria-disabled');
+        editBtn.setAttribute('title', 'Edit Offer');
+      }
+    }
+
+    async function refresh(){
+      // ✅ Keep disabled while checking (prevents fast click issue)
+      setEditDisabled(true, 'Checking offer status…');
+
+      if (!bid){
+        setVisitStartedBadge(false);
+        setEditDisabled(true, 'No branch id');
+        return;
+      }
+
+      try{
+        const res = await fetch(`/admin/branch/${bid}/visit-started-json/`, { credentials:'same-origin' });
+        const j = await res.json().catch(()=> ({}));
+
+        if (!(j && j.ok)){
+          setVisitStartedBadge(false);
+          setEditDisabled(true, 'Could not verify offer status');
+          return;
+        }
+
+        const started   = !!j.started;
+        const isExpired = !!j.is_expired;
+
+        setVisitStartedBadge(started);
+
+        /**
+         * ✅ FINAL RULE (matches backend):
+         * - If offer is expired => allow edit (even if started)
+         * - Else (offer active) => if started => lock edit, else allow
+         */
+        if (isExpired){
+          // expired -> enable edit always
+          setEditDisabled(false);
+          if (hintEl) hintEl.style.display = 'none';
+        } else {
+          if (started){
+            setEditDisabled(true, 'Visits already started — edit locked (while offer active)');
+            if (hintEl) hintEl.style.display = '';
+          } else {
+            setEditDisabled(false);
+            if (hintEl) hintEl.style.display = 'none';
+          }
+        }
+
+      }catch(e){
+        console.warn('visit-started check failed', e);
+        // safe default: keep disabled if check fails
+        setVisitStartedBadge(false);
+        setEditDisabled(true, 'Could not verify offer status — edit disabled');
+      }
+    }
+
+    refresh();
+  })();
+  </script>
 
 </body>
 </html>
- 

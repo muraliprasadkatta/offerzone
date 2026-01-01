@@ -275,6 +275,9 @@
 
 <!-- put this AFTER the closing </form> of the Complementary Offer form (or even at the end of body) -->
 <!-- put this AFTER the closing </form> of the Complementary Offer form -->
+
+</div>
+
 <div id="branchAddModal" class="freeplate-modal" aria-hidden="true" role="dialog" aria-modal="true">
   <div class="freeplate-modal__card" role="document">
 
@@ -284,71 +287,67 @@
     </div>
 
     <!-- Standalone form (NOT nested) -->
-    <form id="branchAddForm" novalidate>
-      {% csrf_token %}
+  <form id="branchAddForm" novalidate>
+    {% csrf_token %}
 
-      <div class="freeplate-form" style="padding:16px">
-        <label class="freeplate-field" for="newBranchName">
-          <span>Branch name</span>
+    <!-- ✅ ADD THIS -->
+    <input type="hidden" id="editBranchId" name="branch_id" value="">
+
+    <div class="freeplate-form" style="padding:16px">
+      <label class="freeplate-field" for="newBranchName">
+        <span>Branch name</span>
+        <input
+          type="text"
+          id="newBranchName"
+          name="name"
+          required
+          pattern="[a-z0-9]*"
+          title="Only lowercase letters and numbers (no spaces)"
+        >
+      </label>
+
+      <label class="freeplate-field" for="newBranchEmail">
+        <span>Branch email (optional)</span>
+        <input type="email" id="newBranchEmail" name="email" placeholder="name@branch.com">
+      </label>
+
+      <div class="freeplate-2col" style="margin-top:8px">
+        <label class="freeplate-field" for="newBranchLat">
+          <span>Latitude</span>
           <input
-            type="text"
-            id="newBranchName"
-            name="name"
-            required
-            pattern="[a-z0-9]*"
-            title="Only lowercase letters and numbers (no spaces)"
+            type="number"
+            id="newBranchLat"
+            name="latitude"
+            step="0.000001"
+            min="-90"
+            max="90"
           >
         </label>
 
-        <label class="freeplate-field" for="newBranchEmail">
-          <span>Branch email (optional)</span>
-          <input type="email" id="newBranchEmail" name="email" placeholder="name@branch.com">
+        <label class="freeplate-field" for="newBranchLon">
+          <span>Longitude</span>
+          <input
+            type="number"
+            id="newBranchLon"
+            name="longitude"
+            step="0.000001"
+            min="-180"
+            max="180"
+          >
         </label>
-
-        <!-- ✅ Manual coordinates -->
-        <div class="freeplate-2col" style="margin-top:8px">
-          <label class="freeplate-field" for="newBranchLat">
-            <span>Latitude</span>
-            <input
-              type="number"
-              id="newBranchLat"
-              name="latitude"
-              inputmode="decimal"
-              placeholder="e.g., 17.385044"
-              step="0.000001"
-              min="-90"
-              max="90"
-            >
-            <small class="freeplate-hint">Range −90 to +90 (up to 6 decimals).</small>
-          </label>
-
-          <label class="freeplate-field" for="newBranchLon">
-            <span>Longitude</span>
-            <input
-              type="number"
-              id="newBranchLon"
-              name="longitude"
-              inputmode="decimal"
-              placeholder="e.g., 78.486671"
-              step="0.000001"
-              min="-180"
-              max="180"
-            >
-            <small class="freeplate-hint">Range −180 to +180 (up to 6 decimals).</small>
-          </label>
-        </div>
       </div>
+    </div>
 
-      <div class="freeplate-actions">
-        <button type="button" class="freeplate-btn freeplate-btn--ghost" data-close="#branchAddModal">Cancel</button>
-        <button type="submit" class="freeplate-btn" id="branchSaveBtn">Save</button>
-      </div>
-    </form>
+    <div class="freeplate-actions">
+      <button type="button" class="freeplate-btn freeplate-btn--ghost" data-close="#branchAddModal">Cancel</button>
+      <button type="submit" class="freeplate-btn" id="branchSaveBtn">Save</button>
+    </div>
+  </form>
+
 
   </div>
 </div>
 
-</div>
 
 <style>
   /* ✅ Visit-start badge */
@@ -388,6 +387,15 @@
   .bp-hint { display:block; margin-top:6px; font-size:12px; color:#ffb3b3; }
 </style>
 
+
+<style>
+  .bp-edit{
+  border:0; background:transparent; cursor:pointer;
+  font-weight:800; opacity:.85;
+}
+.bp-edit:hover{ opacity:1; }
+
+</style>
 
 <style>
 .bp{ display:flex; flex-direction:column; gap:8px; }
@@ -806,9 +814,7 @@
   // enable/disable Add button based on HOW MANY milestones we already have
   function updateAddButton(max) {
     if (!addBtn) return;
-    const currentCount = getAllMilestones().length;    // ❗ only milestones count
-    const shouldDisable = !max || currentCount >= max; // max == days in range
-    addBtn.disabled = shouldDisable;
+    addBtn.disabled = !startInput.value; // only depends on start
   }
 
   // enable/disable whole block
@@ -844,6 +850,9 @@
   // showError = true → small error if > max
   function attachClamp(input, showError) {
     if (!input) return;
+    if (input.dataset.fpClampBound === "1") return; // ✅ prevent double bind
+    input.dataset.fpClampBound = "1";
+
     input.addEventListener('change', () => {
       const max = getMaxVisits();
       if (!max) return;
@@ -852,9 +861,7 @@
       if (isNaN(v) || v < 1) v = 1;
 
       if (v > max) {
-        if (showError) {
-          alert(`You can't enter more than ${max} days for this date range.`);
-        }
+        if (showError) alert(`You can't enter more than ${max} days for this date range.`);
         v = max;
       }
 
@@ -863,15 +870,9 @@
     });
   }
 
-
   // add-row logic
   function createMilestoneRow() {
     const max = getMaxVisits();
-    if (max && getAllMilestones().length >= max) {
-      // already at max milestones for this date range
-      return;
-    }
-
     const row = document.createElement('div');
     row.className = 'bp-row';
     row.innerHTML = `
@@ -887,11 +888,11 @@
     const inp = row.querySelector('input[name="extra_nths[]"]');
     const btn = row.querySelector('button');
 
-    attachClamp(inp);
+    attachClamp(inp, true);
     btn.addEventListener('click', () => {
       row.remove();
       // after removing, re-enable Add if we dropped below the limit
-      updateAddButton(getMaxVisits());
+      updateAddButton();
     });
 
     const hint = fpBlock.querySelector('.freeplate-hint');
@@ -899,7 +900,7 @@
 
     // apply current max immediately
     if (max) clampInputToMax(inp, max);
-    updateAddButton(max);
+    updateAddButton();
   }
 
   if (addBtn) {
@@ -909,28 +910,28 @@
   }
 
   // first (existing) milestone input also clamp
-  getAllMilestones().forEach(attachClamp);
+  getAllMilestones().forEach(inp => attachClamp(inp, true));
   // user changes Nth → still clamp to date range, but ONLY on user change
-  attachClamp(nthInput);
+  attachClamp(nthInput, true);
 
   // called when dates change
   function refreshState() {
     const max = getMaxVisits();
-    const hasRange = !!max;
 
-    // enable/disable block
-    setDisabled(!hasRange);
+    const hasStart = !!startInput.value;  // start unte enable
+    setDisabled(!hasStart);
 
-    // **IMPORTANT**: for Nth we only update max attr, we DON'T touch value
-    if (max)      nthInput.max = String(max);
-    else          nthInput.removeAttribute('max');
+    // Nth: max only when valid range (start+end)
+    if (max) nthInput.max = String(max);
+    else nthInput.removeAttribute('max');
 
-    // milestones still fully clamped
+    // milestones: clamp only when max exists
     getAllMilestones().forEach(inp => clampInputToMax(inp, max));
 
-    // update Add button state (how many milestone rows allowed)
-    updateAddButton(max);
+    // Add button: allow if start present (even if end empty)
+    updateAddButton();
   }
+
 
   // initial + listeners
   refreshState();
@@ -962,18 +963,14 @@
 
   if (!startInput || !endInput || !offerIdEl) return;
 
-  // ✅ dynamic check (important!)
   const isEditNow = () => !!String(offerIdEl.value || '').trim();
 
-  // attach ONCE (but safe, because it exits in edit mode)
   function clampToMin(input) {
     if (input.dataset.clampBound === "1") return;
     input.dataset.clampBound = "1";
 
     input.addEventListener("change", () => {
-      // ✅ if edit mode, never clamp
-      if (isEditNow()) return;
-
+      if (isEditNow()) return; // edit mode -> no clamp
       const minVal = getNowLocalForDatetime();
       if (input.value && input.value < minVal) {
         input.value = minVal;
@@ -985,18 +982,14 @@
   clampToMin(startInput);
   clampToMin(endInput);
 
-  // expose apply() so you can call after prefill
   window.FreeplateDatePolicy = {
     apply() {
-      const edit = isEditNow();
-      if (edit) {
-        // ✅ edit mode: don’t set defaults, don’t enforce mins
+      if (isEditNow()) {
         startInput.removeAttribute("min");
         endInput.removeAttribute("min");
         return;
       }
 
-      // ✅ create mode defaults
       const minVal   = getNowLocalForDatetime();
       const dayPart  = minVal.slice(0, 10);
       const endOfDay = `${dayPart}T23:59`;
@@ -1012,7 +1005,6 @@
     }
   };
 
-  // initial apply
   window.FreeplateDatePolicy.apply();
 })();
 </script>
@@ -1028,48 +1020,83 @@
   const branchAddModal = document.getElementById('branchAddModal');
   if (!freeplateModal) return;
 
-
-
-  function setVisitStartedBadge(isStarted){
-  const badge = document.getElementById('visitStartedBadge');
-  const valEl = document.getElementById('visitStartedVal');
-  if (!badge || !valEl) return;
-
-  if (isStarted){
-    valEl.textContent = 'Yes';
-    badge.classList.remove('fp-badge--no');
-    badge.classList.add('fp-badge--yes');
-  } else {
-    valEl.textContent = 'No';
-    badge.classList.remove('fp-badge--yes');
-    badge.classList.add('fp-badge--no');
+  // ---------------------------
+  // Branch Add Modal helpers
+  // ---------------------------
+  function clearBranchEditId(){
+    const editIdInput = document.getElementById('editBranchId');
+    if (editIdInput) editIdInput.value = '';
   }
-}
 
+  function resetBranchAddModalForm(){
+    const nameInput  = document.getElementById('newBranchName');
+    const emailInput = document.getElementById('newBranchEmail');
+    const latInput   = document.getElementById('newBranchLat');
+    const lonInput   = document.getElementById('newBranchLon');
 
+    clearBranchEditId();
+
+    if (nameInput) {
+      nameInput.readOnly = false;
+      delete nameInput.dataset.locked;
+      nameInput.classList.remove('is-locked');
+      nameInput.value = '';
+    }
+    if (emailInput) emailInput.value = '';
+    if (latInput)   latInput.value = '';
+    if (lonInput)   lonInput.value = '';
+  }
+  
+  window.resetBranchAddModalForm = resetBranchAddModalForm;  // ✅ expose globally
+
+  // ---------------------------
+  // Badge
+  // ---------------------------
+  function setVisitStartedBadge(isStarted){
+    const badge = document.getElementById('visitStartedBadge');
+    const valEl = document.getElementById('visitStartedVal');
+    if (!badge || !valEl) return;
+
+    if (isStarted){
+      valEl.textContent = 'Yes';
+      badge.classList.remove('fp-badge--no');
+      badge.classList.add('fp-badge--yes');
+    } else {
+      valEl.textContent = 'No';
+      badge.classList.remove('fp-badge--yes');
+      badge.classList.add('fp-badge--no');
+    }
+  }
+
+  async function safeJson(res){
+    const ct = (res.headers.get('content-type') || '').toLowerCase();
+    if (ct.includes('application/json')) {
+      return await res.json().catch(()=> ({}));
+    }
+    await res.text().catch(()=> '');
+    return {};
+  }
 
   async function refreshVisitStartedBadge(bid){
-    // bid lekapothe hide/No
-    if (!bid){
-      setVisitStartedBadge(false);
-      return;
-    }
+    if (!bid){ setVisitStartedBadge(false); return; }
 
     try{
       const url = `/admin/branch/${bid}/visit-started-json/`;
       const res = await fetch(url, { credentials:'same-origin' });
-      const j = await res.json().catch(()=> ({}));
+      const j = await safeJson(res);
 
-      if (j && j.ok) setVisitStartedBadge(!!j.started);
+      if (res.ok && j && j.ok) setVisitStartedBadge(!!j.started);
       else setVisitStartedBadge(false);
+
     }catch(e){
       console.warn('visit-started check failed', e);
       setVisitStartedBadge(false);
     }
   }
 
-
-  // ---------- helpers ----------
+  // ---------------------------
+  // Modal helpers
+  // ---------------------------
   function bodyLockMaybe() {
     const anyOpen = document.querySelector('.freeplate-modal.open');
     document.body.classList.toggle('modal-open', !!anyOpen);
@@ -1079,82 +1106,29 @@
     const el = typeof target === 'string' ? document.querySelector(target) : target;
     if (!el) return;
 
-    el.hidden = !open;  // ✅ important
+    el.hidden = !open;
     el.setAttribute('aria-hidden', open ? 'false' : 'true');
     el.classList.toggle('open', !!open);
     bodyLockMaybe();
   }
 
-
   window.FreeplateModals = { setOpen: setModalOpenById };
 
   function showFreeplate(fromPopState) {
-    console.log('[Freeplate] showFreeplate()', { fromPopState });
     setModalOpenById(freeplateModal, true);
-
     if (!fromPopState && window.history && history.pushState) {
       history.pushState({ freeplateModal: true }, '', baseUrl + HASH);
     }
   }
 
   function hideFreeplate(fromPopState) {
-    console.log('[Freeplate] hideFreeplate()', { fromPopState });
     setModalOpenById(freeplateModal, false);
-
     if (!fromPopState && window.history && location.hash === HASH && history.length > 1) {
       history.back();
     }
   }
 
-  // ✅ Robust: read branch id/name from (1) clicked button attrs (2) hidden inputs
-  function getBranchFromTrigger(btn) {
-    const bidFromBtn = btn?.getAttribute('data-branch-id');
-    const bnmFromBtn = btn?.getAttribute('data-branch-name');
-
-    const liveForm = document.querySelector('.freeplate-form');
-    const bidFromHidden = liveForm?.querySelector('input[name="source_branch_id"]')?.value;
-    const bnmFromHidden = liveForm?.querySelector('input[name="source_branch_name"]')?.value;
-
-    const bid = bidFromBtn || bidFromHidden || '';
-    const bnm = bnmFromBtn || bnmFromHidden || '';
-
-    console.log('[Freeplate] branch read', {
-      bidFromBtn, bnmFromBtn,
-      bidFromHidden, bnmFromHidden,
-      finalBid: bid, finalName: bnm
-    });
-
-    return { bid, bnm };
-  }
-
-  // ✅ Retry addBranch until FreeplateBranchPicker is ready
-  function tryAddBranchWithRetry(bid, bnm) {
-    let tries = 0;
-    const maxTries = 20;
-
-    function tick() {
-      tries += 1;
-
-      const picker = window.FreeplateBranchPicker;
-      const canAdd = !!(picker && typeof picker.addBranch === 'function');
-
-      if (canAdd) {
-        picker.addBranch(bid, bnm);
-        console.log('[Freeplate] ✅ branch added into chips', { bid, bnm });
-        return;
-      }
-
-      if (tries < maxTries) setTimeout(tick, 100);
-      else console.warn('[Freeplate] ❌ FreeplateBranchPicker not ready, could not auto-add branch.');
-    }
-
-    tick();
-  }
-
-  // ---------- NEW: offer helpers ----------
-  function getForm() {
-    return document.querySelector('.freeplate-form');
-  }
+  function getForm() { return document.querySelector('.freeplate-form'); }
 
   function setVal(name, v) {
     const form = getForm();
@@ -1169,117 +1143,183 @@
     el.checked = !!v;
   }
 
+  function getBranchFromTrigger(btn) {
+    const bidFromBtn = btn?.getAttribute('data-branch-id');
+    const bnmFromBtn = btn?.getAttribute('data-branch-name');
+
+    const liveForm = getForm();
+    const bidFromHidden = liveForm?.querySelector('input[name="source_branch_id"]')?.value;
+    const bnmFromHidden = liveForm?.querySelector('input[name="source_branch_name"]')?.value;
+
+    const bid = bidFromBtn || bidFromHidden || '';
+    const bnm = bnmFromBtn || bnmFromHidden || '';
+
+    return { bid, bnm };
+  }
+
+  // ✅ retry addBranch until picker ready
+  function tryAddBranchWithRetry(bid, bnm) {
+    let tries = 0;
+    const maxTries = 50;
+
+    (function tick() {
+      tries += 1;
+      const picker = window.FreeplateBranchPicker;
+      const canAdd = !!(picker && typeof picker.addBranch === 'function');
+
+      if (canAdd) return picker.addBranch(bid, bnm);
+      if (tries < maxTries) setTimeout(tick, 80);
+    })();
+  }
+
+  // ---------------------------
+  // Clear/reset offer form
+  // ---------------------------
   function clearOfferFormButKeepBranch() {
     const form = getForm();
     if (!form) return;
 
-    // keep branch chips; clear offer fields only
-    const fieldsToClear = [
-      'offer_id', 'start_at', 'end_at', 'nth',
+    setVal('offer_id', '');
+    const offerIdEl = document.getElementById('offerId');
+    if (offerIdEl) offerIdEl.value = '';
+
+    [
+      'start_at', 'end_at', 'nth',
       'dedupe_value', 'claim_expiry_hours',
-      'total_cap', 'daily_cap', 'active_from', 'active_to',
-      'allow_key', 'allow_users'
-    ];
+      'total_cap', 'daily_cap', 'active_from', 'active_to'
+    ].forEach(n => setVal(n, ''));
 
-    fieldsToClear.forEach(n => setVal(n, ''));
+    setVal('count_start', 'user_registration');
+    setVal('visit_unit', 'qr_pin');
+    setVal('dedupe_unit', 'day');
+    setVal('per_user_limit', 'per_multiple');
+    setVal('segment', 'all');
 
-    // defaults
+    setVal('dedupe_value', '1');
+    setVal('claim_expiry_hours', '24');
+    setVal('total_cap', '0');
+    setVal('daily_cap', '0');
+
     setChecked('repeat', false);
     setChecked('backfill', false);
     setChecked('allBranches', false);
+    setChecked('exclude_admin', true);
 
-    // reset first milestone input
     const firstExtra = form.querySelector('input[name="extra_nths[]"]');
     if (firstExtra) firstExtra.value = '';
 
-    // remove extra dynamically added milestone rows (keep first row)
     const fpBlock = document.getElementById('fpMilestones');
     if (fpBlock) {
       const rows = Array.from(fpBlock.querySelectorAll('.bp-row'));
       rows.slice(1).forEach(r => r.remove());
     }
+
+    window.FreeplateDatePolicy?.apply?.();
+  }
+
+  function resetMilestonesTo(extras){
+    const form = getForm();
+    const fpBlock = document.getElementById('fpMilestones');
+    const addBtn = document.getElementById('fpAddMilestone');
+    if (!form || !fpBlock) return;
+
+    const rows = Array.from(fpBlock.querySelectorAll('.bp-row'));
+    rows.slice(1).forEach(r => r.remove());
+
+    const firstExtra = form.querySelector('input[name="extra_nths[]"]');
+    if (firstExtra) firstExtra.value = (extras?.[0] ?? '');
+
+    const rest = (extras || []).slice(1);
+
+    if (addBtn) addBtn.disabled = false;
+    rest.forEach(val => {
+      addBtn?.click();
+      const all = Array.from(fpBlock.querySelectorAll('input[name="extra_nths[]"]'));
+      const last = all[all.length - 1];
+      if (last) last.value = val;
+    });
   }
 
   async function prefillOffer(bid) {
+    const form = getForm();
+    if (!form) return;
+
     try {
-      // ⚠️ Make sure your backend URL matches this path.
       const url = `/admin/branch/${bid}/offer-json/`;
       const res = await fetch(url, { credentials: 'same-origin' });
-      const j = await res.json().catch(() => ({}));
+      const j = await safeJson(res);
 
-      console.log('[Freeplate] prefillOffer response', j);
-
-      if (!j.ok || !j.offer) {
-        // no offer found -> treat as fresh create for this branch
+      if (!res.ok || !j.ok || !j.offer) {
         clearOfferFormButKeepBranch();
-        setVal('offer_id', '');
         return;
       }
 
       const o = j.offer;
 
-      // offer id hidden
       setVal('offer_id', o.id || '');
-      window.FreeplateDatePolicy?.apply?.();   // ✅ now edit mode, so no min clamp
+      window.FreeplateDatePolicy?.apply?.();
 
+      setVal('count_start', o.count_start || 'user_registration');
+      setChecked('backfill', !!o.backfill);
 
-      // 1) set dates first
       setVal('start_at', o.start_at || '');
-      setVal('end_at',   o.end_at   || '');
+      setVal('end_at', o.end_at || '');
 
-      // 2) IMPORTANT: trigger change so milestone script enables Add button
-      const sEl = getForm()?.querySelector('input[name="start_at"]');
-      const eEl = getForm()?.querySelector('input[name="end_at"]');
-      sEl?.dispatchEvent(new Event('change', { bubbles: true }));
-      eEl?.dispatchEvent(new Event('change', { bubbles: true }));
+      setVal('nth', o.nth ?? '');
+      setChecked('repeat', !!o.repeat);
 
-      // 3) NOW milestones
-      const fpBlock = document.getElementById('fpMilestones');
-      const firstExtra = getForm()?.querySelector('input[name="extra_nths[]"]');
-      const addBtn = document.getElementById('fpAddMilestone');
+      setVal('visit_unit', o.visit_unit || 'qr_pin');
+      setVal('dedupe_value', o.dedupe_value ?? '1');
+      setVal('dedupe_unit', o.dedupe_unit || 'day');
 
-      if (firstExtra) firstExtra.value = (o.extra_nths?.[0] ?? '');
+      setVal('per_user_limit', o.per_user_limit || 'per_multiple');
+      setVal('claim_expiry_hours', o.claim_expiry_hours ?? '24');
+      setVal('total_cap', o.total_cap ?? '0');
+      setVal('daily_cap', o.daily_cap ?? '0');
+      setVal('active_from', o.active_from || '');
+      setVal('active_to', o.active_to || '');
 
-      // remove old dynamic rows (keep first)
-      if (fpBlock) {
-        const rows = Array.from(fpBlock.querySelectorAll('.bp-row'));
-        rows.slice(1).forEach(r => r.remove());
+      setVal('segment', o.segment || 'all');
+      setChecked('exclude_admin', o.exclude_admin !== false);
+
+      form.querySelector('input[name="start_at"]')?.dispatchEvent(new Event('change', { bubbles: true }));
+      form.querySelector('input[name="end_at"]')?.dispatchEvent(new Event('change', { bubbles: true }));
+
+      resetMilestonesTo(o.extra_nths || []);
+
+      const allCb = document.getElementById('allBranches');
+      if (allCb) allCb.checked = !!o.all_branches;
+
+      window.FreeplateBranchPicker?.reset?.();
+
+      if (o.all_branches) {
+        if (allCb) allCb.checked = true;
+        allCb?.dispatchEvent(new Event('change', { bubbles:true }));
+      } else {
+        const list =
+          (o.branches && o.branches.length)
+            ? o.branches
+            : (o.branch_ids || []);
+        window.FreeplateBranchPicker?.setSelected?.(list);
       }
 
-      // add remaining extras
-      const extras = (o.extra_nths || []).slice(1);
-
-      // ensure addBtn enabled (in case)
-      if (addBtn) addBtn.disabled = false;
-
-      extras.forEach((val) => {
-        addBtn?.click(); // will work now because enabled
-        const all = Array.from(fpBlock.querySelectorAll('input[name="extra_nths[]"]'));
-        const last = all[all.length - 1];
-        if (last) last.value = val;
-      });
-
-
-      // trigger change so your clamp scripts run
-      getForm()?.querySelector('input[name="start_at"]')?.dispatchEvent(new Event('change', { bubbles: true }));
-      getForm()?.querySelector('input[name="end_at"]')?.dispatchEvent(new Event('change', { bubbles: true }));
+      refreshVisitStartedBadge(bid);
 
     } catch (e) {
       console.warn('[Freeplate] prefillOffer failed', e);
     }
   }
 
-  // ---------- 1) Open freeplate modal ----------
+  // ---------------------------
+  // Open freeplate modal
+  // ---------------------------
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-open="#freeplateModal"], [data-open="freeplateModal"]');
     if (!btn) return;
-
     e.preventDefault();
 
     const noReset = btn.getAttribute('data-noreset') === '1';
-    console.log('[Freeplate] open click', { noReset, btn });
 
-    // offerModal close (only if exists)
     const offerModal = document.getElementById('offerModal');
     if (offerModal) {
       offerModal.classList.remove('open');
@@ -1288,65 +1328,32 @@
 
     const form = getForm();
 
-    // ✅ Create Offer mode -> reset everything (new offer)
     if (!noReset) {
-      console.log('[Freeplate] reset form + branch picker (Create new)');
       if (form) {
         try { form.reset(); } catch (_) {}
         window.FreeplateBranchPicker?.reset?.();
-
-        // IMPORTANT: make sure offer_id cleared for create
-        setVal('offer_id', '');
-
-        const startInput = form.querySelector('input[name="start_at"]');
-        const endInput   = form.querySelector('input[name="end_at"]');
-
-        if (startInput && endInput) {
-          const pad = (n) => String(n).padStart(2, '0');
-          const d   = new Date();
-          const y   = d.getFullYear();
-          const m   = pad(d.getMonth() + 1);
-          const day = pad(d.getDate());
-          const h   = pad(d.getHours());
-          const min = pad(d.getMinutes());
-
-          const minVal   = `${y}-${m}-${day}T${h}:${min}`;
-          const endOfDay = `${y}-${m}-${day}T23:59`;
-
-          startInput.min   = minVal;
-          endInput.min     = minVal;
-          startInput.value = minVal;
-          endInput.value   = endOfDay;
-
-          startInput.dispatchEvent(new Event('change', { bubbles: true }));
-          endInput.dispatchEvent(new Event('change', { bubbles: true }));
-        }
+        setVal('offer_id','');
+        window.FreeplateDatePolicy?.apply?.();
       }
     }
 
-    // ✅ OPEN modal first
     showFreeplate(false);
 
-    const { bid } = getBranchFromTrigger(btn);  // btn available here
+    const { bid, bnm } = getBranchFromTrigger(btn);
     refreshVisitStartedBadge(bid);
 
-
-    // ✅ Branch detail edit mode -> keep, auto branch add + prefill offer
     if (noReset) {
-      const { bid, bnm } = getBranchFromTrigger(btn);
-      if (!bid) {
-        console.warn('[Freeplate] ❌ No branch id found.');
-        return;
-      }
-
+      if (!bid) return;
       setTimeout(() => {
         tryAddBranchWithRetry(bid, bnm);
-        prefillOffer(bid);   // ✅ THIS solves "existing dates/nth not coming"
+        prefillOffer(bid);
       }, 0);
     }
   });
 
-  // ---------- 2) Back button inside freeplate ----------
+  // ---------------------------
+  // Back button
+  // ---------------------------
   document.addEventListener('click', (e) => {
     const back = e.target.closest('.freeplate-actions [data-open="#offerModal"]');
     if (!back) return;
@@ -1365,7 +1372,19 @@
     }
   });
 
-  // ---------- 3) Generic [data-close] ----------
+  // ---------------------------
+  // Close helpers (X / Cancel / backdrop / ESC)
+  // ---------------------------
+  function closeModal(modal, fromPopState=false){
+    if (!modal) return;
+
+    if (modal === freeplateModal) hideFreeplate(fromPopState);
+    else setModalOpenById(modal, false);
+
+    if (modal.id === 'branchAddModal') resetBranchAddModalForm();
+  }
+
+  // Click on any [data-close]
   document.addEventListener('click', (e) => {
     const closeBtn = e.target.closest('[data-close]');
     if (!closeBtn) return;
@@ -1376,42 +1395,36 @@
 
     e.preventDefault();
     e.stopPropagation();
-
-    if (modal === freeplateModal) hideFreeplate(false);
-    else setModalOpenById(modal, false);
+    closeModal(modal, false);
   });
 
-  // ---------- 4) Backdrop click ----------
+  // Backdrop click
   [freeplateModal, branchAddModal].forEach((modal) => {
     if (!modal) return;
     modal.addEventListener('click', (e) => {
-      if (e.target === modal) {
-        if (modal === freeplateModal) hideFreeplate(false);
-        else setModalOpenById(modal, false);
-      }
+      if (e.target === modal) closeModal(modal, false);
     });
   });
 
-  // ---------- 5) ESC ----------
+  // ESC key
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
 
-    if (freeplateModal.classList.contains('open')) {
-      hideFreeplate(false);
+    const other = document.querySelector('#branchAddModal.freeplate-modal.open');
+    if (other) {
+      closeModal(other, false);
       return;
     }
 
-    const other = document.querySelector('.freeplate-modal.open');
-    if (other && other !== freeplateModal) setModalOpenById(other, false);
+    if (freeplateModal.classList.contains('open')) closeModal(freeplateModal, false);
   });
 
-  // ---------- 6) popstate ----------
+  // popstate
   window.addEventListener('popstate', () => {
     if (location.hash === HASH) showFreeplate(true);
     else setModalOpenById(freeplateModal, false);
   });
 
-  // ---------- 7) direct link ----------
   if (location.hash === HASH) showFreeplate(true);
 })();
 </script>
@@ -1512,19 +1525,13 @@
   attachCleaners(nameEl);
 
   // If your “Add branch” modal is created dynamically, re-attach when opened
-  if (addBtn) {
-    addBtn.addEventListener('click', () => {
-      // wait a tick for modal DOM
-      setTimeout(async () => {
-        tryAddBranchWithRetry(bid, bnm);
-        await prefillOffer(bid);   // offerId + dates set ayyaka
+  addBtn?.addEventListener('click', () => {
+    setTimeout(() => {
+      const nameEl = document.getElementById('newBranchName');
+      attachCleaners(nameEl);
+    }, 0);
+  });
 
-        // ✅ NOW apply date policy (edit vs create safe)
-        window.FreeplateDatePolicy?.apply?.();
-      }, 0);
-
-    });
-  }
 
   // Expose a helper if other scripts need the normalized value
   window.normalizeBranchName = sanitize;
@@ -1585,6 +1592,8 @@
       emailInput: document.getElementById('newBranchEmail'),
       latInput: document.getElementById('newBranchLat'),
       lonInput: document.getElementById('newBranchLon'),
+      editIdInput: document.getElementById('editBranchId'),
+
     });
 
     const getCSRF = () =>
@@ -1597,15 +1606,65 @@
 
     const renderChips = () => {
       chipsEl.innerHTML = '';
+
       selected.forEach((name, id) => {
         const chip = document.createElement('span');
         chip.className = 'bp-chip';
-        chip.innerHTML = `<b>${name}</b><button type="button" aria-label="Remove">×</button>`;
-        chip.querySelector('button').onclick = () => {
+
+        // ✅ add edit + remove buttons
+        chip.innerHTML = `
+          <b>${name}</b>
+          <button type="button" class="bp-edit" aria-label="Edit">✎</button>
+          <button type="button" aria-label="Remove">×</button>
+        `;
+
+        // ✅ get buttons
+        const editBtn   = chip.querySelector('.bp-edit');
+        const removeBtn = chip.querySelector('button[aria-label="Remove"]');
+
+        // ✅ remove click (same as before)
+        removeBtn.onclick = () => {
           selected.delete(id);
           setIds(); renderChips();
           doSearch(searchEl.value.trim());
         };
+
+        // ✅ edit click (open modal + prefill)
+        editBtn.onclick = async () => {
+          window.FreeplateModals?.setOpen('#branchAddModal', true);
+
+          setTimeout(async () => {
+            const { nameInput, emailInput, latInput, lonInput, editIdInput } = getAddFormEls();
+
+            if (editIdInput) editIdInput.value = String(id);
+
+            try {
+              const res = await fetch(`/admin/branch/${id}/json/`, { credentials:'same-origin' });
+              const j = await res.json().catch(()=>({}));
+
+              if (j.ok && j.branch){
+                if (nameInput)  nameInput.value  = j.branch.name || '';
+                if (emailInput) emailInput.value = j.branch.email || '';
+                if (latInput)   latInput.value   = (j.branch.latitude ?? '');
+                if (lonInput)   lonInput.value   = (j.branch.longitude ?? '');
+              } else {
+                if (nameInput) nameInput.value = name || '';
+              }
+            } catch (e) {
+              if (nameInput) nameInput.value = name || '';
+            }
+
+            // ✅ EDIT MODE lock (RIGHT PLACE)
+            if (nameInput) {
+              nameInput.readOnly = true;
+              nameInput.dataset.locked = "1";
+              nameInput.classList.add('is-locked');
+            }
+
+            nameInput?.focus();
+          }, 0);
+        };
+
         chipsEl.appendChild(chip);
       });
     };
@@ -1718,31 +1777,41 @@
       if (allBranchesCb?.checked) return;
       window.FreeplateModals?.setOpen('#branchAddModal', true);
       setTimeout(() => {
-        const { nameInput, emailInput, latInput, lonInput } = getAddFormEls();
-        if (nameInput) nameInput.value = '';
+        const { nameInput, emailInput, latInput, lonInput, editIdInput } = getAddFormEls();
+        if (editIdInput) editIdInput.value = '';
+        if (nameInput) {
+          nameInput.value = '';
+          nameInput.readOnly = false;         // ✅ unlock
+          delete nameInput.dataset.locked;
+          nameInput.classList.remove('is-locked');
+        }
         if (emailInput) emailInput.value = '';
         if (latInput) latInput.value = '';
         if (lonInput) lonInput.value = '';
         nameInput?.focus();
       }, 0);
+
     });
 
     // --- Add Branch save ---
-    document.addEventListener('submit', async (e) => {
-      if (e.target?.id !== 'branchAddForm') return;
-      e.preventDefault();
+    if (document.body.dataset.bpSubmitBound !== "1") {
+      document.body.dataset.bpSubmitBound = "1";
 
-      const { addForm, nameInput, emailInput, latInput, lonInput } = getAddFormEls();
-      if (!addForm || !nameInput) return;
+      document.addEventListener('submit', async (e) => {
+        if (e.target?.id !== 'branchAddForm') return;
+        e.preventDefault();
 
-      const submitBtn = addForm.querySelector('#branchSaveBtn');
-      if (submitBtn) {
-        if (submitBtn.disabled) return;
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Saving…';
-      }
+        const { addForm, nameInput, emailInput, latInput, lonInput } = getAddFormEls();
+        if (!addForm || !nameInput) return;
 
-      try {
+        const submitBtn = addForm.querySelector('#branchSaveBtn');
+        if (submitBtn) {
+          if (submitBtn.disabled) return;
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Saving…';
+        }
+
+      try   {
         if (!nameInput.checkValidity()) { nameInput.reportValidity(); return; }
 
         const name  = nameInput.value.trim();
@@ -1767,6 +1836,11 @@
         } catch (_) { return; }
 
         const payload = { name };
+
+        // ✅ EDIT MODE support
+        const editId = document.getElementById('editBranchId')?.value;
+        if (editId) payload.branch_id = parseInt(editId, 10);
+
         if (email) payload.email = email;
         if (latitude !== null)  payload.latitude  = latitude;
         if (longitude !== null) payload.longitude = longitude;
@@ -1786,7 +1860,33 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
 
+
+
+
+        // ✅ read editId BEFORE clearing/closing
+        const editIdVal = (document.getElementById('editBranchId')?.value || '').trim();
+
+        const newId =
+          data.id || data.branch_id || data.pk ||
+          data.branch?.id || data.branch?.pk || null;
+
+        const newName =
+          data.name || data.branch_name ||
+          data.branch?.name || name;
+
+        // ✅ update chips immediately
+        if (newId) {
+          if (editIdVal) {
+            window.FreeplateBranchPicker?.updateBranch?.(newId, newName);
+          } else {
+            window.FreeplateBranchPicker?.addBranch?.(newId, newName);
+          }
+        }
+
+        // ✅ now close modal + clear fields
         window.FreeplateModals?.setOpen('#branchAddModal', false);
+        window.resetBranchAddModalForm?.();
+
 
         nameInput.value = '';
         if (emailInput) emailInput.value = '';
@@ -1797,17 +1897,11 @@
         searchEl.focus();
         doSearch('');
 
-        const newId =
-          data.id || data.branch_id || data.pk ||
-          data.branch?.id || data.branch?.pk || null;
+        // ✅ clear edit id at END
+        const editIdInput = document.getElementById('editBranchId');
+        if (editIdInput) editIdInput.value = '';
 
-        const newName =
-          data.name || data.branch_name ||
-          data.branch?.name || name;
 
-        if (newId) {
-          window.FreeplateBranchPicker?.addBranch?.(newId, newName);
-        }
 
       } catch (err) {
         alert('Could not add branch: ' + (err.message || err));
@@ -1818,6 +1912,8 @@
         }
       }
     });
+
+    } 
 
     // ✅ expose picker
     window.FreeplateBranchPicker = {
@@ -1849,12 +1945,55 @@
           setIds();
           renderChips();
         }
-      }
+      }, // ✅ comma
+
+      updateBranch(id, name) {
+        const bid = parseInt(id, 10);
+        if (!Number.isFinite(bid)) return;
+
+        if (selected.has(bid)) {
+          selected.set(bid, name || ('Branch ' + bid));
+          setIds();
+          renderChips();
+        }
+      }, // ✅ comma (safe)
+
+        // ✅ ADD THESE TWO RIGHT HERE
+      getSelectedIds() {
+        return [...selected.keys()];
+      },
+
+      // ✅ accepts: [1,2,3]  OR  [{id:1,name:"A"}, {id:2,name:"B"}]
+      setSelected(items) {
+        selected.clear();
+
+        (items || []).forEach((it) => {
+          // support plain id numbers also
+          const rawId = (typeof it === 'object' && it !== null) ? it.id : it;
+          const id = parseInt(rawId, 10);
+          if (!Number.isFinite(id)) return;
+
+          const name =
+            (typeof it === 'object' && it !== null && it.name) ? it.name : ('Branch ' + id);
+
+          selected.set(id, name);
+        });
+
+        setIds();
+        renderChips();
+        clearResults();
+      },
+
     };
 
+
+    
     setIds();
+    renderChips();   // optional
     console.log('[BranchPicker] ✅ init success');
     return true;
+
+
   };
 
   // ✅ init when page ready
@@ -1877,7 +2016,6 @@
 (() => {
   const saveBtn = document.getElementById('offerSaveBtn');
   const form    = document.querySelector('.freeplate-form');
-
   if (!saveBtn || !form) return;
 
   function toast(msg, isError=false) {
@@ -1894,6 +2032,8 @@
   }
 
   saveBtn.addEventListener('click', async () => {
+    if (saveBtn.disabled) return;
+
     const url  = "{% url 'offers:complementary_offer_save' %}";
     const data = new FormData(form);
 
@@ -1905,47 +2045,39 @@
     saveBtn.disabled = true;
     saveBtn.textContent = 'Saving…';
 
+    let success = false;
+
     try {
       const res = await fetch(url, {
         method: 'POST',
         credentials: 'same-origin',
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest'
-        },
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
         body: data,
       });
 
       const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json.error || ('HTTP ' + res.status));
 
-      if (!res.ok || !json.ok) {
-        throw new Error(json.error || ('HTTP ' + res.status));
-      }
-
-      // ✅ 1) success message visible on current screen
+      success = true;
       toast('Offer saved 🎉');
 
-      // ✅ 2) 1.5s wait → appude close + reload
       setTimeout(() => {
-        // close modal
         window.FreeplateModals?.setOpen('#freeplateModal', false);
-
-        // URL nundi #freeplateModal hash remove (so malli open avvadu)
         const baseUrl = location.pathname + location.search;
         history.replaceState(null, '', baseUrl);
-
-        // backend template lo unte Django success message ikkada reflect avvali ante:
         window.location.reload();
-      }, 1500);  // 1.5s time; kavali ante 2000 cheyyi
+      }, 1500);
 
     } catch (err) {
       console.error(err);
       toast('Save failed: ' + (err.message || err), true);
-    } finally {
       saveBtn.disabled = false;
       saveBtn.textContent = 'Save';
+    } finally {
+      if (!success) {
+        // already restored in catch
+      }
     }
   });
 })();
-
-
 </script>

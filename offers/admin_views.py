@@ -1,30 +1,34 @@
 # offers/admin_views.py
+
+import json
+import re
+from datetime import datetime
+from zoneinfo import ZoneInfo
+from django.db.models import Q
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.admin.views.decorators import staff_member_required
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+from django.db import IntegrityError, transaction
+from django.db.models import Q
+from django.db.models.functions import Lower
+from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
-
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.http import JsonResponse, HttpResponseBadRequest
-from django.db import transaction
 from django.views.decorators.http import require_GET, require_POST
-from zoneinfo import ZoneInfo
-from datetime import datetime
-import json
-import re
 
-from django.core.validators import validate_email
-from django.core.exceptions import ValidationError
+from .models import Branch, ComplementaryOffer, LoginVisit, UserVisitEvent
 
-from .models import ComplementaryOffer, Branch
 
 # ---- helpers -------------------------------------------------
 
-def _is_superuser(user):
-    return user.is_authenticated and user.is_superuser
 
 
 def _safe_next(request, candidate, default):
@@ -110,15 +114,9 @@ def parse_positive_int(val, default=None, min_value=None):
 
 
 
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.utils import timezone
-from django.db.models.functions import Lower
-
-from .models import Branch, LoginVisit
-
 
 def _is_superuser(user):
-    return user.is_superuser
+    return user.is_authenticated and user.is_superuser
 
 
 @login_required(login_url="offers:admin_login")
@@ -195,6 +193,10 @@ def admin_home(request):
     }
     return render(request, "homepage/home.html", ctx)
 
+
+
+
+
 @login_required(login_url="offers:admin_login")
 @user_passes_test(_is_superuser, login_url="offers:admin_login")
 @never_cache
@@ -218,21 +220,11 @@ def branch_detail_view(request, branch_id):
 # ---- save complementary offer (exclude_staff, branches, extra_nths) ---------
 
 
-from django.http import JsonResponse, HttpResponseBadRequest
-from django.db import transaction
-from django.contrib.auth.decorators import login_required, user_passes_test
-from datetime import datetime
-import json
-
 @login_required(login_url="offers:admin_login")
 @user_passes_test(_is_superuser, login_url="offers:admin_login")
 def complementary_offer_save(request):
     if request.method != "POST":
         return HttpResponseBadRequest("POST required")
-
-    from django.db.models import Q
-    from django.utils import timezone
-    from .models import UserVisitEvent  # ✅ history source
 
     p = request.POST
 
@@ -440,13 +432,6 @@ _name_re = re.compile(r"^[a-z0-9]+$")
 
 
 
-from django.db.models import Q
-from django.utils import timezone
-from django.contrib.admin.views.decorators import staff_member_required
-from django.views.decorators.http import require_GET
-from django.http import JsonResponse
-
-from .models import Branch, ComplementaryOffer, UserVisitEvent
 
 @require_GET
 @staff_member_required
@@ -456,8 +441,11 @@ def branch_visit_started_json(request, branch_id: int):
     except Branch.DoesNotExist:
         return JsonResponse({"ok": False, "error": "Branch not found"}, status=404)
 
+    now = timezone.now()
+
     # latest offer for this branch
-    offer = (ComplementaryOffer.objects
+    offer = (
+        ComplementaryOffer.objects
         .filter(kind="complementary_offer")
         .filter(Q(all_branches=True) | Q(eligible_branches=branch))
         .order_by("-id")
@@ -465,7 +453,16 @@ def branch_visit_started_json(request, branch_id: int):
     )
 
     if not offer or not offer.start_at:
-        return JsonResponse({"ok": True, "branch_id": branch_id, "started": False})
+        return JsonResponse({
+            "ok": True,
+            "branch_id": branch_id,
+            "started": False,
+            "is_expired": False,
+            "offer_id": None,
+        })
+
+    # ✅ expired check
+    is_expired = bool(offer.end_at and offer.end_at < now)
 
     # ✅ REAL VISIT CHECK (user visited after offer start)
     started = UserVisitEvent.objects.filter(
@@ -478,14 +475,14 @@ def branch_visit_started_json(request, branch_id: int):
         "branch_id": branch_id,
         "offer_id": offer.id,
         "offer_start_at": offer.start_at.isoformat(),
-        "started": started
+        "offer_end_at": offer.end_at.isoformat() if offer.end_at else "",
+        "is_expired": is_expired,
+        "started": started,
     })
 
 
 
-from django.db.models import Q
-from django.views.decorators.http import require_GET
-from django.utils import timezone
+
 
 @require_GET
 @login_required(login_url="offers:admin_login")
@@ -531,15 +528,25 @@ def _sanitize_name(raw: str) -> str:
     return s
 
 
+
 @require_POST
 @login_required(login_url="offers:admin_login")
 @user_passes_test(_is_superuser, login_url="offers:admin_login")
 def branches_create(request):
-    # Expect JSON: { "name": "...", "email"?: "...", "latitude"?: float, "longitude"?: float }
+    """
+    Create OR update Branch.
+    - If payload.branch_id present => update same row (rename allowed)
+    - Else => get_or_create by normalized name (old behavior)
+    - Validates: name (a-z0-9), optional email, optional lat/lon (both or none)
+    - Safe: case-insensitive uniqueness via Lower(), IntegrityError guard
+    """
     try:
         payload = json.loads(request.body.decode("utf-8") or "{}")
     except json.JSONDecodeError:
         return JsonResponse({"ok": False, "error": "Invalid JSON body"}, status=400)
+
+    # ✅ edit id
+    branch_id = parse_positive_int(payload.get("branch_id"), default=None, min_value=1)
 
     input_name = (payload.get("name") or "").strip()
     email      = (payload.get("email") or "").strip() or None
@@ -549,7 +556,7 @@ def branches_create(request):
     if not input_name:
         return JsonResponse({"ok": False, "error": "Name required"}, status=400)
 
-    # normalize and validate
+    # normalize and validate name
     name = _sanitize_name(input_name)
     if not name:
         return JsonResponse(
@@ -564,14 +571,14 @@ def branches_create(request):
             status=400,
         )
 
-    # optional email validation
+    # optional email validate
     if email:
         try:
             validate_email(email)
         except ValidationError:
             return JsonResponse({"ok": False, "error": "Invalid email"}, status=400)
 
-    # optional coord parsing
+    # coords parse
     def _parse_coord(val, lo, hi, label):
         if val is None or str(val) == "":
             return None
@@ -586,44 +593,121 @@ def branches_create(request):
     try:
         lat_parsed = _parse_coord(latitude,  -90,  90,  "Latitude")
         lon_parsed = _parse_coord(longitude, -180, 180, "Longitude")
-        # if one is given, require both (optional; remove if you want single allowed)
+        # both-or-none rule
         if (lat_parsed is None) ^ (lon_parsed is None):
             raise ValidationError("Provide both latitude and longitude, or leave both empty")
     except ValidationError as e:
         return JsonResponse({"ok": False, "error": str(e)}, status=400)
 
-    # create or fetch by normalized name
-    obj, created = Branch.objects.get_or_create(name=name)
+    # =========================
+    # ✅ UPDATE MODE (same id)
+    # =========================
+    if branch_id:
+        obj = Branch.objects.filter(id=branch_id).first()
+        if not obj:
+            return JsonResponse({"ok": False, "error": "Branch not found"}, status=404)
+
+        # ✅ case-insensitive unique clash check (matches your model constraint)
+        clash = (
+            Branch.objects
+            .exclude(id=obj.id)
+            .annotate(n=Lower("name"))
+            .filter(n=name)
+            .exists()
+        )
+        if clash:
+            return JsonResponse({"ok": False, "error": "Branch name already exists"}, status=400)
+
+        created = False
+        dirty = []
+
+        if obj.name != name:
+            obj.name = name
+            dirty.append("name")
+
+        # if email key provided (even empty), update it
+        if getattr(obj, "email", None) != email:
+            obj.email = email
+            dirty.append("email")
+
+        # ✅ allow clearing coords if empty sent (lat_parsed/lon_parsed None)
+        if getattr(obj, "latitude", None) != lat_parsed:
+            obj.latitude = lat_parsed
+            dirty.append("latitude")
+
+        if getattr(obj, "longitude", None) != lon_parsed:
+            obj.longitude = lon_parsed
+            dirty.append("longitude")
+
+        if dirty:
+            obj.save(update_fields=dirty)
+
+        return JsonResponse({
+            "ok": True,
+            "id": obj.id,
+            "name": obj.name,
+            "email": obj.email or "",
+            "latitude": obj.latitude,
+            "longitude": obj.longitude,
+            "created": created,
+        }, status=200)
+
+    # =========================
+    # ✅ CREATE MODE (old behavior)
+    # =========================
+    try:
+        with transaction.atomic():
+            obj, created = Branch.objects.get_or_create(name=name)
+    except IntegrityError:
+        # race-safe fallback
+        obj = Branch.objects.get(name=name)
+        created = False
 
     dirty = []
-    if email is not None and getattr(obj, "email", None) != email:
+
+    # set optional fields (also allow clearing if empty/null)
+    if getattr(obj, "email", None) != email:
         obj.email = email
         dirty.append("email")
-    if lat_parsed is not None and getattr(obj, "latitude", None) != lat_parsed:
+
+    if getattr(obj, "latitude", None) != lat_parsed:
         obj.latitude = lat_parsed
         dirty.append("latitude")
-    if lon_parsed is not None and getattr(obj, "longitude", None) != lon_parsed:
+
+    if getattr(obj, "longitude", None) != lon_parsed:
         obj.longitude = lon_parsed
         dirty.append("longitude")
 
     if dirty:
         obj.save(update_fields=dirty)
 
-    normalized = (input_name != name)
-    return JsonResponse(
-        {
-            "ok": True,
-            "id": obj.id,
-            "name": obj.name,
-            "email": getattr(obj, "email", "") or "",
-            "latitude": getattr(obj, "latitude", None),
-            "longitude": getattr(obj, "longitude", None),
-            "created": created,
-            "normalized": normalized,
-            "display_hint": "name lowercased and cleaned" if normalized else "",
-        },
-        status=(201 if created else 200),
-    )
+    return JsonResponse({
+        "ok": True,
+        "id": obj.id,
+        "name": obj.name,
+        "email": obj.email or "",
+        "latitude": obj.latitude,
+        "longitude": obj.longitude,
+        "created": created,
+    }, status=(201 if created else 200))
+
+
+
+@require_GET
+@login_required(login_url="offers:admin_login")
+@user_passes_test(_is_superuser, login_url="offers:admin_login")
+def branch_json(request, branch_id):
+    b = Branch.objects.filter(id=branch_id).first()
+    if not b:
+        return JsonResponse({"ok": False, "error": "Not found"}, status=404)
+    return JsonResponse({"ok": True, "branch": {
+        "id": b.id,
+        "name": b.name,
+        "email": b.email or "",
+        "latitude": b.latitude,
+        "longitude": b.longitude,
+    }})
+
 
 
 @require_GET
