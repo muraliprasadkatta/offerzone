@@ -193,6 +193,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
+
 @csrf_protect
 @login_required
 @never_cache
@@ -206,6 +207,7 @@ def user_home_page(request):
 
     today = timezone.localdate()
 
+    # ✅ daily login stamp
     LoginVisit.objects.update_or_create(
         user=request.user,
         visit_date=today,
@@ -216,10 +218,10 @@ def user_home_page(request):
         },
     )
 
-    # 👇 ONE-PER-DAY VISIT FLAG (qr_screenshot + qr_pin rendu cover)
     now_ts = timezone.now()
     start_of_day = now_ts.replace(hour=0, minute=0, second=0, microsecond=0)
 
+    # ✅ ONE-PER-DAY global flag (any branch today)
     already_claimed_today = UserVisitEvent.objects.filter(
         user=request.user,
         created_at__gte=start_of_day,
@@ -237,18 +239,19 @@ def user_home_page(request):
     LIMIT = 12
     all_branches_qs = Branch.objects.order_by(Lower("name"))
     branch_count = all_branches_qs.count()
+
+    # We still take first LIMIT for now (then reorder within these)
     branches = list(all_branches_qs[:LIMIT])
 
     # =====================================================
-    # ✅ PER-BRANCH offer start/end (for each tile)
+    # ✅ PER-BRANCH active offer start/end (for each tile)
     # =====================================================
     branch_ids = [b.id for b in branches]
     offers_by_branch = {}  # {branch_id: {"start": dt, "end": dt|None}}
 
     if branch_ids:
-        now = timezone.now()
+        now = now_ts  # reuse
 
-        # Active offer = started AND (no end OR end not passed)
         active_offer_qs = (
             ComplementaryOffer.objects
             .filter(
@@ -256,9 +259,7 @@ def user_home_page(request):
                 is_active=True,
                 start_at__lte=now,
             )
-            .filter(
-                models.Q(end_at__isnull=True) | models.Q(end_at__gte=now)
-            )
+            .filter(models.Q(end_at__isnull=True) | models.Q(end_at__gte=now))
             .filter(
                 models.Q(all_branches=True) |
                 models.Q(eligible_branches__id__in=branch_ids)
@@ -268,12 +269,7 @@ def user_home_page(request):
             .only("id", "start_at", "end_at", "all_branches")
         )
 
-        # Because eligible_branches is M2M, easiest safe way:
-        # iterate and fill first (latest) offer per branch
-        # 1) if offer is all_branches -> applies to every branch
-        # 2) else -> applies only to eligible branches
-
-        # First handle all_branches offers (latest one wins)
+        # 1) latest global offer applies to all branches
         global_offer = (
             active_offer_qs
             .filter(all_branches=True)
@@ -287,8 +283,7 @@ def user_home_page(request):
                     "end": global_offer.end_at,
                 }
 
-        # Then override with branch-specific offers if any (latest per branch)
-        # Fetch mapping via through table
+        # 2) override with latest branch-specific offers
         specific_qs = (
             ComplementaryOffer.objects
             .filter(
@@ -302,7 +297,6 @@ def user_home_page(request):
             .order_by("eligible_branches__id", "-start_at", "-id")
         )
 
-        # pick first (latest) row per branch_id
         seen = set()
         for row in specific_qs:
             bid = row["eligible_branches__id"]
@@ -311,11 +305,18 @@ def user_home_page(request):
             offers_by_branch[bid] = {"start": row["start_at"], "end": row["end_at"]}
             seen.add(bid)
 
-    # attach to branch objects for template
+    # attach offer info to branch objects
     for b in branches:
         info = offers_by_branch.get(b.id) or {}
         b.offer_start = info.get("start")
         b.offer_end = info.get("end")
+
+    # =====================================================
+    # ✅ ACTIVE FIRST, INACTIVE LAST (single grid reorder)
+    # =====================================================
+    active_branches = [b for b in branches if b.offer_start]
+    inactive_branches = [b for b in branches if not b.offer_start]
+    branches = active_branches + inactive_branches
     # =====================================================
 
     return render(
@@ -923,35 +924,55 @@ def confirm_branch_visit(request):
 # branch offers  view in user interface
 # =============================================
 
+from django.db.models import Max
+from django.utils import timezone
+
 def branch_offers_in_userinterface(request, branch_id):
     branch = get_object_or_404(Branch, id=branch_id)
     now = timezone.now()
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
     base_qs = (
         ComplementaryOffer.objects
-        .filter(
-            is_active=True,
-            start_at__lte=now,
-        )
-        .filter(
-            models.Q(all_branches=True) |
-            models.Q(eligible_branches=branch)
-        )
+        .filter(is_active=True, start_at__lte=now)
+        .filter(models.Q(all_branches=True) | models.Q(eligible_branches=branch))
         .distinct()
     )
 
     offers = base_qs.order_by("id")
 
-    # 👇 Complementary offer special row (calendar lo use cheyyadaniki)
     free_plate_offer = base_qs.filter(kind="complementary_offer").order_by("id").first()
+
+    # =====================================================
+    # ✅ NEW: This branch visit stats (only this branch)
+    # =====================================================
+    branch_total_visits = 0
+    branch_today_visits = 0
+    branch_last_visit = None
+    branch_has_visited = False
+
+    if request.user.is_authenticated:
+        vqs = UserVisitEvent.objects.filter(user=request.user, branch=branch)
+        branch_total_visits = vqs.count()
+        branch_today_visits = vqs.filter(created_at__gte=start_of_day).count()
+        branch_last_visit = vqs.aggregate(last=Max("created_at"))["last"]
+        branch_has_visited = branch_total_visits > 0
+    # =====================================================
 
     context = {
         "branch": branch,
         "offers": offers,
         "active_offer_count": offers.count(),
         "is_open_now": True,
-        "free_plate_offer": free_plate_offer,   # 🔥 still same context key
+        "free_plate_offer": free_plate_offer,
+
+        # 🔥 send to template
+        "branch_total_visits": branch_total_visits,
+        "branch_today_visits": branch_today_visits,
+        "branch_last_visit": branch_last_visit,
+        "branch_has_visited": branch_has_visited,
     }
+
     return render(
         request,
         "user_interface/branch_offers_in_userinterface/branch_offers_in_userinterface.html",
@@ -1071,20 +1092,25 @@ def user_status_view(request):
     branch_name = request.session.get("last_branch_name") or request.session.get("pending_qr_branch_name") or "This Branch"
 
     # defaults
+    
     this_branch_total = 0
     this_branch_today = 0
     this_branch_last = None
 
     today_total_all = 0
     today_unique_branches = 0
-
     per_branch_today = []   # list for loop UI
+
+    total_all = 0
+
 
     if request.user.is_authenticated:
         start_of_day = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
         # ✅ Today across ALL branches
         base_today = UserVisitEvent.objects.filter(user=request.user, created_at__gte=start_of_day)
+        total_all = UserVisitEvent.objects.filter(user=request.user).count()
+
         today_total_all = base_today.count()
         today_unique_branches = base_today.values("branch_id").distinct().count()
 
@@ -1124,6 +1150,7 @@ def user_status_view(request):
         "today_visits": this_branch_today,
         "last_visit": this_branch_last.strftime("%Y-%m-%d %H:%M") if this_branch_last else "—",
         "visit_unit": visit_unit,
+        "total_all": total_all,
 
         # All branches today
         "today_total_all": today_total_all,

@@ -462,8 +462,10 @@ right: calc(var(--pad) + var(--circle));          /* ✅ right side same */
 
 
 <div class="rest-meta" style="margin-top:12px;">
+  <span class="meta-pill">📊 Total visits (all time): {{ total_all }}</span>
+
   <span class="meta-pill">📅 Today (all branches): {{ today_total_all }}</span>
-  <span class="meta-pill">🏢 Branches visited today: {{ today_unique_branches }}</span>
+  <!-- <span class="meta-pill">🏢 Branches visited today: {{ today_unique_branches }}</span> -->
 </div>
 <div style="margin-top:12px;">
   {% for b in per_branch_today %}

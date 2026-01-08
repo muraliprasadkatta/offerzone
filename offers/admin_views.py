@@ -710,6 +710,43 @@ def branch_json(request, branch_id):
 
 
 
+
+
+from django.views.decorators.http import require_POST
+
+@require_POST
+@login_required(login_url="offers:admin_login")
+@user_passes_test(_is_superuser, login_url="offers:admin_login")
+def branch_delete(request, branch_id: int):
+    branch = Branch.objects.filter(id=branch_id).first()
+    if not branch:
+        return JsonResponse({"ok": False, "error": "Branch not found"}, status=404)
+
+    # ✅ safety: visits exist => block delete (recommended)
+    has_visits = UserVisitEvent.objects.filter(branch_id=branch_id).exists()
+    if has_visits:
+        return JsonResponse({
+            "ok": False,
+            "error": "Cannot delete: visits exist for this branch."
+        }, status=400)
+
+    # ✅ optional: if you want, also block if any offer is scoped to this branch
+    # has_offer_scope = ComplementaryOffer.objects.filter(eligible_branches=branch).exists()
+    # if has_offer_scope:
+    #     return JsonResponse({"ok": False, "error": "Cannot delete: offer scope exists."}, status=400)
+
+    branch.delete()
+    return JsonResponse({"ok": True})
+
+
+
+
+
+
+
+
+
+
 @require_GET
 @login_required(login_url="offers:admin_login")
 @user_passes_test(_is_superuser, login_url="offers:admin_login")

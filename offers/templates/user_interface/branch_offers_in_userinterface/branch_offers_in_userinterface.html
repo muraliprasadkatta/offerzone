@@ -321,6 +321,18 @@
       DON'T FORGOT TO SUBSCRIBE MY YOUTUBE CHANNEL
     </section>
 
+{% if user.is_authenticated %}
+  <div class="branch-meta">
+    <span class="badge">✅ Your visits: {{ branch_total_visits }}</span>
+    <span class="badge">📅 Today: {{ branch_today_visits }}</span>
+    <span class="badge">
+      🕒 Last:
+      {% if branch_last_visit %}{{ branch_last_visit|date:"Y-m-d H:i" }}{% else %}—{% endif %}
+    </span>
+  </div>
+{% endif %}
+
+    
     <div class="crumbs">
       <a href="{% url 'offers:user_home' %}">Home</a> ·
       <span>Branches</span> ·
@@ -442,7 +454,7 @@
 
                     <div class="milestone-block">
                       <div class="mini-cal-row">
-                        <div class="milestone-label">VISIT PREVIEW</div>
+                        <div class="milestone-label">OFFERS DEMO</div>
 
                         {% with double_nth=o.nth|add:o.nth %}
                         <div class="mini-cal-grid">
@@ -606,14 +618,13 @@
                         {% endwith %}
 
                             <!-- 🟦 NEW BUTTON – outside mini-cal-grid, above toggle -->
-<!-- 🟦 NEW BUTTON – outside mini-cal-grid, above toggle -->
-<div style="text-align:center; margin-top:6px;">
-  <button class="btn"
-          style="padding:6px 14px; font-size:12px; border-radius:20px;"
-          data-open="#freeplateCalendarModal">
-    View full visit details
-  </button>
-</div>
+                            <div style="text-align:center; margin-top:6px;">
+                              <button class="btn"
+                                      style="padding:6px 14px; font-size:12px; border-radius:20px;"
+                                      data-open="#freeplateCalendarModal">
+                                View full visit details
+                              </button>
+                            </div>
 
 
                         <div class="mini-toggle-row">
