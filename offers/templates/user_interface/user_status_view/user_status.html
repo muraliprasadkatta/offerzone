@@ -1,634 +1,569 @@
-<!DOCTYPE html>
+{% load static %}
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Status • OfferZone</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <style>
-:root{
-  --bg:#0b1020;
-  --card:#11183a;
-  --border:#273164;
-  --text:#e8ecff;
-  --muted:#b9c4ff;
-  --prim:#4c74ff;
-  --good:#22c55e;
-  --warn:#fbbf24;
-  --bad:#ef4444;
+    :root{
+      --bg:#f6f8ff;
+      --card:#ffffff;
+      --card2:#fbfcff;
+      --border:rgba(15,23,42,0.12);
+      --text:#0f172a;
+      --muted:#64748b;
 
-  --stroke: rgba(170,190,255,.14);
-  --stroke2: rgba(170,190,255,.08);
-}
+      --prim:#4c74ff;
+      --ok:#22c55e;
+      --warn:#f59e0b;
+      --bad:#ef4444;
 
-*{ box-sizing:border-box }
-html,body{
-  margin:0; padding:0;
-  width:100%; height:100%;
-  background:var(--bg);
-  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  color:var(--text);
-  overflow-x:hidden;
-}
-img, video, svg, canvas { max-width:100%; height:auto; display:block; }
-* { min-width:0; }
+      --chip:#f1f5ff;
+      --chipBorder:rgba(76,116,255,.20);
 
-/* FULLSCREEN WRAP */
-.oz-status-wrap{
-  position:fixed;
-  inset:0;
-  z-index:60;
-  overflow-y:auto;
-  overflow-x:hidden;
-  -webkit-overflow-scrolling: touch;
-  display:block;
+      --shadow: 0 14px 40px rgba(15,23,42,0.10);
+      --shadow2: 0 10px 24px rgba(15,23,42,0.08);
+    }
 
-  padding:
-    calc(16px + env(safe-area-inset-top))
-    0
-    calc(16px + env(safe-area-inset-bottom));
+    *{ box-sizing:border-box }
+    body{
+      margin:0;
+      font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      font-weight:400;
+      line-height:1.35;
+    }
+    a{ color:var(--prim); text-decoration:none }
+    a:hover{ opacity:.9 }
 
-  background:
-    radial-gradient(900px 500px at 30% 20%, rgba(76,116,255,.28), transparent 60%),
-    radial-gradient(800px 420px at 80% 70%, rgba(106,161,255,.20), transparent 55%),
-    linear-gradient(180deg,#0b1020,#090d1a);
-}
+    header{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:12px 14px;
+      background:var(--card);
+      border-bottom:1px solid var(--border);
+      position:sticky; top:0; z-index:10;
+      box-shadow:0 8px 22px rgba(15,23,42,0.06);
+    }
+    header .brand{ font-weight:700; letter-spacing:.2px }
+    header .right{ display:flex; gap:8px; align-items:center; flex-wrap:wrap }
 
-/* MAIN CARD (edge-to-edge) */
-.oz-status-card{
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  border-radius: 0;
-  padding: 20px 18px 18px;
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      padding:9px 12px; border-radius:12px;
+      border:1px solid rgba(76,116,255,.18);
+      background:var(--prim);
+      color:#fff;
+      font-weight:600;
+      cursor:pointer;
+      font-size:13px;
+      box-shadow:0 10px 20px rgba(76,116,255,.14);
+    }
+    .btn.outline{
+      background:transparent;
+      color:var(--text);
+      border:1px solid var(--border);
+      box-shadow:none;
+    }
+    .btn.small{ padding:7px 10px; border-radius:10px; font-size:12px; font-weight:600; }
 
-  background:
-    radial-gradient(120% 80% at 50% 0%,
-      rgba(120,150,255,.20),
-      rgba(17,24,58,.96) 60%);
+    .wrap{ max-width:980px; margin:16px auto; padding:0 14px 22px; }
 
-  border: 0;
-  box-shadow:
-    0 40px 90px rgba(0,0,0,.6),
-    0 0 90px rgba(76,116,255,.25),
-    0 0 0 1px rgba(255,255,255,.06) inset;
-}
+    .card{
+      background:linear-gradient(180deg, var(--card) 0%, var(--card2) 100%);
+      border:1px solid var(--border);
+      border-radius:18px;
+      padding:12px;
+      box-shadow:var(--shadow);
+    }
 
-/* Header */
-.oz-top{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  margin-bottom:14px;
-  flex-wrap:wrap;
-}
-.oz-page-title{
-  font-size:20px;
-  font-weight:600;
-  letter-spacing:0.2px;
-  margin:0;
-}
-.oz-chip{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding:6px 10px;
-  border-radius:999px;
-  border:1px solid rgba(120,150,255,.25);
-  background:rgba(15,22,64,.65);
-  color:var(--muted);
-  font-size:12px;
-  font-weight:700;
-  max-width:100%;
-  white-space:nowrap;
-}
-.oz-chip,
-.meta-pill,
-.offer-tag,
-.state{
-  font-weight:500;      /* 🔥 main slim feel */
-  letter-spacing:0.3px;
-}
+    .title-row{ display:flex; align-items:flex-end; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+    .h1{ font-size:18px; font-weight:700; margin:0; }
+    .sub{ color:var(--muted); font-size:12px; margin-top:4px; font-weight:400; }
 
+    .kpi-grid{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:10px;
+      margin-top:12px;
+    }
+    @media (min-width:760px){
+      .kpi-grid{ grid-template-columns:repeat(4, minmax(0, 1fr)); }
+    }
+    .kpi{
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:10px;
+      box-shadow:var(--shadow2);
+    }
+    .kpi .kpi-label{
+      color:var(--muted);
+      font-size:11px;
+      letter-spacing:.03em;
+      text-transform:uppercase;
+      font-weight:500;
+    }
+    .kpi .kpi-val{
+      font-size:20px;
+      font-weight:700;
+      margin-top:6px;
+      color:#0b1225;
+      line-height:1.05;
+    }
+    .kpi .kpi-sub{
+      color:var(--muted);
+      font-size:12px;
+      margin-top:4px;
+      font-weight:400;
+    }
 
-/* GROUP CONTAINERS */
-.oz-group{
-  border:1px solid var(--stroke2);
-  background: rgba(255,255,255,.03);
-  border-radius:22px;
-  padding:12px;
-  box-shadow:
-    0 18px 50px rgba(0,0,0,.28),
-    0 0 0 1px rgba(255,255,255,.04) inset;
-  margin-bottom:18px;
-}
-.oz-group:last-child{ margin-bottom:0; }
+    .sec{ margin-top:14px; }
+    .sec-head{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px; flex-wrap:wrap; margin-bottom:10px;
+      padding-inline:2px;
+    }
+    .sec-title{ font-size:13px; font-weight:700; }
+    .sec-hint{ color:var(--muted); font-size:12px; font-weight:400; }
 
-.oz-group-head{
-  padding-bottom:10px;
-  border-bottom:1px solid rgba(170,190,255,.10);
-  margin-bottom:12px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  flex-wrap:wrap;
-}
+    .badge{
+      display:inline-flex; align-items:center;
+      padding:4px 9px; border-radius:999px;
+      border:1px solid var(--border);
+      font-size:11px;
+      font-weight:600;
+      background:#fff;
+      color:var(--muted);
+      white-space:nowrap;
+      box-shadow:0 6px 16px rgba(15,23,42,0.05);
+    }
+    .badge.ok{ border-color:rgba(34,197,94,.28); color:#0f7a3b; background:rgba(34,197,94,.10); }
+    .badge.warn{ border-color:rgba(245,158,11,.28); color:#8a5600; background:rgba(245,158,11,.12); }
+    .badge.bad{ border-color:rgba(239,68,68,.28); color:#a11212; background:rgba(239,68,68,.10); }
 
-.oz-group-title{
-  margin:0;
-  font-weight:600;
-  letter-spacing:0.4px;
-  color:#dbe6ff;
-  font-weight:1000;
-  text-transform:uppercase;
-}
+    .pending-list{ display:grid; gap:10px; }
+    .pending-card{
+      border:1px solid rgba(245,158,11,.28);
+      background:linear-gradient(180deg, rgba(245,158,11,.10), rgba(255,255,255,1));
+      border-radius:16px;
+      padding:10px;
+      display:flex; align-items:flex-start; justify-content:space-between;
+      gap:10px; flex-wrap:wrap;
+      box-shadow:var(--shadow2);
+    }
+    .pending-left{ display:flex; flex-direction:column; gap:6px; min-width:220px; flex:1; }
+    .pending-title{ font-weight:700; }
+    .pending-meta{
+      display:flex; gap:8px; flex-wrap:wrap;
+      color:var(--muted); font-size:12px; font-weight:400;
+    }
+    .pending-actions{ display:flex; gap:8px; }
 
-/* SECTION BOX */
-.oz-box{
-  position:relative;
-  border:1px solid var(--stroke2);
-  background: rgba(15,22,64,.78);
-  box-shadow:
-    0 10px 26px rgba(0,0,0,.22),
-    0 0 0 1px rgba(255,255,255,.03) inset;
-  border-radius:18px;
-  padding:16px 16px;
-  margin-bottom:16px;
-  overflow:hidden;
-}
-.oz-box:last-child{ margin-bottom:0; }
+    .offer-grid{ display:grid; gap:10px; }
+    @media (min-width:760px){
+      .offer-grid{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
+    }
+    .offer-card{
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:10px;
+      display:flex; flex-direction:column; gap:8px;
+      box-shadow:var(--shadow2);
+    }
+    .offer-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+    .offer-title{ font-weight:700; }
+    .offer-sub{ color:var(--muted); font-size:12px; font-weight:400; }
 
-.oz-box::before{
-  content:"";
-  position:absolute; inset:0;
-  background:radial-gradient(120% 80% at 50% 0%, rgba(255,255,255,.08), transparent 55%);
-  pointer-events:none;
-  opacity:.7;
-}
+    .bar{
+      height:10px; border-radius:999px;
+      background:rgba(15,23,42,.06);
+      border:1px solid rgba(15,23,42,.08);
+      overflow:hidden;
+    }
+    .bar > span{
+      display:block; height:100%;
+      width:0%;
+      background:linear-gradient(90deg, rgba(245,158,11,.92), rgba(76,116,255,.92));
+    }
+    .offer-foot{ display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+    .offer-ratio{ color:var(--muted); font-size:12px; font-weight:400; }
 
-.oz-box-head{
-  position:relative;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  flex-wrap:wrap;
-  margin-bottom:14px;
-}
-.oz-box-title{
-  margin:0;
-  font-size:13px;
-  letter-spacing:.2px;
-  color:#dbe6ff;
-  font-weight:900;
-  text-transform:uppercase;
-}
-.oz-box-sub{
-  position:relative;
-  margin:0;
-  font-size:12.5px;
-  color:var(--muted);
-  line-height:1.5;
-}
+    .acc{ display:grid; gap:10px; }
+    details.branch{
+      border:1px solid var(--border);
+      background:#fff;
+      border-radius:16px;
+      overflow:hidden;
+      box-shadow:var(--shadow2);
+    }
+    details.branch > summary{
+      list-style:none;
+      cursor:pointer;
+      padding:10px 10px;
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px;
+    }
+    details.branch > summary::-webkit-details-marker{ display:none; }
+    .br-name{ font-weight:700; }
+    .br-mini{ color:var(--muted); font-size:12px; display:flex; gap:10px; flex-wrap:wrap; font-weight:400; }
+    .br-body{ padding:0 10px 10px; display:grid; gap:8px; }
+    .br-row{ display:flex; gap:8px; flex-wrap:wrap; color:var(--muted); font-size:12px; font-weight:400; }
 
-/* ✅ Visit Check-in Flow (dull + neat) */
-.flow-row{
-  position:relative;
-  display:block;
+    .tl{ display:grid; gap:12px; }
+    .tl-day{
+      border:1px solid var(--border);
+      background:#fff;
+      border-radius:16px;
+      overflow:hidden;
+      box-shadow:var(--shadow2);
+    }
+    .tl-head{
+      padding:9px 10px;
+      border-bottom:1px solid rgba(15,23,42,0.08);
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px;
+      background:rgba(76,116,255,.06);
+    }
+    .tl-date{ font-weight:700; }
+    .tl-count{ color:var(--muted); font-size:12px; font-weight:400; }
 
-  background: linear-gradient(180deg, rgba(246,248,252,.92), rgba(240,244,250,.88));
-  border: 1px solid rgba(11,16,32,.10);
-  border-radius:22px;
-  padding:16px;
-  box-shadow:
-    0 14px 34px rgba(0,0,0,.10),
-    0 0 0 1px rgba(255,255,255,.40) inset;
-  overflow:hidden;
-}
+    .tl-items{ padding:10px; display:grid; gap:10px; }
+    .tl-item{
+      border:1px solid rgba(15,23,42,0.10);
+      background:linear-gradient(180deg, rgba(15,23,42,.02), rgba(255,255,255,1));
+      border-radius:14px;
+      padding:10px;
+      display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    }
+    .tl-left{ display:flex; flex-direction:column; gap:4px; min-width:220px; flex:1; }
+    .tl-topline{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .tl-time{ font-weight:700; }
+    .tl-branch{ font-weight:600; }
+    .tl-meta{ color:var(--muted); font-size:12px; display:flex; gap:10px; flex-wrap:wrap; font-weight:400; }
+    .tl-right{ display:flex; gap:8px; align-items:flex-start; }
 
-.flow-row::after{
-  content:"";
-  position:absolute;
-  inset:-40% -20% auto -20%;
-  height:120px;
-  background: radial-gradient(closest-side, rgba(76,116,255,.10), transparent 70%);
-  pointer-events:none;
-}
+    footer.nav{
+      position:sticky; bottom:0;
+      background:var(--card);
+      border-top:1px solid var(--border);
+      z-index:20;
+      box-shadow:0 -10px 24px rgba(15,23,42,0.06);
+    }
+    .tabs{ display:grid; grid-template-columns:repeat(4,1fr); }
+    .tab{
+      padding:10px 8px;
+      text-align:center;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:600;
+    }
+    .tab.active{ color:var(--text); border-bottom:2px solid var(--prim) }
 
-.flow-title{ position:relative; margin:0; font-size:13px; font-weight:900; color:#0b1020; }
-.flow-sub{ position:relative; margin:2px 0 0; font-size:12px; color: rgba(11,16,32,.68); line-height:1.35; }
-
-/* ✅ CLEAN FLOW: left at left border, right at right border, middle exact center */
-.flow-diagram{
-  --circle: 34px;
-  --pad: 6px;            /* circles border ki daggara/dooram */
-  --lineY: 17px;         /* circle center (half of --circle) */
-  --dash: 6px;           /* dash length (bars) */
-  --gapDash: 6px;        /* dash gap */
-
-  position:relative;
-  margin-top:12px;
-  padding: 0 var(--pad);
-}
-
-/* one single bar line behind circles */
-.flow-track{
-  position:absolute;
-
-  /* 🔥 FINAL FIX */
-left:  calc(var(--pad) + var(--circle) + 12px);   /* ✅ QR side extra dash cut */
-right: calc(var(--pad) + var(--circle));          /* ✅ right side same */
-
-
-  top: var(--lineY);
-  height:2px;
-
-  background: repeating-linear-gradient(
-    to right,
-    rgba(11,16,32,.28) 0 var(--dash),
-    transparent var(--dash) calc(var(--dash) + var(--gapDash))
-  );
-
-  transform: translateY(-50%);
-  z-index:0;
-}
-
-
-/* 3 nodes exactly left / center / right */
-.flow-nodes{
-  display:grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  align-items:start;
-  justify-items:center;
-  position:relative;
-  z-index:1;
-}
-
-.flow-node{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:8px;
-}
-
-.flow-node.left{ justify-self:start; }
-.flow-node.mid{ justify-self:center; }
-.flow-node.right{ justify-self:end; }
-
-.flow-circle{
-  width:var(--circle);
-  height:var(--circle);
-  border-radius:999px;
-  background: rgba(245,248,255,.96);
-  border: 2px solid rgba(11,16,32,.18);
-  box-shadow: 0 1px 0 rgba(255,255,255,.65) inset;
-}
-
-/* labels equal look */
-.flow-label{
-  font-size:12px;
-  font-weight:900;
-  color: rgba(11,16,32,.74);
-  text-align:center;
-  line-height:1.15;
-  width:110px;
-  white-space:nowrap;
-}
-
-/* Restaurant */
-.rest-name{
-  position:relative;
-  margin:6px 0 2px;
-  font-size:22px;
-  font-weight:1000;
-  letter-spacing:.3px;
-  color:#ffffff;
-}
-.rest-meta{
-  position:relative;
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  margin-top:10px;
-}
-.meta-pill{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding:6px 10px;
-  border-radius:999px;
-  border:1px solid rgba(120,150,255,.22);
-  background:rgba(11,16,32,.35);
-  color:#c7d2ff;
-  font-size:12px;
-  font-weight:700;
-  max-width:100%;
-}
-
-/* Offers */
-.offer-list{
-  position:relative;
-  margin:0;
-  padding:0;
-  list-style:none;
-  display:grid;
-  gap:8px;
-}
-.offer-item{
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-start;
-  gap:10px;
-
-  padding:10px 10px;
-  border-radius:14px;
-  border:1px solid rgba(120,150,255,.18);
-  background:rgba(11,16,32,.25);
-}
-.offer-item strong{ font-size:13px; color:#fff; display:block; margin-bottom:2px; }
-.offer-item span{ font-size:12px; color:var(--muted); line-height:1.35; }
-.offer-tag{
-  font-size:11px;
-  font-weight:900;
-  padding:6px 10px;
-  border-radius:999px;
-  border:1px solid rgba(120,150,255,.25);
-  background:rgba(76,116,255,.14);
-  color:#dbe6ff;
-  white-space:nowrap;
-}
-
-/* Visit rows */
-.visit-row{
-  position:relative;
-  display:grid;
-  grid-template-columns:26px 1fr auto;
-  gap:10px;
-  align-items:center;
-
-  padding:10px 10px;
-  border-radius:14px;
-  border:1px solid rgba(120,150,255,.18);
-  background:rgba(11,16,32,.25);
-  margin-bottom:8px;
-}
-.visit-row:last-child{ margin-bottom:0; }
-.ico{
-  width:22px;height:22px;border-radius:999px;
-  display:grid;place-items:center;
-  border:1px solid rgba(255,255,255,.10);
-  background:rgba(255,255,255,.06);
-  font-weight:900; font-size:12px;
-}
-.ico.ok{ color:var(--good); box-shadow:0 0 18px rgba(34,197,94,.25); }
-.ico.pending{ color:var(--warn); box-shadow:0 0 18px rgba(251,191,36,.22); }
-.ico.fail{ color:var(--bad); box-shadow:0 0 18px rgba(239,68,68,.20); }
-
-.visit-row strong{ font-size:13px; color:#fff; display:block; }
-.visit-row small{ font-size:12px; color:var(--muted); }
-
-.state{
-  font-size:12px; font-weight:900;
-  padding:6px 10px;
-  border-radius:999px;
-  border:1px solid rgba(120,150,255,.20);
-  background:rgba(255,255,255,.06);
-  color:#dbe6ff;
-  white-space:nowrap;
-}
-.state.ok{ border-color:rgba(34,197,94,.35); background:rgba(34,197,94,.10); }
-.state.pending{ border-color:rgba(251,191,36,.35); background:rgba(251,191,36,.10); }
-.state.fail{ border-color:rgba(239,68,68,.35); background:rgba(239,68,68,.10); }
-
-/* Button */
-.oz-status-btn{
-  width:100%;
-  padding:13px 16px;
-  border-radius:999px;
-  border:1px solid rgba(120,150,255,.45);
-  background:var(--prim);
-  color:#fff;
-  font-size:15px;
-  font-weight:900;
-  cursor:pointer;
-  box-shadow:0 14px 34px rgba(76,116,255,.45);
-  margin-top:10px;
-}
-.oz-status-btn:active{
-  transform:translateY(1px);
-  box-shadow:0 4px 12px rgba(0,0,0,.35) inset;
-}
-
-/* Responsive */
-@media (max-width:720px){
-  .oz-status-card{
-    width: 100%;
-    max-width: none;
-    margin: 0;
-    border-radius: 0;
-    padding: 18px 14px 14px;
-  }
-  .rest-name{ font-size:19px; }
-  .meta-pill{ font-size:11.5px; padding:6px 9px; }
-}
-
-@media (max-width:420px){
-  /* tweak flow for tiny screens (more bars + tighter) */
-  .flow-diagram{
-    --circle: 30px;
-
-    /* 🔥 MAIN CHANGE */
-    --pad: 0px;        /* left & right circle border daggara */
-
-    --lineY: 15px;
-    --dash: 4px;
-    --gapDash: 4px;
-  }
-    .flow-row{ padding-left:16px; padding-right:16px; }
-
-  .flow-label{
-    width:90px;
-    white-space:normal;
-  }
-}
+    @media (max-width:420px){
+      .wrap{ padding:0 12px 20px; }
+      .kpi .kpi-val{ font-size:18px; }
+      .badge{ padding:4px 8px; }
+      .btn{ padding:8px 10px; }
+      .btn.small{ padding:7px 9px; }
+    }
   </style>
 </head>
 
 <body>
-  <div class="oz-status-wrap">
-    <div class="oz-status-card">
-
-
-<div class="rest-meta" style="margin-top:12px;">
-  <span class="meta-pill">📊 Total visits (all time): {{ total_all }}</span>
-
-  <span class="meta-pill">📅 Today (all branches): {{ today_total_all }}</span>
-  <!-- <span class="meta-pill">🏢 Branches visited today: {{ today_unique_branches }}</span> -->
-</div>
-<div style="margin-top:12px;">
-  {% for b in per_branch_today %}
-    <div class="visit-row">
-      <span class="ico ok">✓</span>
-      <div>
-        <strong>{{ b.branch__name }}</strong>
-        <small>Today visits: {{ b.today_visits }} • Last: {{ b.last_visit|date:"Y-m-d H:i" }}</small>
-      </div>
-      <span class="state ok">Today</span>
+  <header>
+    <div class="brand">OfferZone</div>
+    <div class="right">
+      <a class="btn outline" href="{% url 'offers:user_home' %}">Home</a>
+      <a class="btn outline" href="{% url 'offers:user_logout' %}">Sign out</a>
     </div>
-  {% empty %}
-    <p class="oz-box-sub">Today no visits yet.</p>
-  {% endfor %}
-</div>
+  </header>
 
+  <main class="wrap">
 
-
-
-      <!-- Top header -->
-      <div class="oz-top">
-        <h1 class="oz-page-title">Status</h1>
-        <span class="oz-chip">🎁 Check reward</span>
+    <!-- TOP -->
+    <section class="card">
+      <div class="title-row">
+        <div>
+          <h1 class="h1">Your Status</h1>
+          <div class="sub">Visits, eligibility & history — light report view.</div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <span class="badge">Branch: {{ branch_name|default:"All" }}</span>
+          <span class="badge">Today: {{ today_total_all|default:"0" }}</span>
+        </div>
       </div>
 
-      <!-- GROUP 1 -->
-      <section class="oz-group">
-        <div class="oz-group-head">
-          <h3 class="oz-group-title">Check-in & Restaurant</h3>
-          <span class="oz-chip">Live</span>
+      <!-- ✅ KPI (4 only) -->
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-label">Today visits</div>
+          <div class="kpi-val">{{ today_total_all|default:"0" }}</div>
+          <div class="kpi-sub">Across all branches</div>
         </div>
 
-        <!-- Restaurant -->
-        <div class="oz-box">
-          <div class="oz-box-head">
-            <h2 class="oz-box-title">Restaurant</h2>
-            <span class="oz-chip">Live</span>
-          </div>
-
-          <div class="rest-name">Gastro Glide</div>
-          <p class="oz-box-sub">Restaurant details ikkada later add cheddham mava.</p>
-
-          <div class="rest-meta">
-            <span class="meta-pill">📍 Location: —</span>
-            <span class="meta-pill">⏰ Open: —</span>
-            <span class="meta-pill">☎️ Contact: —</span>
-          </div>
+        <div class="kpi">
+          <div class="kpi-label">Total visits</div>
+          <div class="kpi-val">{{ total_all|default:"0" }}</div>
+          <div class="kpi-sub">Overall visits</div>
         </div>
 
-        <!-- Visit Check-in Flow -->
-        <div class="oz-box">
-          <div class="oz-box-head">
-            <h2 class="oz-box-title">Visit Check-in Flow</h2>
-            <span class="oz-chip">How it works</span>
+        <div class="kpi">
+          <div class="kpi-label">Last visit</div>
+          <div class="kpi-val" style="font-size:14px; margin-top:10px; font-weight:600;">
+            {{ last_visit_anywhere|default:"—" }}
           </div>
+          <div class="kpi-sub">Most recent activity</div>
+        </div>
 
-          <div class="flow-row">
-            <p class="flow-title">QR Scan or Visit PIN</p>
-            <p class="flow-sub">User QR scan chesthadu leka 4-digit visit PIN enter chesthadu.</p>
+        <!-- ✅ REPLACED: Branches today -> Offers claimed -->
+        <div class="kpi">
+          <div class="kpi-label">Offers claimed</div>
+          <div class="kpi-val">{{ offers_claimed_total|default:"0" }}</div>
+          <div class="kpi-sub">Dummy (connect later)</div>
+        </div>
+      </div>
+    </section>
 
-            <!-- ✅ NEW CLEAN FLOW MARKUP -->
-            <div class="flow-diagram" aria-label="Visit Check-in Flow">
-              <div class="flow-track" aria-hidden="true"></div>
+    <!-- PENDING -->
+    <section class="sec">
+      <div class="sec-head">
+        <div class="sec-title">Pending actions</div>
+        <div class="sec-hint">Scan/PIN started but not confirmed</div>
+      </div>
 
-              <div class="flow-nodes">
-                <div class="flow-node left">
-                  <div class="flow-circle"></div>
-                  <div class="flow-label">QR Scan</div>
+      {% if pending_items %}
+        <div class="pending-list">
+          {% for p in pending_items %}
+            <div class="pending-card">
+              <div class="pending-left">
+                <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                  <div class="pending-title">{{ p.branch_name }}</div>
+                  <span class="badge warn">PENDING</span>
                 </div>
-
-                <div class="flow-node mid">
-                  <div class="flow-circle"></div>
-                  <div class="flow-label">Visit PIN</div>
-                </div>
-
-                <div class="flow-node right">
-                  <div class="flow-circle"></div>
-                  <div class="flow-label">Visit Success</div>
+                <div class="pending-meta">
+                  <span>Started: {{ p.started_at|date:"d M, h:i A" }}</span>
+                  {% if p.desk %}<span>Desk: {{ p.desk }}</span>{% endif %}
+                  {% if p.method %}<span>Method: {{ p.method }}</span>{% endif %}
                 </div>
               </div>
-            </div>
-          </div>
 
-          <p class="oz-box-sub" style="margin-top:10px;">
-            (Later: Already claimed today / invalid QR / invalid PIN paths kuda add cheddham.)
-          </p>
-        </div>
-      </section>
-
-      <!-- GROUP 2 -->
-      <section class="oz-group">
-        <div class="oz-group-head">
-          <h3 class="oz-group-title">Offers & Visit Status</h3>
-          <span class="oz-chip">Today</span>
-        </div>
-
-        <!-- Offers -->
-        <div class="oz-box">
-          <div class="oz-box-head">
-            <h2 class="oz-box-title">Offers</h2>
-            <span class="oz-chip">Today</span>
-          </div>
-
-          <ul class="offer-list">
-            <li class="offer-item">
-              <div>
-                <strong>Free Treat on 5 Visits</strong>
-                <span>Complete 5 visits to unlock your treat.</span>
+              <div class="pending-actions">
+                <button class="btn small" type="button"
+                        data-confirm-url="{% url 'offers:confirm_branch_visit' %}"
+                        data-token="{{ p.token }}">
+                  Complete
+                </button>
+                <button class="btn outline small" type="button"
+                        data-cancel-pending="1">
+                  Cancel
+                </button>
               </div>
-              <span class="offer-tag">Visit Reward</span>
-            </li>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="card" style="padding:12px; background:#fff; border-color:var(--border); box-shadow:var(--shadow2);">
+          <span class="badge ok">No pending</span>
+          <div style="margin-top:6px; color:var(--muted); font-size:12px;">All visits confirmed.</div>
+        </div>
+      {% endif %}
+    </section>
 
-            <li class="offer-item">
-              <div>
-                <strong>10% Cashback</strong>
-                <span>Available on selected items today.</span>
+    <!-- OFFER ELIGIBILITY -->
+    <section class="sec">
+      <div class="sec-head">
+        <div class="sec-title">Offer eligibility</div>
+        <div class="sec-hint">Eligible / Almost / Locked</div>
+      </div>
+
+      {% if offer_progress %}
+        <div class="offer-grid">
+          {% for o in offer_progress %}
+            <div class="offer-card">
+              <div class="offer-top">
+                <div>
+                  <div class="offer-title">{{ o.title }}</div>
+                  <div class="offer-sub">{{ o.subtitle|default:"" }}</div>
+                </div>
+
+                {% if o.status == "eligible" %}
+                  <span class="badge ok">ELIGIBLE</span>
+                {% elif o.status == "near" %}
+                  <span class="badge warn">ALMOST</span>
+                {% else %}
+                  <span class="badge">LOCKED</span>
+                {% endif %}
               </div>
-              <span class="offer-tag">Cashback</span>
-            </li>
-          </ul>
+
+              <div class="bar"><span style="width: {{ o.pct|default:'0' }}%;"></span></div>
+
+              <div class="offer-foot">
+                <div class="offer-ratio">
+                  {{ o.current|default:"0" }} / {{ o.target|default:"—" }}
+                  {% if o.remaining is not None %} · {{ o.remaining }} left{% endif %}
+                </div>
+
+                {% if o.status == "eligible" and o.claim_url %}
+                  <a class="btn small" href="{{ o.claim_url }}">Claim</a>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
         </div>
-
-        <!-- Visit Status -->
-        <div class="oz-box">
-          <div class="oz-box-head">
-            <h2 class="oz-box-title">Visit Status</h2>
-            <span class="oz-chip">This branch</span>
-          </div>
-
-          <div class="visit-row">
-            <span class="ico ok">✓</span>
-            <div>
-              <strong>Visit #1</strong>
-              <small>Recorded successfully</small>
-            </div>
-            <span class="state ok">Success</span>
-          </div>
-
-          <div class="visit-row">
-            <span class="ico pending">⏳</span>
-            <div>
-              <strong>Visit #2</strong>
-              <small>Waiting for confirmation</small>
-            </div>
-            <span class="state pending">Pending</span>
-          </div>
-
-          <div class="visit-row">
-            <span class="ico fail">✕</span>
-            <div>
-              <strong>Visit #3</strong>
-              <small>Could not verify</small>
-            </div>
-            <span class="state fail">Failed</span>
-          </div>
-
-          <button class="oz-status-btn" type="button" onclick="window.history.back()">
-            Check your reward
-          </button>
+      {% else %}
+        <div class="card" style="padding:12px; background:#fff; border-color:var(--border); box-shadow:var(--shadow2);">
+          <div style="color:var(--muted); font-size:12px;">No offer progress data yet.</div>
         </div>
-      </section>
+      {% endif %}
+    </section>
 
+    <!-- BRANCH BREAKDOWN -->
+    <section class="sec">
+      <div class="sec-head">
+        <div class="sec-title">Today branch breakdown</div>
+        <div class="sec-hint">Tap to expand</div>
+      </div>
+
+      {% if per_branch_today %}
+        <div class="acc">
+          {% for b in per_branch_today %}
+            <details class="branch">
+              <summary>
+                <div>
+                  <div class="br-name">{{ b.branch__name }}</div>
+                  <div class="br-mini">
+                    <span>Today: {{ b.today_visits }}</span>
+                    <span>Last: {{ b.last_visit|date:"d M, h:i A" }}</span>
+                  </div>
+                </div>
+                <span class="badge">▼</span>
+              </summary>
+
+              <div class="br-body">
+                <div class="br-row">
+                  <span class="badge">Branch ID: {{ b.branch_id }}</span>
+                  <a class="btn outline small" href="{% url 'offers:branch_offers_in_userinterface' b.branch_id %}">Open offers</a>
+                </div>
+              </div>
+            </details>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="card" style="padding:12px; background:#fff; border-color:var(--border); box-shadow:var(--shadow2);">
+          <div style="color:var(--muted); font-size:12px;">No visits today.</div>
+        </div>
+      {% endif %}
+    </section>
+
+    <!-- VISIT HISTORY -->
+    <section class="sec">
+      <div class="sec-head">
+        <div class="sec-title">Visit history</div>
+        <div class="sec-hint">Date-wise timeline</div>
+      </div>
+
+      {% if history_days %}
+        <div class="tl">
+          {% for day in history_days %}
+            <div class="tl-day">
+              <div class="tl-head">
+                <div class="tl-date">{{ day.date|date:"d M Y" }}</div>
+                <div class="tl-count">{{ day.count }} visits</div>
+              </div>
+
+              <div class="tl-items">
+                {% for e in day.items %}
+                  <div class="tl-item">
+                    <div class="tl-left">
+                      <div class="tl-topline">
+                        <span class="tl-time">{{ e.created_at|date:"h:i A" }}</span>
+                        <span class="tl-branch">· {{ e.branch_name }}</span>
+
+                        <span class="badge ok">DONE</span>
+                      </div>
+
+                      <div class="tl-meta">
+                        {% if e.desk %}<span>Desk: {{ e.desk }}</span>{% endif %}
+                        {% if e.visit_method %}<span>Method: {{ e.visit_method }}</span>{% endif %}
+                        {% if e.staff_name or e.staff_code %}
+                          <span>Staff: {{ e.staff_name }} {{ e.staff_code }}</span>
+                        {% endif %}
+                      </div>
+                    </div>
+
+                    <div class="tl-right">
+                      {% if e.branch_id %}
+                        <a class="btn outline small" href="{% url 'offers:branch_offers_in_userinterface' e.branch_id %}">Branch</a>
+                      {% endif %}
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="card" style="padding:12px; background:#fff; border-color:var(--border); box-shadow:var(--shadow2);">
+          <div style="color:var(--muted); font-size:12px;">No visit history yet.</div>
+        </div>
+      {% endif %}
+    </section>
+
+  </main>
+
+  <footer class="nav">
+    <div class="tabs">
+      <a class="tab" href="{% url 'offers:user_home' %}">Home</a>
+      <a class="tab active" href="{% url 'offers:user_status' %}">Status</a>
+      <a class="tab" href="#">Offers</a>
+      <a class="tab" href="#">Account</a>
     </div>
-  </div>
+  </footer>
+
+  <script>
+    (function(){
+      function getCookie(name){
+        return document.cookie.split('; ').find(r => r.startsWith(name + '='))?.split('=')[1] || '';
+      }
+
+      document.querySelectorAll('[data-confirm-url]').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          const url = btn.getAttribute('data-confirm-url');
+          const token = btn.getAttribute('data-token');
+          if(!url || !token) return;
+
+          try{
+            const res = await fetch(url, {
+              method:'POST',
+              headers:{
+                'Content-Type':'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+                'X-Requested-With':'XMLHttpRequest'
+              },
+              body: JSON.stringify({ token })
+            });
+            const data = await res.json().catch(()=> ({}));
+            if(data.redirect_url){
+              window.location.href = data.redirect_url;
+            } else {
+              window.location.reload();
+            }
+          }catch(e){
+            window.location.reload();
+          }
+        });
+      });
+
+      document.querySelectorAll('[data-cancel-pending="1"]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          window.location.reload();
+        });
+      });
+    })();
+  </script>
 </body>
 </html>

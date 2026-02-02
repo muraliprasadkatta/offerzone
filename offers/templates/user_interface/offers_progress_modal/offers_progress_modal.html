@@ -1,0 +1,393 @@
+<div class="og-card">
+
+  <div class="og-track-wrap">
+
+    <!-- ✅ SHELL (desktop-only arrows & padding) -->
+    <div class="og-track-shell" id="ogTrackShell">
+
+      <!-- ✅ arrows (desktop only via CSS media query) -->
+      <button class="og-nav og-nav--left" type="button" aria-label="Scroll left">‹</button>
+      <button class="og-nav og-nav--right" type="button" aria-label="Scroll right">›</button>
+
+      <!-- ✅ scroller (mobile old view stays) -->
+      <div class="og-track-scroller" id="ogTrackScroller"
+           data-has-progress="{% if progress_pct and progress_pct > 0 %}1{% else %}0{% endif %}">
+
+        <div class="og-track" id="ogTrack">
+          <div class="og-fill"
+               style="width:{% if progress_pct and progress_pct > 0 %}{{ progress_pct }}%{% else %}8%{% endif %};">
+          </div>
+
+          <div class="og-start">
+            <span class="og-start-dot"></span>
+            <span class="og-start-label">Start</span>
+          </div>
+
+          {% for m in milestones %}
+            <div class="og-pin og-pin--{{ m.state }}"
+                 style="left: {{ m.left_pct }}%;"
+                 {% if m.state == "active" %}data-pin="active"{% endif %}>
+
+              {% if m.state == "lock" %}
+                <div class="og-lock">🔒</div>
+              {% elif m.is_main %}
+                <div class="og-star">★</div>
+                <div class="og-star-num">{{ m.visit_no }}</div>
+              {% else %}
+                <div class="og-chip">{{ m.label }}</div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+
+      </div>
+    </div>
+
+    <!-- meta -->
+    <div class="og-meta">
+      <div class="og-pill">{{ points_label|default:"0+" }}</div>
+      {% if progress_total %}
+        <div class="og-ratio"><b>{{ current_progress|default:"0" }}</b> / {{ progress_total }}</div>
+      {% else %}
+        <div class="og-ratio"><b>—</b></div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- rows -->
+  <div class="og-list">
+    {% for row in rows %}
+      <div class="og-row og-row--{{ row.state }}">
+        <div class="og-left">
+          <div class="og-ico og-ico--{{ row.state }}">
+            {% if row.state == "done" %}✓
+            {% elif row.state == "active" %}🎯
+            {% else %}🔒{% endif %}
+          </div>
+
+          <div class="og-text">
+            <div class="og-title">
+              <b>{{ row.label }}</b>
+              <span class="og-reward">{{ row.title }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="og-date og-date--{{ row.state }}">
+          {{ row.date_label|default:"—" }}
+        </div>
+      </div>
+    {% empty %}
+      <div class="og-empty">No milestones configured.</div>
+    {% endfor %}
+  </div>
+
+</div>
+
+<style>
+:root{
+  --card:#0b1022;
+  --border:rgba(120,150,255,.18);
+  --text:#eaf0ff;
+  --muted:rgba(234,240,255,.72);
+  --gold:#ffc857;
+  --green:#2ef08a;
+}
+
+.og-card{
+  background: linear-gradient(180deg, rgba(79,124,255,.10), transparent 40%), var(--card);
+  border:1px solid var(--border);
+  border-radius:18px;
+  overflow:hidden;
+}
+
+.og-track-wrap{
+  padding:14px 16px 12px;
+  background: radial-gradient(800px 220px at 20% 0%, rgba(255,200,87,.14), transparent 50%),
+              radial-gradient(800px 220px at 70% 0%, rgba(79,124,255,.18), transparent 55%),
+              rgba(255,255,255,.02);
+  border-bottom:1px solid rgba(120,150,255,.12);
+}
+
+/* ✅ mobile default: NO padding reserve (old view) */
+.og-track-shell{
+  position:relative;
+  padding: 0;
+}
+
+/* scroller (same as old) */
+.og-track-scroller{
+  overflow-x:auto;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width:none;
+  padding-bottom:6px;
+}
+.og-track-scroller::-webkit-scrollbar{ display:none; }
+
+/* track */
+.og-track{
+  position:relative;
+  height:18px;
+  border-radius:999px;
+  background: rgba(255,255,255,.06);
+  border:1px solid rgba(120,150,255,.18);
+  overflow:hidden;
+  min-width:190%;
+}
+
+/* ✅ arrows default hidden */
+.og-nav{ display:none; }
+
+/* ✅ DESKTOP ONLY (window view): reserve space + show arrows */
+@media (hover:hover) and (pointer:fine){
+  .og-track-shell{
+    padding: 0 44px;
+  }
+  .og-nav{
+    position:absolute;
+    top: 9px;
+    transform: translateY(-50%);
+    width:32px;
+    height:32px;
+    border-radius:999px;
+    border:1px solid rgba(120,150,255,.28);
+    background: rgba(7,11,22,.70);
+    color: var(--text);
+    font-size:22px;
+    line-height:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    z-index: 10;
+    backdrop-filter: blur(6px);
+  }
+  .og-nav--left{ left:6px; }
+  .og-nav--right{ right:6px; }
+
+  /* ✅ UPDATED: real disable (click off + visual) */
+  .og-nav.is-disabled{
+    opacity:.28;
+    cursor:not-allowed;
+    pointer-events:none;   /* ✅ IMPORTANT */
+    filter: grayscale(.2);
+  }
+}
+
+/* fill */
+.og-fill{
+  position:absolute; inset:0 auto 0 0;
+  height:100%;
+  border-radius:999px;
+  background: linear-gradient(90deg, rgba(255,200,87,.95), rgba(79,124,255,.95), rgba(61,242,255,.95));
+  box-shadow: 0 0 18px rgba(79,124,255,.30);
+}
+
+/* start */
+.og-start{
+  position:absolute;
+  left:10px;
+  top:50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+.og-start-dot{
+  display:block;
+  width:8px;height:8px;border-radius:99px;
+  background: rgba(255,200,87,.95);
+  box-shadow: 0 0 10px rgba(255,200,87,.45);
+  opacity:.9;
+}
+.og-start-label{
+  position:absolute;
+  top:-16px;
+  left:-6px;
+  font-size:10px;
+  color: rgba(234,240,255,.55);
+  white-space:nowrap;
+}
+
+/* pins */
+.og-pin{
+  position:absolute;
+  top:50%;
+  transform:translate(-50%,-50%);
+  z-index: 3;
+}
+.og-chip{
+  padding:4px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+  border:1px solid rgba(120,150,255,.22);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  white-space:nowrap;
+}
+.og-star{
+  width:34px;height:34px;border-radius:12px;
+  display:grid;place-items:center;
+  background: rgba(255,200,87,.16);
+  border:1px solid rgba(255,200,87,.60);
+  color: var(--gold);
+  font-size:16px;
+  box-shadow: 0 0 16px rgba(255,200,87,.18);
+}
+.og-star-num{
+  position:absolute;
+  left:50%; bottom:-18px;
+  transform:translateX(-50%);
+  color: var(--text);
+  font-weight:900;
+  font-size:13px;
+  opacity:.95;
+}
+.og-lock{
+  width:32px;height:32px;border-radius:12px;
+  display:grid;place-items:center;
+  border:1px solid rgba(120,150,255,.18);
+  background: rgba(255,255,255,.05);
+  opacity:.65;
+}
+
+.og-pin--done .og-chip{ border-color: rgba(46,240,138,.42); background: rgba(46,240,138,.10); }
+.og-pin--active .og-chip{ border-color: rgba(255,200,87,.55); background: rgba(255,200,87,.12); }
+.og-pin--lock .og-chip{ opacity:.55; }
+
+/* meta + rows (unchanged) */
+.og-meta{ margin-top:10px; display:flex; align-items:center; justify-content:space-between; }
+.og-pill{
+  padding:6px 10px;border-radius:999px;
+  border:1px solid rgba(120,150,255,.18);
+  background: rgba(255,255,255,.05);
+  color: var(--text); font-size:12px; font-weight:900;
+}
+.og-ratio{ color: var(--muted); font-size:12px; }
+.og-ratio b{ color: var(--text); }
+
+.og-list{ padding:10px 16px 14px; }
+.og-row{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:12px 10px;
+  border-radius:14px;
+  border:1px solid rgba(120,150,255,.12);
+  background: rgba(255,255,255,.03);
+  margin-bottom:10px;
+}
+.og-left{ display:flex; align-items:center; gap:12px; min-width:0; }
+.og-ico{
+  width:34px;height:34px;border-radius:12px;
+  display:grid;place-items:center;
+  border:1px solid rgba(120,150,255,.22);
+  background: rgba(255,255,255,.05);
+  color: var(--text);
+  flex:0 0 auto;
+}
+.og-ico--done{ border-color: rgba(46,240,138,.45); background: rgba(46,240,138,.12); color: var(--green); }
+.og-ico--active{ border-color: rgba(255,200,87,.55); background: rgba(255,200,87,.14); color: var(--gold); }
+.og-ico--lock{ opacity:.60; }
+
+.og-title{ color: var(--text); font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.og-reward{ margin-left:8px; color: rgba(234,240,255,.80); font-weight:800; }
+
+.og-date{
+  padding:6px 10px;border-radius:999px;
+  border:1px solid rgba(120,150,255,.20);
+  background: rgba(255,255,255,.05);
+  color: var(--text); font-size:12px; font-weight:900; white-space:nowrap;
+}
+.og-date--done{ border-color: rgba(46,240,138,.42); background: rgba(46,240,138,.10); }
+.og-date--active{ border-color: rgba(255,200,87,.55); background: rgba(255,200,87,.12); }
+.og-date--lock{ opacity:.60; }
+
+.og-empty{
+  padding:14px; border-radius:14px;
+  border:1px dashed rgba(120,150,255,.18);
+  background: rgba(255,255,255,.02);
+  color: var(--muted); text-align:center;
+}
+</style>
+
+<script>
+(function(){
+  const shell = document.getElementById('ogTrackShell');
+  const scroller = document.getElementById('ogTrackScroller');
+  if(!shell || !scroller) return;
+
+  const hasProgress = scroller.getAttribute('data-has-progress') === '1';
+  const btnL = shell.querySelector('.og-nav--left');
+  const btnR = shell.querySelector('.og-nav--right');
+
+  const isDesktop = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+
+  function maxScroll(){
+    return Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+  }
+
+  /* ✅ UPDATED sync: edges lo only one active */
+  function syncArrows(){
+    if(!isDesktop || !btnL || !btnR) return;
+
+    const max = maxScroll();
+
+    // overflow lekapothe arrows hide
+    if(max <= 2){
+      btnL.style.display = 'none';
+      btnR.style.display = 'none';
+      return;
+    }
+
+    // overflow unte arrows show (desktop css already display:flex, but safe)
+    btnL.style.display = 'flex';
+    btnR.style.display = 'flex';
+
+    const atStart = scroller.scrollLeft <= 2;
+    const atEnd   = scroller.scrollLeft >= (max - 2);
+
+    btnL.classList.toggle('is-disabled', atStart);
+    btnR.classList.toggle('is-disabled', atEnd);
+  }
+
+  function pageAmount(){
+    return Math.max(260, Math.floor(scroller.clientWidth * 0.75));
+  }
+
+  if(isDesktop && btnL && btnR){
+    btnL.addEventListener('click', () => {
+      if(btnL.classList.contains('is-disabled')) return;
+      scroller.scrollBy({ left: -pageAmount(), behavior: 'smooth' });
+    });
+    btnR.addEventListener('click', () => {
+      if(btnR.classList.contains('is-disabled')) return;
+      scroller.scrollBy({ left: pageAmount(), behavior: 'smooth' });
+    });
+
+    scroller.addEventListener('scroll', syncArrows, { passive:true });
+    window.addEventListener('resize', syncArrows);
+  }
+
+  // active pin centering (unchanged)
+  if(!hasProgress){
+    scroller.scrollLeft = 0;
+  } else {
+    const activePin = scroller.querySelector('[data-pin="active"]');
+    if(activePin){
+      requestAnimationFrame(() => {
+        const scrollerRect = scroller.getBoundingClientRect();
+        const pinRect = activePin.getBoundingClientRect();
+        const current = scroller.scrollLeft;
+
+        const pinCenter = (pinRect.left - scrollerRect.left) + (pinRect.width / 2);
+        const target = current + pinCenter - (scrollerRect.width / 2);
+
+        scroller.scrollLeft = Math.max(0, target);
+        syncArrows();
+      });
+    }
+  }
+
+  if(isDesktop) requestAnimationFrame(syncArrows);
+})();
+</script>

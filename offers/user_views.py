@@ -926,6 +926,8 @@ def confirm_branch_visit(request):
 
 from django.db.models import Max
 from django.utils import timezone
+from offers.services.offers_progress_modal_helper import offers_progress_modal_context
+
 
 def branch_offers_in_userinterface(request, branch_id):
     branch = get_object_or_404(Branch, id=branch_id)
@@ -966,12 +968,27 @@ def branch_offers_in_userinterface(request, branch_id):
         "is_open_now": True,
         "free_plate_offer": free_plate_offer,
 
-        # 🔥 send to template
+        # send to template
         "branch_total_visits": branch_total_visits,
         "branch_today_visits": branch_today_visits,
         "branch_last_visit": branch_last_visit,
         "branch_has_visited": branch_has_visited,
     }
+        #  MILESTONE PROGRESS LOGIC HERE
+    max_preview = 60
+    if free_plate_offer and free_plate_offer.start_at and free_plate_offer.end_at:
+        window_days = (free_plate_offer.end_at.date() - free_plate_offer.start_at.date()).days + 1
+        max_preview = max(15, min(60, window_days))
+        
+        progress = offers_progress_modal_context(
+            total_visits=branch_total_visits,
+            nth=getattr(free_plate_offer, "nth", None),
+            repeat=bool(getattr(free_plate_offer, "repeat", True)),
+            extra_nths=getattr(free_plate_offer, "extra_nths", []) or [],
+            max_preview=max_preview,                 # ✅ dynamic
+            include_repeat_multiples=True,           # ✅ repeats show 10/15/20...
+        )
+        context.update(progress)
 
     return render(
         request,
@@ -1087,34 +1104,75 @@ from django.db.models import Count, Max
 from django.shortcuts import render
 from .models import UserVisitEvent, ComplementaryOffer
 
+from django.utils import timezone
+from django.db import models
+from django.db.models import Count, Max
+from django.shortcuts import render
+
+from .models import UserVisitEvent, ComplementaryOffer, Branch
+
+from django.utils import timezone
+from django.db import models
+from django.db.models import Count, Max
+from django.shortcuts import render
+
+from .models import UserVisitEvent, ComplementaryOffer, Branch
+
+
+def _parse_iso_dt(v):
+    """
+    Safe ISO parse for session stored datetime string.
+    Returns aware datetime or None.
+    """
+    if not v:
+        return None
+    try:
+        dt = timezone.datetime.fromisoformat(v)
+        if timezone.is_naive(dt):
+            dt = timezone.make_aware(dt, timezone.get_current_timezone())
+        return dt
+    except Exception:
+        return None
+
+
 def user_status_view(request):
     branch_id = request.session.get("last_branch_id") or request.session.get("pending_qr_branch_id")
     branch_name = request.session.get("last_branch_name") or request.session.get("pending_qr_branch_name") or "This Branch"
 
-    # defaults
-    
+    # -------------------
+    # defaults (old keys)
+    # -------------------
     this_branch_total = 0
     this_branch_today = 0
     this_branch_last = None
 
     today_total_all = 0
     today_unique_branches = 0
-    per_branch_today = []   # list for loop UI
+    per_branch_today = []
 
     total_all = 0
+    last_visit_anywhere = "—"
 
+    # -------------------
+    # NEW: pending + history
+    # -------------------
+    pending_items = []
+    history_days = []
+
+    # ✅ IST day start (local)
+    now_ts = timezone.localtime(timezone.now())
+    start_of_day = now_ts.replace(hour=0, minute=0, second=0, microsecond=0)
 
     if request.user.is_authenticated:
-        start_of_day = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        base_all = UserVisitEvent.objects.filter(user=request.user)
+        total_all = base_all.count()
 
         # ✅ Today across ALL branches
-        base_today = UserVisitEvent.objects.filter(user=request.user, created_at__gte=start_of_day)
-        total_all = UserVisitEvent.objects.filter(user=request.user).count()
-
+        base_today = base_all.filter(created_at__gte=start_of_day)
         today_total_all = base_today.count()
         today_unique_branches = base_today.values("branch_id").distinct().count()
 
-        # ✅ Per-branch today breakdown (for loop)
+        # ✅ Per-branch today breakdown
         per_branch_today = list(
             base_today
             .values("branch_id", "branch__name")
@@ -1124,13 +1182,73 @@ def user_status_view(request):
 
         # ✅ This branch stats (only if branch_id exists)
         if branch_id:
-            qs = UserVisitEvent.objects.filter(user=request.user, branch_id=branch_id)
+            qs = base_all.filter(branch_id=branch_id)
             this_branch_total = qs.count()
             this_branch_today = qs.filter(created_at__gte=start_of_day).count()
             last_obj = qs.order_by("-created_at").first()
             this_branch_last = last_obj.created_at if last_obj else None
 
-    # offer visit_unit (optional) - this branch context
+        # ✅ Global last visit (anywhere)
+        last_any = base_all.order_by("-created_at").first()
+        if last_any:
+            last_visit_anywhere = timezone.localtime(last_any.created_at).strftime("%d %b %Y, %I:%M %p")
+
+        # ✅ HISTORY timeline (day-wise buckets)
+        events = (
+            base_all
+            .select_related("branch")
+            .order_by("-created_at")[:120]
+        )
+
+        buckets = {}
+        for e in events:
+            d = timezone.localdate(e.created_at)
+            buckets.setdefault(d, []).append(e)
+
+        for d in sorted(buckets.keys(), reverse=True):
+            items = []
+            for e in buckets[d]:
+                items.append({
+                    "created_at": timezone.localtime(e.created_at),
+                    "branch_id": e.branch_id,
+                    "branch_name": getattr(e.branch, "name", "Branch"),
+                    "desk": e.desk or "",
+                    "visit_method": e.visit_method or "",
+                    "staff_name": e.staff_name or "",
+                    "staff_code": e.staff_code or "",
+                    "state": "done",
+                })
+            history_days.append({
+                "date": d,
+                "count": len(items),
+                "items": items
+            })
+
+    # -------------------
+    # Pending status (from session)
+    # -------------------
+    pending_token = (request.session.get("pending_qr_token") or "").strip()
+    pending_branch_id = request.session.get("pending_qr_branch_id")
+    pending_started_at = request.session.get("pending_qr_started_at")
+    pending_desk = request.session.get("pending_qr_desk") or ""
+    pending_method = request.session.get("pending_qr_method") or "scan"  # scan|pin
+
+    if pending_token and pending_branch_id:
+        b = Branch.objects.filter(id=pending_branch_id).only("id", "name").first()
+        started_at_dt = _parse_iso_dt(pending_started_at)
+
+        pending_items.append({
+            "token": pending_token,
+            "branch_id": pending_branch_id,
+            "branch_name": b.name if b else "Branch",
+            "desk": pending_desk,
+            "method": pending_method,
+            "started_at": started_at_dt,
+        })
+
+    # -------------------
+    # offer visit_unit (old logic)
+    # -------------------
     visit_unit = "qr_screenshot"
     if branch_id:
         offer = (
@@ -1143,20 +1261,41 @@ def user_status_view(request):
         if offer:
             visit_unit = offer.visit_unit
 
+    # -------------------
+    # ✅ Dummy offers claimed (for now)
+    # -------------------
+    offers_claimed_total = 0
+    offers_claimed_today = 0
+    offers_claimed_label = "Dummy (will connect later)"
+
+    # -------------------
+    # ctx (old keys + new keys)
+    # -------------------
     ctx = {
-        # This branch
+        # OLD: This branch
         "branch_name": branch_name,
         "total_visits": this_branch_total,
         "today_visits": this_branch_today,
-        "last_visit": this_branch_last.strftime("%Y-%m-%d %H:%M") if this_branch_last else "—",
+        "last_visit": timezone.localtime(this_branch_last).strftime("%Y-%m-%d %H:%M") if this_branch_last else "—",
         "visit_unit": visit_unit,
         "total_all": total_all,
 
-        # All branches today
+        # OLD: All branches today
         "today_total_all": today_total_all,
         "today_unique_branches": today_unique_branches,
         "per_branch_today": per_branch_today,
+
+        # NEW: global + pending + history
+        "last_visit_anywhere": last_visit_anywhere,
+        "pending_items": pending_items,
+        "history_days": history_days,
+
+        # NEW: dummy offers
+        "offers_claimed_total": offers_claimed_total,
+        "offers_claimed_today": offers_claimed_today,
+        "offers_claimed_label": offers_claimed_label,
     }
+
     return render(request, "user_interface/user_status_view/user_status.html", ctx)
 
 
