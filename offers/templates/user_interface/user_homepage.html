@@ -11,306 +11,455 @@
 
   <style>
     :root{
-  --bg:#0b1020;
-  --card:#11183a;
-  --border:#273164;
-  --text:#e8ecff;
-  --muted:#b9c4ff;
-  --prim:#4c74ff;
+      /* ===== LIGHT BACKGROUND THEME ===== */
+      --bg1:#eef4ff;
+      --bg2:#f6f8ff;
+      --bg3:#ffffff;
 
-  /* light card theme (branches) */
-  --lightCard:#ffffff;
-  --lightCard2:#f6f8ff;
-  --lightBorder:rgba(15,23,42,0.10);
-  --lightText:#0f172a;
-  --lightMuted:#475569;
+      --text:#0f172a;
+      --muted:#475569;
 
-  /* status colors */
-  --ok:rgba(34,197,94,0.65);
-  --okBar:rgba(34,197,94,0.75);
-  --bad:rgba(239,68,68,0.55);
-  --badBar:rgba(239,68,68,0.65);
-}
+      --prim:#4c74ff;
 
-*{ box-sizing:border-box }
-body{
-  margin:0;
-  font-family:system-ui, Arial, sans-serif;
-  background:var(--bg);
-  color:var(--text);
-}
-a{ color:#c5d0ff; text-decoration:none }
-a:hover{ opacity:.9 }
+      /* header stays dark */
+      --hdr:#0b1436;
+      --hdr2:#101c45;
+      --hdrText:#e8ecff;
+      --hdrBorder:rgba(255,255,255,0.10);
 
-/* Header */
-header{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:14px 18px;
-  background:var(--card);
-  border-bottom:1px solid var(--border);
-  position:sticky;
-  top:0;
-  z-index:10;
-}
-header .brand{ font-weight:700; letter-spacing:.3px }
-header .right{ display:flex; gap:12px; align-items:center }
+      /* glass cards */
+      --card:rgba(255,255,255,0.86);
+      --card2:rgba(255,255,255,0.70);
+      --border:rgba(15,23,42,0.12);
 
-/* Buttons */
-.btn{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  padding:10px 14px;
-  border-radius:12px;
-  border:1px solid var(--border);
-  background:var(--prim);
-  color:#fff;
-  font-weight:600;
-  cursor:pointer;
-}
-.btn.outline{
-  background:transparent;
-  color:var(--text);
-}
+      /* ✅ STRONGER / PRETTIER SHADOWS */
+      --shadow: 0 22px 60px rgba(15,23,42,0.12);
+      --shadow2: 0 14px 34px rgba(15,23,42,0.10);
+      --shadow3: 0 10px 22px rgba(15,23,42,0.08);
 
-/* Layout */
-.wrap{ max-width:980px; margin:28px auto; padding:0 16px }
+      /* ✅ subtle highlight line on top */
+      --hlTop: rgba(76,116,255,0.18);
 
-/* Base card */
-.card{
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:16px;
-  padding:18px;
-  box-shadow:0 10px 30px rgba(0,0,0,.25);
-}
+      /* branch light card (still works) */
+      --lightCard:#ffffff;
+      --lightCard2:#fbfcff;
+      --lightBorder:rgba(15,23,42,0.10);
+      --lightText:#0f172a;
+      --lightMuted:#475569;
 
-/* Messages */
-.msg{
-  background:#0e1a48;
-  border:1px solid var(--border);
-  padding:10px 12px;
-  border-radius:10px;
-  margin-bottom:12px;
-}
+      /* status colors */
+      --ok:rgba(34,197,94,0.60);
+      --okBar:rgba(34,197,94,0.70);
+      --bad:rgba(239,68,68,0.45);
+      --badBar:rgba(239,68,68,0.55);
+    }
 
-/* Hero */
-.hero{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:16px;
-  flex-wrap:wrap;
-}
-.hero h1{ margin:0; font-size:22px }
+    *{ box-sizing:border-box }
+    body{
+      margin:0;
+      font-family:system-ui, Arial, sans-serif;
+      color:var(--text);
 
-/* Quick tiles */
-.grid{
-  display:grid;
-  grid-template-columns:repeat(2, minmax(0, 1fr));
-  gap:14px;
-}
-@media (min-width:740px){
-  .grid{ grid-template-columns:repeat(3, minmax(0, 1fr)); }
-}
-.tile{
-  background:#0f1640;
-  border:1px solid var(--border);
-  border-radius:16px;
-  padding:16px;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-}
-.tile strong{ font-size:16px }
-.tile small{ color:var(--muted) }
+      /* ✅ LIGHT GRADIENT BACKGROUND (NO IMAGE) */
+      background:
+        radial-gradient(900px 520px at 18% 8%, rgba(76,116,255,0.14), transparent 55%),
+        radial-gradient(900px 520px at 82% 18%, rgba(99,102,241,0.12), transparent 60%),
+        radial-gradient(900px 520px at 50% 92%, rgba(34,197,94,0.10), transparent 60%),
+        linear-gradient(180deg, var(--bg1) 0%, var(--bg2) 45%, var(--bg3) 100%);
+      min-height:100vh;
+    }
 
-/* Tap-to-Scan hero */
-.scan-hero{
-  position:relative;
-  border-radius:20px;
-  padding:18px;
-  background:linear-gradient(180deg,#2b48ff 0%, #5a86ff 60%, #6aa1ff 100%);
-  color:#fff;
-  box-shadow:0 16px 40px rgba(0,0,0,.35);
-  overflow:hidden;
-  min-height:150px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-.scan-hero__inner{ text-align:center; user-select:none; cursor:pointer }
-.scan-hero__qr{
-  width:88px;
-  height:88px;
-  margin:6px auto 10px;
-  border-radius:14px;
-  background:rgba(255,255,255,.14);
-  display:grid;
-  place-items:center;
-  position:relative;
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.25);
-}
-.scan-hero__qr::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  border-radius:14px;
-  border:2px dashed rgba(255,255,255,.35);
-  mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite:xor;
-  mask-composite:exclude;
-  padding:10px;
-}
-.scan-hero__corners{ position:absolute; inset:0; pointer-events:none }
-.scan-hero__corner{ position:absolute; width:34px; height:34px; border:4px solid #bfe0ff; border-radius:10px }
-.scan-hero__corner.tl{ top:18px; left:18px; border-right:none; border-bottom:none }
-.scan-hero__corner.tr{ top:18px; right:18px; border-left:none; border-bottom:none }
-.scan-hero__corner.bl{ bottom:18px; left:18px; border-right:none; border-top:none }
-.scan-hero__corner.br{ bottom:18px; right:18px; border-left:none; border-top:none }
-.scan-hero__text{ font-weight:800; letter-spacing:.2px; font-size:18px }
-.scan-hero__sub{ opacity:.9; font-size:12px }
-.qr-ic{ width:34px; height:34px; display:inline-block }
-.qr-ic svg{ width:100%; height:100%; opacity:.95 }
+    /* optional premium noise (remove if you want) */
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(255,255,255,0.45), transparent 45%),
+        radial-gradient(circle at 80% 30%, rgba(255,255,255,0.35), transparent 55%);
+      opacity:.35;
+    }
 
-/* Branch list header + grid */
-.br-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px }
-.br-head strong{ font-size:16px }
-.br-grid{ display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px }
-@media(min-width:740px){
-  .br-grid{ grid-template-columns:repeat(3, minmax(0, 1fr)); }
-}
-.view-all{ font-size:12px; color:#c5d0ff }
+    a{ color:var(--prim); text-decoration:none }
+    a:hover{ opacity:.9 }
 
-/* =========================
-   BRANCHES CARD (LIGHT)
-   ========================= */
-.card.card-branches{
-  background:linear-gradient(180deg, var(--lightCard) 0%, var(--lightCard2) 100%);
-  border:1px solid var(--lightBorder);
-  border-radius:22px;
-  box-shadow:0 18px 50px rgba(0,0,0,0.30);
-}
+    /* Header (dark) */
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 18px;
+      background:linear-gradient(180deg, var(--hdr) 0%, var(--hdr2) 100%);
+      border-bottom:1px solid var(--hdrBorder);
+      position:sticky;
+      top:0;
+      z-index:10;
+      box-shadow:0 10px 26px rgba(15,23,42,0.20);
+    }
+    header .brand{
+      font-weight:800;
+      letter-spacing:.3px;
+      color:var(--hdrText);
+    }
+    header .right{ display:flex; gap:12px; align-items:center }
+    header .right a{ color:rgba(232,236,255,0.92); }
+    header .right a:hover{ opacity:.95; }
 
-/* head text inside */
-.card-branches .br-head strong{ color:var(--lightText) }
-.card-branches .view-all{ color:var(--prim) }
+    /* Buttons */
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:10px 14px;
+      border-radius:12px;
+      border:1px solid rgba(76,116,255,0.18);
+      background:var(--prim);
+      color:#fff;
+      font-weight:700;
+      cursor:pointer;
+      box-shadow:0 12px 22px rgba(76,116,255,0.18);
+      transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;
+    }
+    .btn:hover{
+      transform:translateY(-1px);
+      box-shadow:0 16px 30px rgba(76,116,255,0.22);
+    }
+    .btn:active{
+      transform:translateY(0);
+      box-shadow:0 10px 18px rgba(76,116,255,0.18);
+    }
+    .btn.outline{
+      background:rgba(255,255,255,0.18);
+      color:var(--hdrText);
+      border:1px solid rgba(255,255,255,0.14);
+      box-shadow:none;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
 
-/* tiles (base) */
-.card-branches .branch-tile{
-  background:#ffffff;
-  border-radius:16px;
-  padding:12px 14px;
-  display:flex;
-  flex-direction:column;
-  gap:6px;
+    /* ✅ Location CTA button (bright, not dull) */
+    .btn.btn-loc{
+      background:linear-gradient(180deg, rgba(76,116,255,1) 0%, rgba(63,99,245,1) 100%);
+      color:#fff;
+      border:1px solid rgba(76,116,255,0.28);
+      box-shadow:0 14px 26px rgba(76,116,255,0.22);
+      font-weight:800;
+    }
+    .btn.btn-loc:hover{
+      transform:translateY(-1px);
+      box-shadow:0 18px 34px rgba(76,116,255,0.28);
+    }
+    .btn.btn-loc:active{
+      transform:translateY(0px);
+      box-shadow:0 10px 20px rgba(76,116,255,0.20);
+    }
 
-  border:1px solid var(--lightBorder);
-  box-shadow:0 10px 22px rgba(15,23,42,0.08);
-  transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
-  text-decoration:none;
-}
-.card-branches .branch-tile:hover{
-  transform:translateY(-3px);
-  box-shadow:0 16px 30px rgba(15,23,42,0.14);
-}
+    /* Layout */
+    .wrap{ max-width:980px; margin:24px auto; padding:0 16px }
 
-/* text inside tiles */
-.card-branches .branch-name{
-  color:var(--lightText);
-  font-weight:800;
-  letter-spacing:.2px;
-}
-.card-branches .branch-meta{
-  color:var(--lightMuted);
-  font-size:12px;
-}
+    /* ✅ Base card (glass) + highlight */
+    .card{
+      position:relative;
+      background:linear-gradient(180deg, var(--card) 0%, var(--card2) 100%);
+      border:1px solid rgba(15,23,42,0.12);
+      border-radius:20px;
+      padding:18px;
+      box-shadow:var(--shadow);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      overflow:hidden;
+    }
+    /* top highlight line */
+    .card::before{
+      content:"";
+      position:absolute;
+      left:14px; right:14px; top:10px;
+      height:4px;
+      border-radius:999px;
+      background:linear-gradient(90deg, rgba(76,116,255,0.00), var(--hlTop), rgba(76,116,255,0.00));
+      opacity:.9;
+      pointer-events:none;
+    }
+    /* soft inner glow */
+    .card::after{
+      content:"";
+      position:absolute;
+      inset:-40px -40px auto -40px;
+      height:140px;
+      background:radial-gradient(closest-side at 35% 40%, rgba(76,116,255,0.12), transparent 70%);
+      pointer-events:none;
+    }
 
-/* ACTIVE */
-.card-branches .branch-tile--active{
-  border:2px solid var(--ok);
-  box-shadow:
-    0 14px 28px rgba(34,197,94,0.16),
-    0 10px 22px rgba(15,23,42,0.08);
-}
-.card-branches .branch-tile--active::before{
-  content:"";
-  display:block;
-  height:4px;
-  border-radius:999px;
-  background:var(--okBar);
-  margin-bottom:6px;
-}
+    /* Messages */
+    .msg{
+      background:rgba(255,255,255,0.78);
+      border:1px solid rgba(15,23,42,0.12);
+      padding:10px 12px;
+      border-radius:14px;
+      margin-bottom:12px;
+      box-shadow:var(--shadow3);
+    }
 
-/* INACTIVE */
-.card-branches .branch-tile--inactive{
-  border:2px solid var(--bad);
-  box-shadow:
-    0 14px 28px rgba(239,68,68,0.10),
-    0 10px 22px rgba(15,23,42,0.08);
-}
-.card-branches .branch-tile--inactive::before{
-  content:"";
-  display:block;
-  height:4px;
-  border-radius:999px;
-  background:var(--badBar);
-  margin-bottom:6px;
-}
+    /* Hero */
+    .hero{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      flex-wrap:wrap;
+    }
+    .hero h1{ margin:0; font-size:22px }
 
-/* GEO */
-.geo-wrap{ display:grid; gap:10px; margin-top:10px }
-.geo-row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center }
-.input{ display:flex; flex-direction:column; gap:6px; min-width:220px; flex:1 }
-.input label{ font-size:12px; color:var(--muted) }
-.input input{
-  width:100%;
-  padding:10px 12px;
-  border-radius:10px;
-  border:1px solid var(--border);
-  background:#0f1640;
-  color:var(--text);
-  font-weight:600;
-}
-.chip{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding:6px 10px;
-  border:1px solid var(--border);
-  background:#0e1a48;
-  color:var(--muted);
-  border-radius:999px;
-  font-size:12px;
-}
-.geo-error{ display:none }
-.geo-error.show{ display:block; background:#3c1a1a; border-color:#6b2b2b }
+    /* Quick tiles */
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:14px;
+    }
+    @media (min-width:740px){
+      .grid{ grid-template-columns:repeat(3, minmax(0, 1fr)); }
+    }
+    .tile{
+      position:relative;
+      background:rgba(255,255,255,0.92);
+      border:1px solid rgba(15,23,42,0.12);
+      border-radius:18px;
+      padding:16px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      box-shadow:var(--shadow2);
+      transition:transform .18s ease, box-shadow .18s ease;
+      overflow:hidden;
+    }
+    .tile::before{
+      content:"";
+      position:absolute;
+      top:0; left:0; right:0;
+      height:2px;
+      background:linear-gradient(90deg, rgba(76,116,255,0), rgba(76,116,255,0.22), rgba(76,116,255,0));
+      opacity:.9;
+      pointer-events:none;
+    }
+    .tile:hover{
+      transform:translateY(-2px);
+      box-shadow:0 18px 40px rgba(15,23,42,0.12);
+    }
+    .tile strong{ font-size:16px }
+    .tile small{ color:var(--muted) }
 
-/* Bottom tabs */
-footer.nav{
-  position:sticky;
-  bottom:0;
-  background:var(--card);
-  border-top:1px solid var(--border);
-}
-.tabs{ display:grid; grid-template-columns:repeat(4,1fr); gap:0 }
-.tab{ padding:10px 8px; text-align:center; color:var(--muted) }
-.tab.active{ color:#fff; border-bottom:2px solid var(--prim) }
+    /* Tap-to-Scan hero (keep as is) */
+    .scan-hero{
+      position:relative;
+      border-radius:22px;
+      padding:18px;
+      background:linear-gradient(180deg,#2b48ff 0%, #5a86ff 60%, #6aa1ff 100%);
+      color:#fff;
+      box-shadow:0 22px 60px rgba(15,23,42,0.22);
+      overflow:hidden;
+      min-height:150px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .scan-hero__inner{ text-align:center; user-select:none; cursor:pointer }
+    .scan-hero__qr{
+      width:88px; height:88px;
+      margin:6px auto 10px;
+      border-radius:14px;
+      background:rgba(255,255,255,.14);
+      display:grid; place-items:center;
+      position:relative;
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.25);
+    }
+    .scan-hero__qr::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      border-radius:14px;
+      border:2px dashed rgba(255,255,255,.35);
+      mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite:xor;
+      mask-composite:exclude;
+      padding:10px;
+    }
+    .scan-hero__corners{ position:absolute; inset:0; pointer-events:none }
+    .scan-hero__corner{ position:absolute; width:34px; height:34px; border:4px solid #bfe0ff; border-radius:10px }
+    .scan-hero__corner.tl{ top:18px; left:18px; border-right:none; border-bottom:none }
+    .scan-hero__corner.tr{ top:18px; right:18px; border-left:none; border-bottom:none }
+    .scan-hero__corner.bl{ bottom:18px; left:18px; border-right:none; border-top:none }
+    .scan-hero__corner.br{ bottom:18px; right:18px; border-left:none; border-top:none }
+    .scan-hero__text{ font-weight:900; letter-spacing:.2px; font-size:18px }
+    .scan-hero__sub{ opacity:.92; font-size:12px }
+    .qr-ic{ width:34px; height:34px; display:inline-block }
+    .qr-ic svg{ width:100%; height:100%; opacity:.95 }
 
+    /* Branch list header + grid */
+    .br-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px }
+    .br-head strong{ font-size:16px }
+    .br-grid{ display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px }
+    @media(min-width:740px){
+      .br-grid{ grid-template-columns:repeat(3, minmax(0, 1fr)); }
+    }
+    .view-all{ font-size:12px; color:var(--prim) }
+
+    /* ✅ Branches card (light) + stronger depth */
+    .card.card-branches{
+      position:relative;
+      background:linear-gradient(180deg, var(--lightCard) 0%, var(--lightCard2) 100%);
+      border:1px solid var(--lightBorder);
+      border-radius:22px;
+      box-shadow:0 22px 60px rgba(15,23,42,0.12);
+      overflow:hidden;
+    }
+    .card.card-branches::before{
+      content:"";
+      position:absolute;
+      left:16px; right:16px; top:12px;
+      height:4px;
+      border-radius:999px;
+      background:linear-gradient(90deg, rgba(34,197,94,0), rgba(76,116,255,0.22), rgba(239,68,68,0));
+      opacity:.9;
+      pointer-events:none;
+    }
+
+    .card-branches .br-head strong{ color:var(--lightText) }
+    .card-branches .view-all{ color:var(--prim) }
+
+    .card-branches .branch-tile{
+      background:#ffffff;
+      border-radius:18px;
+      padding:12px 14px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      border:1px solid var(--lightBorder);
+      box-shadow:0 12px 28px rgba(15,23,42,0.08);
+      transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+      text-decoration:none;
+      position:relative;
+      overflow:hidden;
+    }
+    .card-branches .branch-tile::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:radial-gradient(closest-side at 20% 20%, rgba(76,116,255,0.10), transparent 70%);
+      opacity:.7;
+      pointer-events:none;
+    }
+    .card-branches .branch-tile:hover{
+      transform:translateY(-3px);
+      box-shadow:0 18px 40px rgba(15,23,42,0.12);
+    }
+    .card-branches .branch-name{
+      color:var(--lightText);
+      font-weight:900;
+      letter-spacing:.2px;
+      position:relative;
+      z-index:1;
+    }
+    .card-branches .branch-meta{
+      color:var(--lightMuted);
+      font-size:12px;
+      position:relative;
+      z-index:1;
+    }
+    .card-branches .branch-tile--active{
+      border:2px solid var(--ok);
+      box-shadow:
+        0 18px 40px rgba(34,197,94,0.12),
+        0 12px 28px rgba(15,23,42,0.08);
+    }
+    .card-branches .branch-tile--active::before{
+      content:"";
+      display:block;
+      height:4px;
+      border-radius:999px;
+      background:var(--okBar);
+      margin-bottom:6px;
+      position:relative;
+      z-index:1;
+    }
+    .card-branches .branch-tile--inactive{
+      border:2px solid var(--bad);
+      box-shadow:
+        0 18px 40px rgba(239,68,68,0.08),
+        0 12px 28px rgba(15,23,42,0.08);
+    }
+    .card-branches .branch-tile--inactive::before{
+      content:"";
+      display:block;
+      height:4px;
+      border-radius:999px;
+      background:var(--badBar);
+      margin-bottom:6px;
+      position:relative;
+      z-index:1;
+    }
+
+    /* GEO */
+    .geo-wrap{ display:grid; gap:10px; margin-top:10px }
+    .geo-row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center }
+    .input{ display:flex; flex-direction:column; gap:6px; min-width:220px; flex:1 }
+    .input label{ font-size:12px; color:var(--muted); font-weight:700 }
+    .input input{
+      width:100%;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid rgba(15,23,42,0.14);
+      background:rgba(255,255,255,0.96);
+      color:var(--text);
+      font-weight:800;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:6px 10px;
+      border:1px solid rgba(76,116,255,0.20);
+      background:rgba(255,255,255,0.78);
+      color:#1f2a44;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:800;
+      box-shadow:var(--shadow3);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .geo-error{ display:none }
+    .geo-error.show{
+      display:block;
+      background:rgba(239,68,68,0.10);
+      border:1px solid rgba(239,68,68,0.22);
+      color:#7f1d1d;
+    }
+
+    /* Bottom tabs */
+    footer.nav{
+      position:sticky;
+      bottom:0;
+      background:rgba(255,255,255,0.86);
+      border-top:1px solid rgba(15,23,42,0.10);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow:0 -14px 34px rgba(15,23,42,0.10);
+    }
+    .tabs{ display:grid; grid-template-columns:repeat(4,1fr); gap:0 }
+    .tab{ padding:10px 8px; text-align:center; color:var(--muted); font-weight:900 }
+    .tab.active{ color:var(--text); border-bottom:2px solid var(--prim) }
   </style>
 
 </head>
+
 <body data-oz-already-claimed="{{ oz_already_claimed_today|yesno:'1,0' }}">
   <header>
-    <!-- <p>Your IP: {{ client_ip }}</p> -->
-
     <div class="brand">OfferZone</div>
     <div class="right">
       <a class="btn outline" href="#">Profile</a>
-
       <a href="{% url 'offers:user_status' %}">Status</a>
     </div>
   </header>
@@ -344,7 +493,6 @@ footer.nav{
       </div>
     </div>
 
-    
     <!-- inline success banner after scan -->
     <div id="scanInlineMsg" class="msg" style="display:none; margin-top:12px"></div>
 
@@ -367,11 +515,13 @@ footer.nav{
           {% else %} :
           {% endif %}
         </span>
-        <p style="margin:.3rem 0 0; color:var(--muted)">Browse today’s menu, collect visits, and claim offers.</p>
+        <p style="margin:.3rem 0 0; color:var(--muted); font-weight:700">
+          Browse today’s menu, collect visits, and claim offers.
+        </p>
 
         <div class="geo-wrap" aria-live="polite">
           <div class="geo-row">
-            <button type="button" class="btn outline" id="btnUseLocation">Use current location</button>
+            <button type="button" class="btn btn-loc" id="btnUseLocation">Use current location</button>
             <span id="locAccuracy" class="chip" title="Estimated accuracy">Accuracy: —</span>
             <span id="locStatus" class="chip" title="Status">Idle</span>
           </div>
@@ -388,63 +538,57 @@ footer.nav{
           <div id="locError" class="msg geo-error" role="alert"></div>
         </div>
       </div>
+
       <a class="btn" href="#">View Today’s Menu</a>
     </div>
 
     <!-- Branches -->
-<!-- Branches -->
-<div class="card card-branches" style="margin-top:16px">
+    <div class="card card-branches" style="margin-top:16px">
+      <div class="br-head">
+        <strong>Branches ({{ branch_count }})</strong>
+        {% if branches_has_more %}<a class="view-all" href="#">View all</a>{% endif %}
+      </div>
 
-  <div class="br-head">
-    <strong>Branches ({{ branch_count }})</strong>
-    {% if branches_has_more %}<a class="view-all" href="#">View all</a>{% endif %}
-  </div>
-  {% if branch_count %}
-    <div class="br-grid">
-      {% for b in branches %}
-      <!-- ikkada change: div → <a> + href -->
-      <a
-  class="branch-tile {% if b.offer_start %}branch-tile--active{% else %}branch-tile--inactive{% endif %}"
-  href="{% url 'offers:branch_offers_in_userinterface' b.id %}">
+      {% if branch_count %}
+        <div class="br-grid">
+          {% for b in branches %}
+            <a
+              class="branch-tile {% if b.offer_start %}branch-tile--active{% else %}branch-tile--inactive{% endif %}"
+              href="{% url 'offers:branch_offers_in_userinterface' b.id %}">
+              <div class="branch-name">{{ b.name }}</div>
 
-        <div class="branch-name">{{ b.name }}</div>
-        {% if b.latitude and b.longitude %}
-          <div class="branch-meta">📍 {{ b.latitude }}, {{ b.longitude }}</div>
-        {% else %}
-          <div class="branch-meta">— location not set</div>
-        {% endif %}
+              {% if b.latitude and b.longitude %}
+                <div class="branch-meta">📍 {{ b.latitude }}, {{ b.longitude }}</div>
+              {% else %}
+                <div class="branch-meta">— location not set</div>
+              {% endif %}
 
-
-          <!-- ✅ ADD THIS HERE (location tarvaatha) -->
-  {% if b.offer_start %}
-    <div class="branch-meta">
-      🗓 {{ b.offer_start|date:"d M Y" }}
-      {% if b.offer_end %}
-        – {{ b.offer_end|date:"d M Y" }}
+              {% if b.offer_start %}
+                <div class="branch-meta">
+                  🗓 {{ b.offer_start|date:"d M Y" }}
+                  {% if b.offer_end %}
+                    – {{ b.offer_end|date:"d M Y" }}
+                  {% else %}
+                    – onwards
+                  {% endif %}
+                </div>
+              {% else %}
+                <div class="branch-meta">🗓 No active offer</div>
+              {% endif %}
+            </a>
+          {% endfor %}
+        </div>
       {% else %}
-        – onwards
+        <div class="msg">No branches yet.</div>
       {% endif %}
     </div>
-  {% else %}
-    <div class="branch-meta">🗓 No active offer</div>
-  {% endif %}
-
-  
-      </a>
-      {% endfor %}
-    </div>
-  {% else %}
-    <div class="msg">No branches yet.</div>
-  {% endif %}
-</div>
-
-
 
     <!-- Quick tiles -->
     <div class="wrap" style="padding:0; margin-top:16px">
       <div class="grid">
         <a class="tile" href="#" data-open="#freeplateCalendarModal">
-          <strong>Enjoy Your Free Treat</strong><small>Visit count & free Treat progress</small>
+          <strong>Enjoy Your Free Treat</strong>
+          <small>Visit count & free Treat progress</small>
         </a>
         <a class="tile" href="#"><strong>Today’s Offers</strong><small>Active deals you can claim now</small></a>
         <a class="tile" href="#"><strong>Order History</strong><small>Past redemptions & invoices</small></a>
@@ -461,18 +605,15 @@ footer.nav{
       <a class="tab" href="#">Offers</a>
       <a class="tab" href="#">Account</a>
       <a href="{% url 'offers:user_logout' %}">Sign out</a>
-
     </div>
   </footer>
+
   {% include "user_interface/user_name_modal.html" %}
   {% include "user_interface/free_treat_calendar_modal.html" %}
   {% include "user_interface/scan_modal/scan_modal.html" %}
   {% include "user_interface/scan_modal/already_claimed_modal.html" %}
 
-
-  <!-- Scanner JS (moved to static) -->
-
-  <!-- Geo script (unchanged logic) -->
+  <!-- Geo script (same logic, works with new UI) -->
   <script>
     (() => {
       const latEl = document.getElementById('latitude');
@@ -487,43 +628,85 @@ footer.nav{
       let watcherId = null, lastSaved = null, lastPostedAt = 0;
 
       const setStatus = (t) => statusEl && (statusEl.textContent = t);
-      const setError = (msg) => { if (!errEl) return; if (!msg) { errEl.classList.remove('show'); errEl.textContent = ''; return; } errEl.textContent = msg; errEl.classList.add('show'); };
+      const setError = (msg) => {
+        if (!errEl) return;
+        if (!msg) { errEl.classList.remove('show'); errEl.textContent = ''; return; }
+        errEl.textContent = msg; errEl.classList.add('show');
+      };
       const fmt = (n) => (typeof n === 'number' ? n : Number(n)).toFixed(6);
-      const setPosition = (lat, lon, acc) => { if (latEl) latEl.value = fmt(lat); if (lonEl) lonEl.value = fmt(lon); if (accEl) accEl.textContent = 'Accuracy: ±' + (isFinite(acc) ? Math.round(acc) : '—') + ' m'; };
+      const setPosition = (lat, lon, acc) => {
+        if (latEl) latEl.value = fmt(lat);
+        if (lonEl) lonEl.value = fmt(lon);
+        if (accEl) accEl.textContent = 'Accuracy: ±' + (isFinite(acc) ? Math.round(acc) : '—') + ' m';
+      };
       const isSecure = () => location.protocol === 'https:' || ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 
-      function getCookie(name) { return document.cookie.split('; ').find(r => r.startsWith(name + '='))?.split('=')[1] || ''; }
+      function getCookie(name) {
+        return document.cookie.split('; ').find(r => r.startsWith(name + '='))?.split('=')[1] || '';
+      }
       async function postLocation(lat, lon, accuracy) {
         try {
           await fetch("{% url 'offers:save_location' %}", {
             method: "POST",
-            headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken"), "X-Requested-With": "XMLHttpRequest" },
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": getCookie("csrftoken"),
+              "X-Requested-With": "XMLHttpRequest"
+            },
             body: JSON.stringify({ latitude: lat, longitude: lon, accuracy, source: "browser" })
           });
         } catch (e) { console.debug("save_location failed:", e); }
       }
 
-      function getOnce() { return new Promise((res, rej) => { if (!('geolocation' in navigator)) return rej(new Error('Geolocation not supported.')); navigator.geolocation.getCurrentPosition(res, rej, GP_OPTS); }); }
-      function distM(a, b, c, d) { const R = 6371000, toRad = (x) => x * Math.PI / 180; const dLa = toRad(c - a), dLo = toRad(d - b); const A = Math.sin(dLa / 2) ** 2 + Math.cos(toRad(a)) * Math.cos(toRad(c)) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(A)); }
+      function getOnce() {
+        return new Promise((res, rej) => {
+          if (!('geolocation' in navigator)) return rej(new Error('Geolocation not supported.'));
+          navigator.geolocation.getCurrentPosition(res, rej, GP_OPTS);
+        });
+      }
+      function distM(a, b, c, d) {
+        const R = 6371000, toRad = (x) => x * Math.PI / 180;
+        const dLa = toRad(c - a), dLo = toRad(d - b);
+        const A = Math.sin(dLa / 2) ** 2 + Math.cos(toRad(a)) * Math.cos(toRad(c)) * Math.sin(dLo / 2) ** 2;
+        return 2 * R * Math.asin(Math.sqrt(A));
+      }
       function maybePost(lat, lon, acc) {
-        const now = Date.now(); if (!isFinite(lat) || !isFinite(lon)) return; if (!isFinite(acc) || acc > MAX_ACC) return;
+        const now = Date.now();
+        if (!isFinite(lat) || !isFinite(lon)) return;
+        if (!isFinite(acc) || acc > MAX_ACC) return;
         if (now - lastPostedAt < COOL_MS) return;
-        if (lastSaved) { const d = distM(lastSaved.lat, lastSaved.lon, lat, lon); if (d < MIN_MOVE) return; }
-        lastSaved = { lat, lon, t: now }; lastPostedAt = now; postLocation(lat, lon, acc);
+        if (lastSaved) {
+          const d = distM(lastSaved.lat, lastSaved.lon, lat, lon);
+          if (d < MIN_MOVE) return;
+        }
+        lastSaved = { lat, lon, t: now };
+        lastPostedAt = now;
+        postLocation(lat, lon, acc);
       }
 
       async function requestNow() {
-        setError(''); setStatus('Locating…'); if (accEl) accEl.textContent = 'Accuracy: —';
+        setError('');
+        setStatus('Locating…');
+        if (accEl) accEl.textContent = 'Accuracy: —';
+
         try {
           if (!isSecure()) setError('Tip: use https:// or localhost/127.0.0.1 for location access.');
-          const pos = await getOnce(); const { latitude, longitude, accuracy } = pos.coords || {};
-          setPosition(latitude, longitude, accuracy ?? NaN); setStatus('Location set'); maybePost(latitude, longitude, accuracy ?? NaN);
+          const pos = await getOnce();
+          const { latitude, longitude, accuracy } = pos.coords || {};
+          setPosition(latitude, longitude, accuracy ?? NaN);
+          setStatus('Location set');
+          maybePost(latitude, longitude, accuracy ?? NaN);
         } catch (e) {
-          setStatus('Idle'); const msg = String(e && (e.message || e)).toLowerCase();
-          if (msg.includes('permission') || msg.includes('denied')) setError('Permission denied. Allow Location in Site settings, then try again.');
-          else if (msg.includes('secure origin')) setError('Blocked on this URL. Use https:// (ngrok) or localhost/127.0.0.1.');
-          else if (msg.includes('position unavailable')) setError('Position unavailable. Turn ON device Location and try again.');
-          else setError(e && e.message ? e.message : 'Could not get location');
+          setStatus('Idle');
+          const msg = String(e && (e.message || e)).toLowerCase();
+          if (msg.includes('permission') || msg.includes('denied'))
+            setError('Permission denied. Allow Location in Site settings, then try again.');
+          else if (msg.includes('secure origin'))
+            setError('Blocked on this URL. Use https:// (ngrok) or localhost/127.0.0.1.');
+          else if (msg.includes('position unavailable'))
+            setError('Position unavailable. Turn ON device Location and try again.');
+          else
+            setError(e && e.message ? e.message : 'Could not get location');
         }
       }
 
@@ -532,17 +715,26 @@ footer.nav{
         try {
           watcherId = navigator.geolocation.watchPosition((pos) => {
             const { latitude, longitude, accuracy } = pos.coords || {};
-            setPosition(latitude, longitude, accuracy ?? NaN); maybePost(latitude, longitude, accuracy ?? NaN); setStatus('Watching…');
+            setPosition(latitude, longitude, accuracy ?? NaN);
+            maybePost(latitude, longitude, accuracy ?? NaN);
+            setStatus('Watching…');
           }, () => setStatus('Idle'), GP_OPTS);
         } catch { }
       }
-      function stopWatch() { if (watcherId !== null) { navigator.geolocation.clearWatch(watcherId); watcherId = null; setStatus('Idle'); } }
+      function stopWatch() {
+        if (watcherId !== null) {
+          navigator.geolocation.clearWatch(watcherId);
+          watcherId = null;
+          setStatus('Idle');
+        }
+      }
 
       async function init() {
         let state = 'prompt';
         try {
           if ('permissions' in navigator && navigator.permissions.query) {
-            const p = await navigator.permissions.query({ name: 'geolocation' }); state = p.state;
+            const p = await navigator.permissions.query({ name: 'geolocation' });
+            state = p.state;
             p.onchange = () => {
               if (p.state === 'granted') { setError(''); requestNow(); startWatch(); }
               else if (p.state === 'prompt') { stopWatch(); setError('Click “Use current location” to allow access.'); }
@@ -550,22 +742,23 @@ footer.nav{
             };
           }
         } catch { }
+
         if (state === 'granted') { setTimeout(requestNow, 300); startWatch(); }
         else if (state === 'prompt') { setError('Click “Use current location” to allow access.'); }
         else { setError('Location is blocked. Enable in Site settings.'); }
       }
 
       btn?.addEventListener('click', requestNow);
-      document.addEventListener('visibilitychange', () => { if (document.hidden) stopWatch(); else if (watcherId === null && (statusEl?.textContent !== 'Watching…')) startWatch(); });
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) stopWatch();
+        else if (watcherId === null && (statusEl?.textContent !== 'Watching…')) startWatch();
+      });
       init();
     })();
 
-    // Avoid back-to-open-modal oddity on first load
     if (window.history && window.history.replaceState) {
       window.history.replaceState(null, '', window.location.href);
     }
-  </script>.
-
-  
+  </script>
 </body>
 </html>

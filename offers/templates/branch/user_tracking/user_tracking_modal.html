@@ -1,0 +1,240 @@
+<!-- ===============================
+     User Track Modal
+================================ -->
+<div class="modal-backdrop"
+     data-modal
+     id="userTrackModal">
+
+  <!-- ✅ Mobile top bar -->
+  <div class="usertrack-mobilebar">
+    <div class="usertrack-mobiletitle">User Tracking</div>
+    <button class="btn--outline-mini" data-close>Close</button>
+  </div>
+
+  <div class="card usertrack-card">
+
+    <!-- LEFT -->
+    <div class="card usertrack-left">
+      <h4 style="margin:0 0 8px">Users (Today)</h4>
+
+      <input class="usertrack-search"
+             type="text"
+             placeholder="Search user…">
+
+      <ul style="list-style:none; padding:0; margin:0">
+        <li class="user-row active">Ravi Kumar</li>
+        <li class="user-row">Suresh</li>
+        <li class="user-row">Anjali</li>
+        <li class="user-row">Priya</li>
+      </ul>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="card usertrack-right">
+      <div class="usertrack-right-head">
+        <h4 style="margin:0">User Profile</h4>
+        <button class="btn--outline-mini usertrack-desktop-close" data-close>Close</button>
+      </div>
+
+      <div class="usertrack-details">
+        <p><b>Name:</b> Ravi Kumar</p>
+        <p><b>Total visits:</b> 5</p>
+        <p><b>Today visits:</b> 1</p>
+        <p><b>Last visit:</b> Today · 12:45 PM</p>
+
+        <hr style="border-color:var(--border); margin:14px 0">
+
+        <p class="muted" style="margin:0 0 6px">Offer status (dummy)</p>
+        <p style="margin:0 0 6px"><b>Eligible:</b> ✅ Yes</p>
+        <p style="margin:0"><b>Offer taken:</b> ❌ No</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<style>
+  /* ✅ MODAL BASE */
+  #userTrackModal{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.6);
+    z-index:1000;
+    padding:18px;
+    align-items:center;
+    justify-content:center;
+  }
+  #userTrackModal.open{ display:flex; }
+
+  /* =========================
+     ✅ DESKTOP / WINDOW: BIGGER MODAL
+  ========================== */
+  #userTrackModal .usertrack-card{
+    width:min(1100px, 96vw);      /* 🔥 bigger */
+    max-width:none;               /* remove 800px cap */
+    height:min(86vh, 720px);      /* 🔥 taller */
+    max-height:none;
+
+    display:grid;
+    grid-template-columns:320px 1fr; /* 🔥 left wider */
+    gap:14px;
+    overflow:hidden;
+    border-radius:16px;
+  }
+
+  #userTrackModal .usertrack-left,
+  #userTrackModal .usertrack-right{
+    padding:16px;                /* nicer spacing */
+    overflow-y:auto;
+    min-height:0;
+  }
+
+  #userTrackModal .usertrack-search{
+    width:100%;
+    padding:10px 10px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:#0c1230;
+    color:var(--text);
+    outline:none;
+    margin:8px 0 10px;
+  }
+
+  #userTrackModal .usertrack-right-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    position:sticky;             /* optional: stays visible while scroll */
+    top:0;
+    background:inherit;
+    padding-bottom:8px;
+  }
+
+  .user-row{
+    padding:10px;
+    cursor:pointer;
+    border-radius:10px;
+  }
+  .user-row:hover{ background:#1a2255; }
+  .user-row.active{ background:#26308a; }
+
+  /* mobile bar hidden on desktop */
+  #userTrackModal .usertrack-mobilebar{ display:none; }
+
+  /* =========================
+     ✅ MOBILE: users box bigger, profile box smaller
+  ========================== */
+  @media (max-width: 640px){
+
+    #userTrackModal.open{
+      flex-direction:column;
+      align-items:stretch;
+      justify-content:flex-start;
+      padding:0;
+    }
+
+    #userTrackModal .usertrack-mobilebar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:12px 12px 10px;
+      background:#0c1230;
+      border-bottom:1px solid var(--border);
+      position:sticky;
+      top:0;
+      z-index:10;
+      width:100%;
+    }
+
+    #userTrackModal .usertrack-desktop-close{ display:none; }
+
+    /* ✅ KEY: grid -> flex for mobile */
+    #userTrackModal .usertrack-card{
+      width:100%;
+      max-width:none;
+      height:calc(100dvh - 52px);
+      max-height:none;
+
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      padding:10px;
+      border-radius:0;
+      overflow:hidden;
+    }
+
+    /* ✅ Users list takes MOST height */
+    #userTrackModal .usertrack-left{
+      padding:10px;
+      overflow:auto;
+      flex:1 1 auto;
+      min-height:0;
+      max-height:none;
+    }
+
+    /* ✅ Profile takes LESS height */
+    #userTrackModal .usertrack-right{
+      padding:10px;
+      overflow:auto;
+      flex:0 0 auto;
+      max-height:34vh;   /* adjust 28vh to 40vh */
+      min-height:170px;
+    }
+
+    #userTrackModal .usertrack-search{
+      padding:9px 10px;
+      margin:6px 0 8px;
+      font-size:14px;
+    }
+
+    #userTrackModal .usertrack-details p{
+      margin:0 0 10px;
+      line-height:1.25;
+    }
+  }
+</style>
+
+<script>
+  function openModal(modal){
+    modal.classList.add("open");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeModal(modal){
+    modal.classList.remove("open");
+    document.body.style.overflow = "";
+  }
+
+  // ✅ Open buttons: data-open="#id"
+  document.addEventListener("click", (e) => {
+    const openBtn = e.target.closest("[data-open]");
+    if (!openBtn) return;
+
+    const selector = openBtn.getAttribute("data-open");
+    const modal = selector ? document.querySelector(selector) : null;
+    if (modal) openModal(modal);
+  });
+
+  // ✅ Close: data-close + backdrop click
+  document.addEventListener("click", (e) => {
+    const closeBtn = e.target.closest("[data-close]");
+    if (closeBtn) {
+      const modal = closeBtn.closest("[data-modal]");
+      if (modal) closeModal(modal);
+      return;
+    }
+
+    const modal = e.target.closest("[data-modal]");
+    if (modal && e.target === modal) closeModal(modal);
+  });
+
+  // ✅ ESC close
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    const openModalEl = document.querySelector("[data-modal].open");
+    if (openModalEl) closeModal(openModalEl);
+  });
+</script>

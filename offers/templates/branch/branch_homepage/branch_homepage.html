@@ -229,11 +229,24 @@
       </div>
     </section>
 
+    
+
     <section class="grid">
       <div class="card">
         <h3 style="margin:0 0 6px">Today</h3>
         <p class="muted">Quick numbers coming soon…</p>
       </div>
+
+      
+  <!-- ✅ ONLY BUTTON (modal later) -->
+<button type="button"
+        class="btn btn--outline-mini"
+        data-open="#userTrackModal">
+  User track details
+</button>
+
+
+
       <div class="card">
         <h3 style="margin:0 0 6px">Announcements</h3>
         <p class="muted">No announcements.</p>
@@ -251,6 +264,8 @@
 {% include "offers/qr_generation/branch_qrcode_modal.html" %}
 {% include "branch/branch_homepage/visitor_details_modal.html" %}
 {% include "branch/branch_homepage/branch_staff_create_modal.html" %}
+{% include "branch/user_tracking/user_tracking_modal.html" %}
+
 
 
 </body>
