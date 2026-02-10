@@ -14,7 +14,8 @@ from .models import (
     UserLocationPing,
     UserVisitEvent, 
     BranchStaff,
-    BranchGenerateVisitPin
+    BranchGenerateVisitPin,
+    UserOfferClaim,
     
 )
 
@@ -527,14 +528,6 @@ class UserVisitEventAdmin(admin.ModelAdmin):
 
 
 
-
-
-
-
-
-
-
-
 from django.contrib import admin
 from .models import BranchStaff
 
@@ -633,3 +626,42 @@ class UserVerifyVisitPinAdmin(admin.ModelAdmin):
     search_fields = ("token", "desk", "branch__name", "used_by__email", "staff_name", "staff_code")
     readonly_fields = ("created_at", "used_at")
     ordering = ("-created_at",)
+
+
+
+
+
+@admin.register(UserOfferClaim)
+class UserOfferClaimAdmin(admin.ModelAdmin):
+    list_display = (
+        "id","user","branch","offer",
+        "milestone_kind","milestone_n",
+        "status","issued_at","redeemed_at","token",
+    )
+
+    list_filter = (
+        "status","milestone_kind","branch","offer","issued_at",
+    )
+
+    search_fields = (
+        "user__username","user__email",
+        "branch__name","token","desk",
+        "staff_name","staff_code",
+    )
+
+    autocomplete_fields = ("user","branch","offer","visit_event")
+    ordering = ("-issued_at",)
+    date_hierarchy = "issued_at"
+    list_per_page = 50
+
+    readonly_fields = ("issued_at","redeemed_at")
+
+    fieldsets = (
+        ("Core", {"fields": ("user","branch","offer","visit_event","status")}),
+        ("Milestone", {"fields": ("milestone_kind","milestone_n")}),
+        ("Offer Snapshot", {
+            "fields": ("offer_nth","offer_repeat","offer_extra_nths","offer_start_at","offer_end_at")
+        }),
+        ("Audit Mirrors", {"fields": ("token","desk","staff_name","staff_code")}),
+        ("Timestamps", {"fields": ("issued_at","redeemed_at")}),
+    )

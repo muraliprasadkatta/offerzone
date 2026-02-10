@@ -452,6 +452,123 @@ def branch_staff_create_view(request):
 
 
 
+# offers/branch_views.py (or a separate api_views.py)
+
+from django.http import JsonResponse
+from django.utils import timezone
+from django.db.models import Max
+
+from .models import UserVisitEvent, Profile  # Profile optional, if you use it
+
+
+from django.http import JsonResponse
+from django.utils import timezone
+from django.db.models import Max
+
+from .models import UserVisitEvent, Profile
+
+
+def branch_user_visit_list(request):
+    branch_id = request.session.get("branch_id")
+    if not branch_id:
+        return JsonResponse({"ok": False, "error": "branch_not_logged_in"}, status=401)
+
+    today = timezone.localdate()
+    filter_type = (request.GET.get("filter") or "all").lower()
+
+    base = UserVisitEvent.objects.filter(branch_id=branch_id)
+
+    if filter_type == "today":
+        base = base.filter(created_at__date=today)
+
+    qs = (
+        base.values("user_id")
+        .annotate(last_visit=Max("created_at"))
+        .order_by("-last_visit")
+    )
+
+    user_ids = [row["user_id"] for row in qs]
+
+    name_map = {}
+    if user_ids:
+        profiles = Profile.objects.filter(user_id__in=user_ids).values("user_id", "display_name")
+
+        for p in profiles:
+            name_map[p["user_id"]] = (p["display_name"] or "").strip()
+
+
+    users = []
+    for row in qs:
+        uid = row["user_id"]
+        users.append({
+            "user_id": uid,
+            "name": name_map.get(uid) or f"User {uid}",
+            "last_visit": row["last_visit"].isoformat() if row["last_visit"] else None,
+        })
+
+    return JsonResponse({
+        "ok": True,
+        "branch_id": branch_id,
+        "filter": filter_type,
+        "date": today.isoformat(),
+        "count": len(users),
+        "users": users,
+    })
+
+
+
+from django.http import JsonResponse
+from django.utils import timezone
+from django.db.models import Max
+
+from .models import UserVisitEvent, Profile
+
+
+def branch_user_visit_details(request, user_id):
+    """
+    RIGHT panel API:
+    Returns visit details for a single user in the currently logged-in branch.
+
+    Response:
+    {
+      "ok": true,
+      "branch_id": 12,
+      "user_id": 10,
+      "name": "Ravi Kumar",
+      "total_visits": 5,
+      "today_visits": 1,
+      "last_visit": "2026-02-03T12:45:00+05:30"
+    }
+    """
+    branch_id = request.session.get("branch_id")
+    if not branch_id:
+        return JsonResponse({"ok": False, "error": "branch_not_logged_in"}, status=401)
+
+    today = timezone.localdate()
+
+    qs = UserVisitEvent.objects.filter(branch_id=branch_id, user_id=user_id)
+
+    total_visits = qs.count()
+    today_visits = qs.filter(created_at__date=today).count()
+    last_visit = qs.aggregate(last=Max("created_at"))["last"]
+
+    display_name = (
+        Profile.objects
+        .filter(user_id=user_id)
+        .values_list("display_name", flat=True)
+        .first()
+    )
+
+    return JsonResponse({
+        "ok": True,
+        "branch_id": branch_id,
+        "user_id": user_id,
+        "name": (display_name or f"User {user_id}"),
+        "total_visits": total_visits,
+        "today_visits": today_visits,
+        "last_visit": last_visit.isoformat() if last_visit else None,
+    })
+
 
 
 

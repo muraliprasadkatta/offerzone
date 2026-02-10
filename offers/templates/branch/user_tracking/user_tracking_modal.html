@@ -8,24 +8,30 @@
   <!-- ✅ Mobile top bar -->
   <div class="usertrack-mobilebar">
     <div class="usertrack-mobiletitle">User Tracking</div>
-    <button class="btn--outline-mini" data-close>Close</button>
+    <button class="btn--outline-mini" type="button" data-close>Close</button>
   </div>
 
   <div class="card usertrack-card">
 
     <!-- LEFT -->
     <div class="card usertrack-left">
-      <h4 style="margin:0 0 8px">Users (Today)</h4>
+      <div class="usertrack-left-head">
+        <h4 style="margin:0">Users</h4>
+
+        <!-- ✅ Filter buttons -->
+        <div class="usertrack-filters" role="tablist" aria-label="User filters">
+          <button type="button" class="ut-filter active" data-filter="all">All</button>
+          <button type="button" class="ut-filter" data-filter="today">Today</button>
+        </div>
+      </div>
 
       <input class="usertrack-search"
+             id="usertrackSearch"
              type="text"
              placeholder="Search user…">
 
-      <ul style="list-style:none; padding:0; margin:0">
-        <li class="user-row active">Ravi Kumar</li>
-        <li class="user-row">Suresh</li>
-        <li class="user-row">Anjali</li>
-        <li class="user-row">Priya</li>
+      <ul id="todayUserList" style="list-style:none; padding:0; margin:0">
+        <!-- JS will inject users here -->
       </ul>
     </div>
 
@@ -33,20 +39,20 @@
     <div class="card usertrack-right">
       <div class="usertrack-right-head">
         <h4 style="margin:0">User Profile</h4>
-        <button class="btn--outline-mini usertrack-desktop-close" data-close>Close</button>
+        <button class="btn--outline-mini usertrack-desktop-close" type="button" data-close>Close</button>
       </div>
 
       <div class="usertrack-details">
-        <p><b>Name:</b> Ravi Kumar</p>
-        <p><b>Total visits:</b> 5</p>
-        <p><b>Today visits:</b> 1</p>
-        <p><b>Last visit:</b> Today · 12:45 PM</p>
+        <p><b>Name:</b> <span id="ut-name">—</span></p>
+        <p><b>Total visits:</b> <span id="ut-total">—</span></p>
+        <p><b>Today visits:</b> <span id="ut-today">—</span></p>
+        <p><b>Last visit:</b> <span id="ut-last">—</span></p>
 
         <hr style="border-color:var(--border); margin:14px 0">
 
         <p class="muted" style="margin:0 0 6px">Offer status (dummy)</p>
-        <p style="margin:0 0 6px"><b>Eligible:</b> ✅ Yes</p>
-        <p style="margin:0"><b>Offer taken:</b> ❌ No</p>
+        <p style="margin:0 0 6px"><b>Eligible:</b> <span id="ut-eligible">—</span></p>
+        <p style="margin:0"><b>Offer taken:</b> <span id="ut-taken">—</span></p>
       </div>
     </div>
 
@@ -54,7 +60,7 @@
 </div>
 
 <style>
-  /* ✅ MODAL BASE */
+  /* ✅ MODAL BASE (works with .is-open from branch_homepage.html) */
   #userTrackModal{
     display:none;
     position:fixed;
@@ -65,19 +71,19 @@
     align-items:center;
     justify-content:center;
   }
-  #userTrackModal.open{ display:flex; }
+  #userTrackModal.is-open{ display:flex; }
 
-  /* =========================
-     ✅ DESKTOP / WINDOW: BIGGER MODAL
-  ========================== */
+  /* close on backdrop click - show pointer */
+  #userTrackModal{ cursor:pointer; }
+  #userTrackModal .usertrack-card,
+  #userTrackModal .usertrack-mobilebar{ cursor:default; }
+
+  /* ✅ DESKTOP */
   #userTrackModal .usertrack-card{
-    width:min(1100px, 96vw);      /* 🔥 bigger */
-    max-width:none;               /* remove 800px cap */
-    height:min(86vh, 720px);      /* 🔥 taller */
-    max-height:none;
-
+    width:min(1100px, 96vw);
+    height:min(86vh, 720px);
     display:grid;
-    grid-template-columns:320px 1fr; /* 🔥 left wider */
+    grid-template-columns:320px 1fr;
     gap:14px;
     overflow:hidden;
     border-radius:16px;
@@ -85,9 +91,39 @@
 
   #userTrackModal .usertrack-left,
   #userTrackModal .usertrack-right{
-    padding:16px;                /* nicer spacing */
+    padding:16px;
     overflow-y:auto;
     min-height:0;
+  }
+
+  .usertrack-left-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin:0 0 8px;
+  }
+
+  .usertrack-filters{
+    display:flex;
+    gap:6px;
+    align-items:center;
+  }
+
+  .ut-filter{
+    border:1px solid var(--border);
+    background:#0c1230;
+    color:var(--text);
+    padding:6px 10px;
+    border-radius:999px;
+    cursor:pointer;
+    font-size:13px;
+    line-height:1;
+  }
+  .ut-filter:hover{ background:#1a2255; }
+  .ut-filter.active{
+    background:#26308a;
+    border-color:#26308a;
   }
 
   #userTrackModal .usertrack-search{
@@ -106,7 +142,7 @@
     justify-content:space-between;
     align-items:center;
     gap:12px;
-    position:sticky;             /* optional: stays visible while scroll */
+    position:sticky;
     top:0;
     background:inherit;
     padding-bottom:8px;
@@ -123,12 +159,9 @@
   /* mobile bar hidden on desktop */
   #userTrackModal .usertrack-mobilebar{ display:none; }
 
-  /* =========================
-     ✅ MOBILE: users box bigger, profile box smaller
-  ========================== */
+  /* ✅ MOBILE */
   @media (max-width: 640px){
-
-    #userTrackModal.open{
+    #userTrackModal.is-open{
       flex-direction:column;
       align-items:stretch;
       justify-content:flex-start;
@@ -151,13 +184,9 @@
 
     #userTrackModal .usertrack-desktop-close{ display:none; }
 
-    /* ✅ KEY: grid -> flex for mobile */
     #userTrackModal .usertrack-card{
       width:100%;
-      max-width:none;
       height:calc(100dvh - 52px);
-      max-height:none;
-
       display:flex;
       flex-direction:column;
       gap:8px;
@@ -166,21 +195,18 @@
       overflow:hidden;
     }
 
-    /* ✅ Users list takes MOST height */
     #userTrackModal .usertrack-left{
       padding:10px;
       overflow:auto;
       flex:1 1 auto;
       min-height:0;
-      max-height:none;
     }
 
-    /* ✅ Profile takes LESS height */
     #userTrackModal .usertrack-right{
       padding:10px;
       overflow:auto;
       flex:0 0 auto;
-      max-height:34vh;   /* adjust 28vh to 40vh */
+      max-height:34vh;
       min-height:170px;
     }
 
@@ -198,43 +224,232 @@
 </style>
 
 <script>
-  function openModal(modal){
-    modal.classList.add("open");
-    document.body.style.overflow = "hidden";
+  // ============================
+  // User Tracking Modal Logic
+  // ============================
+  let UT_ALL_USERS = [];       // cache from API (already filtered by all/today)
+  let UT_ACTIVE_FILTER = "all";
+  let UT_LOADED_ONCE = false;  // prevent repeated open fetches
+
+  function formatLastVisit(iso) {
+    if (!iso) return "—";
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString(undefined, {
+        year: "numeric", month: "short", day: "2-digit",
+        hour: "2-digit", minute: "2-digit"
+      });
+    } catch {
+      return iso;
+    }
   }
 
-  function closeModal(modal){
-    modal.classList.remove("open");
-    document.body.style.overflow = "";
+  function setRightPanelPlaceholders() {
+    document.getElementById("ut-name").textContent = "—";
+    document.getElementById("ut-total").textContent = "—";
+    document.getElementById("ut-today").textContent = "—";
+    document.getElementById("ut-last").textContent = "—";
+    document.getElementById("ut-eligible").textContent = "—";
+    document.getElementById("ut-taken").textContent = "—";
   }
 
-  // ✅ Open buttons: data-open="#id"
-  document.addEventListener("click", (e) => {
-    const openBtn = e.target.closest("[data-open]");
-    if (!openBtn) return;
+  function resetUserTrackState() {
+    UT_ALL_USERS = [];
+    UT_ACTIVE_FILTER = "all";
+    UT_LOADED_ONCE = false;
 
-    const selector = openBtn.getAttribute("data-open");
-    const modal = selector ? document.querySelector(selector) : null;
-    if (modal) openModal(modal);
-  });
+    const search = document.getElementById("usertrackSearch");
+    if (search) search.value = "";
 
-  // ✅ Close: data-close + backdrop click
-  document.addEventListener("click", (e) => {
-    const closeBtn = e.target.closest("[data-close]");
-    if (closeBtn) {
-      const modal = closeBtn.closest("[data-modal]");
-      if (modal) closeModal(modal);
+    document.querySelectorAll(".ut-filter").forEach(b => b.classList.remove("active"));
+    const allBtn = document.querySelector('.ut-filter[data-filter="all"]');
+    if (allBtn) allBtn.classList.add("active");
+
+    const ul = document.getElementById("todayUserList");
+    if (ul) ul.innerHTML = "";
+
+    setRightPanelPlaceholders();
+  }
+
+  function fillRightPanelBasicFromApi(data) {
+  document.getElementById("ut-name").textContent = data?.name || "—";
+  document.getElementById("ut-total").textContent = (data?.total_visits ?? "—");
+  document.getElementById("ut-today").textContent = (data?.today_visits ?? "—");
+  document.getElementById("ut-last").textContent = formatLastVisit(data?.last_visit);
+
+  document.getElementById("ut-eligible").textContent = "—";
+  document.getElementById("ut-taken").textContent = "—";
+}
+
+  function renderUserList(list) {
+    const ul = document.getElementById("todayUserList");
+    ul.innerHTML = "";
+
+    if (!list || list.length === 0) {
+      ul.innerHTML = `<li class="muted">No users found</li>`;
+      setRightPanelPlaceholders();
       return;
     }
 
-    const modal = e.target.closest("[data-modal]");
-    if (modal && e.target === modal) closeModal(modal);
+    list.forEach((u, i) => {
+      const li = document.createElement("li");
+      li.className = "user-row" + (i === 0 ? " active" : "");
+      li.textContent = u.name;
+      li.dataset.userId = u.user_id;
+      li.onclick = () => selectUser(li, u);
+      ul.appendChild(li);
+    });
+
+    // auto select first (and load real details)
+    const firstLi = ul.querySelector(".user-row");
+    if (firstLi) selectUser(firstLi, list[0]);
+
+  }
+
+  async function selectUser(li, user) {
+  document.querySelectorAll("#todayUserList .user-row")
+    .forEach(el => el.classList.remove("active"));
+  li.classList.add("active");
+
+  setRightPanelPlaceholders();
+
+  // show name quickly while loading
+  document.getElementById("ut-name").textContent = user?.name || "—";
+  document.getElementById("ut-last").textContent = formatLastVisit(user?.last_visit);
+
+  try {
+    const res = await fetch(`/branch/api/users/${user.user_id}/visits/`, {
+      headers: { "Accept": "application/json" }
+    });
+
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      console.log("Non-JSON response for visits API");
+      return;
+    }
+
+    const data = await res.json();
+    if (!data.ok) {
+      console.log("Visits API returned ok=false", data);
+      return;
+    }
+
+    fillRightPanelBasicFromApi(data);
+
+  } catch (e) {
+    console.log("Error fetching visit details", e);
+  }
+}
+
+  function applySearchFilter() {
+    const q = (document.getElementById("usertrackSearch").value || "").trim().toLowerCase();
+    const filtered = UT_ALL_USERS.filter(u => (u.name || "").toLowerCase().includes(q));
+    renderUserList(filtered);
+  }
+
+  async function loadBranchUsers(filterType = "all") {
+    UT_ACTIVE_FILTER = filterType;
+
+    const ul = document.getElementById("todayUserList");
+    ul.innerHTML = `<li class="muted">Loading...</li>`;
+    setRightPanelPlaceholders();
+
+    const url = filterType === "today"
+      ? "/branch/api/users/?filter=today"
+      : "/branch/api/users/";
+
+    try {
+      const res = await fetch(url, { headers: { "Accept": "application/json" } });
+
+      // Safety: if server returns HTML (login page), json() will error
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        ul.innerHTML = `<li class="muted">Server returned non-JSON response</li>`;
+        return;
+      }
+
+      const data = await res.json();
+
+      if (!data.ok) {
+        ul.innerHTML = `<li class="muted">Failed to load</li>`;
+        return;
+      }
+
+      UT_ALL_USERS = data.users || [];
+      applySearchFilter();
+    } catch (e) {
+      ul.innerHTML = `<li class="muted">Error loading users</li>`;
+    }
+  }
+
+  // Filter buttons
+  document.addEventListener("click", function(e){
+    const btn = e.target.closest(".ut-filter");
+    if (!btn) return;
+
+    document.querySelectorAll(".ut-filter").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    const f = btn.dataset.filter || "all";
+    loadBranchUsers(f);
   });
 
-  // ✅ ESC close
-  document.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape") return;
-    const openModalEl = document.querySelector("[data-modal].open");
-    if (openModalEl) closeModal(openModalEl);
+  // Search input (live filter)
+  document.addEventListener("input", function(e){
+    if (e.target && e.target.id === "usertrackSearch") {
+      applySearchFilter();
+    }
   });
+
+  // Close button (data-close) inside modal
+  document.addEventListener("click", function(e){
+    const closeBtn = e.target.closest("#userTrackModal [data-close]");
+    if (!closeBtn) return;
+    const modal = document.getElementById("userTrackModal");
+    if (!modal) return;
+    modal.classList.remove("is-open");
+    resetUserTrackState();
+  });
+
+  // Backdrop click close + ESC close
+  document.addEventListener("click", function (e) {
+    const modal = e.target.closest("#userTrackModal[data-modal]");
+    if (!modal) return;
+
+    const clickedBackdrop = (e.target === modal);
+    if (clickedBackdrop) {
+      modal.classList.remove("is-open");
+      resetUserTrackState();
+    }
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    const modal = document.getElementById("userTrackModal");
+    if (modal && modal.classList.contains("is-open")) {
+      modal.classList.remove("is-open");
+      resetUserTrackState();
+    }
+  });
+
+  // ✅ call this when modal opens
+  function initUserTrackModalWhenOpened() {
+    if (UT_LOADED_ONCE) return;
+    UT_LOADED_ONCE = true;
+    loadBranchUsers("all"); // default all
+  }
+
+  // Detect when modal becomes open:
+  (function watchOpen(){
+    const modal = document.getElementById("userTrackModal");
+    if (!modal) return;
+
+    const obs = new MutationObserver(() => {
+      if (modal.classList.contains("is-open")) {
+        initUserTrackModalWhenOpened();
+      }
+    });
+
+    obs.observe(modal, { attributes: true, attributeFilter: ["class"] });
+  })();
 </script>

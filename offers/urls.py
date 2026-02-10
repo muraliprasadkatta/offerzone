@@ -47,6 +47,8 @@ urlpatterns = [
     path("branch/home/", bviews.branch_home_view, name="branch_home"),
     path("branch/logout/", bviews.branch_logout_view, name="branch_logout"),
     path("branch/staff/create/",bviews.branch_staff_create_view,name="branch_staff_create"),
+    path("branch/api/users/", bviews.branch_user_visit_list, name="branch_user_visit_list"),
+    path("branch/api/users/<int:user_id>/visits/",bviews.branch_user_visit_details,name="branch_user_visit_details"),
 
 
     # offers/urls.py

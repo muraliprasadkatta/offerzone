@@ -648,6 +648,7 @@
         try {
           await fetch("{% url 'offers:save_location' %}", {
             method: "POST",
+            credentials: "same-origin",
             headers: {
               "Content-Type": "application/json",
               "X-CSRFToken": getCookie("csrftoken"),
@@ -655,6 +656,7 @@
             },
             body: JSON.stringify({ latitude: lat, longitude: lon, accuracy, source: "browser" })
           });
+
         } catch (e) { console.debug("save_location failed:", e); }
       }
 

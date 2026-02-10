@@ -929,6 +929,7 @@ window.OZScan = window.OZScan || {};
     try {
       const res = await fetch("/qrg/scan-verify/", {
         method: "POST",
+        credentials: "same-origin",
         headers: {
           "Content-Type": "application/json",
           "X-CSRFToken": ns.getCookie("csrftoken") || "",
@@ -1015,9 +1016,11 @@ window.OZScan = window.OZScan || {};
       try {
         const res = await fetch("/qrg/pin-verify/", {
           method: "POST",
+          credentials: "same-origin",
           headers: {
             "Content-Type": "application/json",
             "X-CSRFToken": ns.getCookie("csrftoken") || "",
+            "X-Requested-With": "XMLHttpRequest",
           },
           body: JSON.stringify({ pin }),
         });

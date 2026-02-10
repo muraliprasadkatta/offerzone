@@ -322,15 +322,6 @@ def complementary_offer_save(request):
             if isinstance(obj.active_to, str) and obj.active_to:
                 obj.active_to = datetime.strptime(obj.active_to, "%H:%M").time()
 
-        # ✅ PRINT DEBUG
-        print("\n========== complementary_offer_save DEBUG ==========")
-        print("offer_id:", offer_id)
-        print("all_branches:", all_branches, "| raw:", p.get("all_branches"))
-        print("source_branch_id:", p.get("source_branch_id"), "=> parsed:", source_branch_id)
-        print("branch_ids final:", branch_ids)
-        print("start_at:", p.get("start_at"), "| end_at:", p.get("end_at"))
-        print("===================================================\n")
-
         with transaction.atomic():
             cloned = False
             replaced_offer_id = None

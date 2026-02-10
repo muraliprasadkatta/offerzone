@@ -764,4 +764,93 @@ class UserVerifyVisitPin(models.Model):
         return f"{self.branch} | {who} | PIN-used"
 
 
+# offers/models.py
+
+from django.conf import settings
+from django.db import models
+from django.utils import timezone
+
+
+class UserOfferClaim(models.Model):
+    KIND_CHOICES = (
+        ("main", "Main milestone"),
+        ("extra", "Extra milestone"),
+    )
+
+    STATUS_CHOICES = (
+        ("issued", "Issued"),
+        ("redeemed", "Redeemed"),
+        ("cancelled", "Cancelled"),
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="offer_claims",
+    )
+    branch = models.ForeignKey(
+        "offers.Branch",
+        on_delete=models.CASCADE,
+        related_name="offer_claims",
+    )
+
+    # Which visit triggered this claim
+    visit_event = models.ForeignKey(
+        "offers.UserVisitEvent",
+        on_delete=models.CASCADE,
+        related_name="offer_claims",
+    )
+
+    # offer reference (optional but useful)
+    offer = models.ForeignKey(
+        "offers.ComplementaryOffer",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="claims",
+    )
+
+    milestone_kind = models.CharField(max_length=8, choices=KIND_CHOICES)
+    milestone_n = models.PositiveIntegerField()  # e.g., 10th / 7th
+
+    # snapshot (future-proof)
+    offer_nth = models.PositiveIntegerField(null=True, blank=True)
+    offer_repeat = models.BooleanField(default=True)
+    offer_extra_nths = models.JSONField(default=list, blank=True)
+    offer_start_at = models.DateTimeField(null=True, blank=True)
+    offer_end_at = models.DateTimeField(null=True, blank=True)
+
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default="issued")
+    issued_at = models.DateTimeField(default=timezone.now, db_index=True)
+    redeemed_at = models.DateTimeField(null=True, blank=True)
+
+    # optional audit mirrors (easy debug)
+    token = models.CharField(max_length=255, blank=True, default="")
+    desk = models.CharField(max_length=50, blank=True, default="")
+    staff_name = models.CharField(max_length=255, blank=True, default="")
+    staff_code = models.CharField(max_length=100, blank=True, default="")
+
+    class Meta:
+        ordering = ["-issued_at"]
+        constraints = [
+            # same user+branch+milestone shouldn't be issued twice for same offer snapshot
+            models.UniqueConstraint(
+                fields=["user", "branch", "offer", "milestone_kind", "milestone_n"],
+                name="uniq_user_branch_offer_milestone",
+            ),
+            # (extra safety) same visit can't create same milestone twice
+            models.UniqueConstraint(
+                fields=["visit_event", "milestone_kind", "milestone_n"],
+                name="uniq_visit_milestone_once",
+            ),
+        ]
+
+    def mark_redeemed(self, when=None):
+        when = when or timezone.now()
+        self.status = "redeemed"
+        self.redeemed_at = when
+        self.save(update_fields=["status", "redeemed_at"])
+
+    def __str__(self):
+        return f"Claim({self.user_id}, {self.branch_id}, {self.milestone_kind}:{self.milestone_n})"
 

@@ -847,26 +847,30 @@
   }
 
   // attach change handler for individual inputs
-  // showError = true → small error if > max
   function attachClamp(input, showError) {
     if (!input) return;
-    if (input.dataset.fpClampBound === "1") return; // ✅ prevent double bind
+    if (input.dataset.fpClampBound === "1") return;
     input.dataset.fpClampBound = "1";
 
     input.addEventListener('change', () => {
       const max = getMaxVisits();
-      if (!max) return;
+
+      // ✅ NEW: allow empty (user wants to remove)
+      if (!String(input.value || '').trim()) {
+        input.classList.remove('bp-invalid');
+        return;
+      }
 
       let v = parseInt(input.value, 10);
       if (isNaN(v) || v < 1) v = 1;
 
-      if (v > max) {
+      if (max && v > max) {
         if (showError) alert(`You can't enter more than ${max} days for this date range.`);
         v = max;
       }
 
       input.value = v;
-      input.max = String(max);
+      if (max) input.max = String(max);
     });
   }
 
