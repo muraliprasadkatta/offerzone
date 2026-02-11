@@ -4,19 +4,17 @@
     <div class="oz-head">
       <div>
         <strong id="qrTitle">Branch · QR</strong>
-        <!-- NEW: identity chips row -->
-<!-- NEW: identity chips row (single source of truth) -->
-<div class="qr-meta" aria-live="polite">
-  <span class="chip" id="qrMetaBranch" title="Branch">—</span>
-  <span class="chip" id="qrMetaUID" title="Branch UID">UID: ----</span>
-  <span class="chip" id="qrMetaTag" title="Short Tag">#----</span>
-    <span class="chip" id="qrMetaStaff" title="Staff">Staff: —</span>
 
-  <span class="chip dev" id="qrMetaTTL" title="Rotating TTL">Rotating • TTL 03:00</span>
-</div>
-
-
+        <!-- NEW: identity chips row (single source of truth) -->
+        <div class="qr-meta" aria-live="polite">
+          <span class="chip" id="qrMetaBranch" title="Branch">—</span>
+          <span class="chip" id="qrMetaUID" title="Branch UID">UID: ----</span>
+          <span class="chip" id="qrMetaTag" title="Short Tag">#----</span>
+          <span class="chip" id="qrMetaStaff" title="Staff">Staff: —</span>
+          <span class="chip dev" id="qrMetaTTL" title="Rotating TTL">Rotating • TTL 03:00</span>
+        </div>
       </div>
+
       <a href="#" class="oz-close" data-close aria-label="Close">✕</a>
     </div>
 
@@ -34,26 +32,41 @@
         </div>
       </div>
 
-<div class="qr-pin" aria-live="polite">
-  <div class="label">Manual PIN</div>
+      <div class="qr-right">
 
-  <div class="value">
-    <strong id="qrPin">————</strong>  <!-- 4-digit placeholder -->
+        <!-- ✅ MODIFIED: Manual PIN (PIN top, button below) -->
+        <div class="qr-pin" aria-live="polite">
+          <div class="label">Manual PIN</div>
 
-    <!-- ⭐ NEW: Verify visit PIN button -->
-    <button type="button"
-            class="btn outline"
-            id="visitorPinGenerator">
-      Visit PIN generated
-    </button>
+          <!-- ✅ PIN on top (center) -->
+          <div class="pin-top">
+            <strong id="qrPin">————</strong>
+          </div>
 
+          
+  <!-- ✅ NEW: checkbox + link row -->
+  <div class="pin-elig-row">
+    <label class="pin-check">
+      <input type="checkbox" id="pinOfferCheck" />
+      <span>Offer eligibility</span>
+    </label>
   </div>
 
-  <small class="muted">
-    If camera fails, customer can enter this 4-digit PIN on their phone.
-  </small>
+<!-- ✅ button below -->
+<div class="pin-actions">
+  <button type="button"
+          class="btn outline"
+          id="visitorPinGenerator">
+    Visit PIN generated
+  </button>
+
 </div>
 
+
+          <small class="muted">
+            If camera fails, customer can enter this 4-digit PIN on their phone.
+          </small>
+        </div>
 
         <div class="qr-help">
           <p><strong>How to use:</strong></p>
@@ -63,6 +76,7 @@
             <li>They tap <em>Confirm &amp; Redeem</em>.</li>
           </ol>
         </div>
+
       </div>
     </div>
 
@@ -73,9 +87,50 @@
 </div>
 
 {% include "offers/qr_generation/visitor_pin_generatemodal.html" %}
+{% include "offers/qr_generation/offer_verification_modal.html" %}
 
 
 <style>
+
+  /* ✅ checkbox + link row under Visit PIN button */
+.pin-elig-row{
+  width:100%;
+  max-width:260px;
+  margin-top:10px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.pin-check{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:12px;
+  font-weight:800;
+  color:#47507a;
+  user-select:none;
+}
+
+.pin-check input{
+  width:16px;
+  height:16px;
+  accent-color:#4c74ff;
+  cursor:pointer;
+}
+
+.pin-link{
+  font-size:12px;
+  font-weight:900;
+  color:#4c74ff;
+  text-decoration:underline;
+  cursor:pointer;
+}
+.pin-link:hover{ opacity:.9; }
+
+
+
 /* Shell (desktop as-is) */
 #qrcodeModal[aria-hidden="true"]{ display:none !important; }
 #qrcodeModal{ position:fixed; inset:0; display:grid; place-items:center; background:rgba(0,0,0,.68); z-index:9999; }
@@ -109,8 +164,9 @@
 .qr-actions{ display:flex; gap:10px; }
 
 .qr-right{ display:flex; flex-direction:column; gap:14px; }
+
+/* ✅ UPDATED: qr-pin layout */
 .qr-pin .label{ font-weight:700; margin-bottom:6px; }
-.qr-pin .value{ display:flex; align-items:center; gap:10px; }
 .qr-help p{ margin:0 0 8px; }
 .qr-help .muted, .qr-pin .muted{ color:#6b7280; font-size:12px; }
 
@@ -120,11 +176,30 @@
 }
 #qrcodeModal .btn.outline{ background:#fff; color:#1b2249; border:1px solid #d6defc; }
 
-.qr-pin .value strong#qrPin {
-  letter-spacing: 0.25em;  /* try 0.2–0.3em to taste */
+/* ✅ Manual PIN layout: PIN top, button below */
+.qr-pin .pin-top{
+  width:100%;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:10px 0 6px;
+}
+.qr-pin .pin-top strong#qrPin{
+  font-size:22px;
+  font-weight:900;
+  letter-spacing:0.25em;
+}
+.qr-pin .pin-actions{
+  width:100%;
+  display:flex;
+  justify-content:center;
+  margin:6px 0 6px;
+}
+.qr-pin .pin-actions .btn{
+  width:100%;
+  max-width:260px;
 }
 
-/* Mobile: QR sticky */
 @media (max-width:720px){
   .qr-body{ grid-template-columns:1fr; }
   .qr-right{ order:2; }
@@ -142,13 +217,96 @@
 </style>
 
 <script>
+(() => {
+  const qrBox    = document.getElementById("pinOfferCheck");   // QR modal checkbox
+  const modalBox = document.getElementById("ovConfirmCheck");  // Offer modal checkbox
+  const btn      = document.getElementById("ovConfirmBtn");
+
+  let syncing = false;
+
+  // --------- helper: enable/disable confirm button ----------
+  function updateBtn(){
+    if (!btn || !modalBox) return;
+    btn.disabled = !modalBox.checked;
+  }
+
+  // --------- 1) QR checkbox -> open modal ----------
+  qrBox?.addEventListener("change", () => {
+    if (syncing) return;
+
+    if (qrBox.checked) {
+      // optional: keep unchecked until confirmed (recommended)
+      syncing = true;
+      qrBox.checked = false;
+      syncing = false;
+
+      window.OV?.open?.();
+    }
+  });
+
+  // --------- 2) Modal checkbox -> enable button + sync QR checkbox ----------
+  modalBox?.addEventListener("change", () => {
+    updateBtn();
+
+    syncing = true;
+    if (qrBox) qrBox.checked = !!modalBox.checked;
+    syncing = false;
+  });
+
+  // --------- 3) Confirm button -> NO alert, close modal, keep QR checked ----------
+  window.OV = window.OV || {};
+  const oldOpen = window.OV.open;
+  const oldClose = window.OV.close;
+
+  window.OV.open = function(){
+    const m = document.getElementById("offerVerificationModal");
+    if (!m) return;
+    m.setAttribute("aria-hidden", "false");
+    updateBtn();
+  };
+
+  window.OV.close = function(){
+    const m = document.getElementById("offerVerificationModal");
+    if (!m) return;
+    m.setAttribute("aria-hidden", "true");
+
+    if (modalBox) modalBox.checked = false;
+    updateBtn();
+
+    // if modal closed manually, also uncheck QR (optional)
+    syncing = true;
+    if (qrBox) qrBox.checked = false;
+    syncing = false;
+  };
+
+  window.OV.confirm = function(){
+    if (!modalBox?.checked) return;
+
+    // ✅ Keep QR checkbox checked (final state)
+    syncing = true;
+    if (qrBox) qrBox.checked = true;
+    syncing = false;
+
+    // ✅ small non-popup message (console or you can build toast)
+    // console.log("Offer verified successfully ✅");
+
+    window.OV.close();
+  };
+
+  // initialize
+  updateBtn();
+})();
+</script>
+
+
+
+<script>
 /* Config */
 window.OZQR = {
   MODAL_ID: 'qrcodeModal',
   START_URL: '/qrg/start',
   flags: { SHOW_DEBUG: true },      // set to false to hide TTL chip later
   state: { countdown:180, tickTimer:null, payload:'', pin:'', branch:'—', desk:'—', tag:'----', uid:'', seed:'', staffName: '', staffCode: '' }
-
 };
 </script>
 
@@ -184,23 +342,22 @@ window.OZQR = {
     return o;
   }
 
-
   OZ.setOpen=(open)=>{const m=OZ.$('#'+OZ.MODAL_ID); if(!m) return; m.setAttribute('aria-hidden',open?'false':'true'); document.body.classList.toggle('modal-open',!!open);};
 
   OZ.renderHead = () => {
     OZ.setText('#qrTitle', (S.branch || 'Branch') + ' · QR');
     OZ.setText('#qrMetaBranch', S.branch || '—');
-    OZ.setText('#qrMetaUID', 'UID: ' + (S.uid || '----'));   // ⬅️ NEW
+    OZ.setText('#qrMetaUID', 'UID: ' + (S.uid || '----'));
     OZ.setText('#qrMetaTag', '#'+(S.tag || '----'));
 
     const staffText = S.staffCode
       ? `Staff: ${S.staffCode}`
       : (S.staffName ? `Staff: ${S.staffName}` : 'Staff: —');
     OZ.setText('#qrMetaStaff', staffText);
+
     const ttlChip = OZ.$('#qrMetaTTL');
     if(ttlChip) ttlChip.style.display = (window.OZQR.flags?.SHOW_DEBUG ? '' : 'none');
   };
-
 
   OZ.renderQR=()=>{
     const holder=OZ.$('#qrCanvasHolder'); if(!holder||!S.payload) return;
@@ -210,10 +367,8 @@ window.OZQR = {
 
   OZ.renderPIN = () => {
     const raw = String(S.pin || '').match(/\d{4}/)?.[0] || '';
-    // 4-digit PIN, display as "12 34"
     OZ.setText('#qrPin', raw || '————');
   };
-
 
   const mmss = s =>
     `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -229,7 +384,6 @@ window.OZQR = {
     }
 
     if (remaining <= 0) {
-      // expire → refresh or just stop
       OZ.stopTimer();
       OZ.refresh();
     }
@@ -244,14 +398,11 @@ window.OZQR = {
 
   OZ.startTimer = () => {
     OZ.stopTimer();
-    OZ.updateCountdown();                // compute immediately
+    OZ.updateCountdown();
     S.tickTimer = setInterval(OZ.updateCountdown, 1000);
   };
 
-  // 👇 make it available to the other IIFE
   window.__oz_shortTagFromUID = shortTagFromUID;
-
-
 })();
 </script>
 
@@ -262,13 +413,13 @@ window.OZQR = {
   const tagFromUID = window.__oz_shortTagFromUID || ((u)=>'----');
 
   function parseSeed(seed){
-    const out={}; 
+    const out={};
     try{
       if(seed && seed.includes('://')){
         const qp = seed.split('://')[1];           // "branch=XYZ123&desk=A1"
         const usp = new URLSearchParams(qp);
         const b = usp.get('branch');               // this is public_id now
-        if (b) out.branchPid = String(b);          // keep as string
+        if (b) out.branchPid = String(b);
         const d = usp.get('desk');
         if (d) out.desk = d;
       }
@@ -276,11 +427,10 @@ window.OZQR = {
     return out;
   }
 
-
   OZ.mintFromServer = async (seed = '') => {
     const params = parseSeed(seed);
     const url = new URL(OZ.START_URL, location.origin);
-    if (params.branchPid) url.searchParams.set('branch', params.branchPid); // pass UID to server
+    if (params.branchPid) url.searchParams.set('branch', params.branchPid);
     if (params.desk)      url.searchParams.set('desk', params.desk);
 
     const res = await fetch(url.toString(), {
@@ -296,21 +446,17 @@ window.OZQR = {
     S.payload = data.payload || '';
     S.pin     = data.pin || '';
 
-    // ⬇⬇⬇ TTL & absolute expiry (NEW)
     const ttl = Math.max(30, parseInt(data.expires_in ?? 180, 10) || 0);
     const nowSec = Math.floor(Date.now() / 1000);
-    S.expUnix   = nowSec + ttl;   // absolute expiry timestamp (seconds)
-    S.countdown = ttl;            // initial display value
-    // ⬆⬆⬆
+    S.expUnix   = nowSec + ttl;
+    S.countdown = ttl;
 
     S.desk = data.desk || params.desk || '—';
     S.staffName = (data.staff_name || '').toString();
     S.staffCode = (data.staff_code || '').toString();
 
-    // try to read UID from server (optional), else fallback to seed
     S.uid = (data.branch_public_id || data.uid || params.branchPid || '').toString();
 
-    // Branch label + tag
     const label = (data.branch || '').toString();
     if (label.includes('#')) {
       S.branch = label.replace(/\s*·\s*#.*$/, '').trim();
@@ -319,7 +465,6 @@ window.OZQR = {
       S.branch = label || '—';
       S.tag    = (data.branch_tag || '').toString().trim();
       if (!S.tag) {
-        // derive short tag from UID (best) else from name
         S.tag = S.uid ? tagFromUID(S.uid) : tagFromUID(S.branch);
       }
     }
@@ -336,7 +481,7 @@ window.OZQR = {
     S.payload   = seed || (location.origin + '/offers/local-demo');
     S.pin       = '';
     S.countdown = ttl;
-    S.expUnix   = nowSec + ttl;          // ⬅️ ADD
+    S.expUnix   = nowSec + ttl;
     S.branch    = 'demo-branch';
     S.uid       = params.branchPid || 'DEMOUID1';
     S.tag       = tagFromUID(S.uid);
@@ -346,16 +491,14 @@ window.OZQR = {
     OZ.renderHead(); OZ.renderQR(); OZ.renderPIN();
   };
 
-
   OZ.build = async (seed='') => {
-  S.seed = seed || S.seed || '';
-  try { await OZ.mintFromServer(S.seed); }
-  catch(e){ console.warn('[QR] fallback local mint:', e); OZ.mintLocally(S.seed); }
-  OZ.startTimer();
+    S.seed = seed || S.seed || '';
+    try { await OZ.mintFromServer(S.seed); }
+    catch(e){ console.warn('[QR] fallback local mint:', e); OZ.mintLocally(S.seed); }
+    OZ.startTimer();
   };
 
   OZ.refresh = async () => { OZ.stopTimer(); await OZ.build(S.seed); };
-
 })();
 </script>
 
@@ -364,38 +507,52 @@ window.OZQR = {
 (() => {
   const OZ = window.OZQR;
 
-  // ⭐ New: Detect current branch from <body>
   function getBranchKey() {
     const b = document.body;
     if (!b || !b.dataset) return "default";
     return (
-      b.dataset.branchUid ||  // branch.public_id
-      b.dataset.branchId  ||  // fallback: branch.id
+      b.dataset.branchUid ||
+      b.dataset.branchId  ||
       "default"
     );
   }
 
   const BRANCH_KEY = getBranchKey();
 
-  // ⭐ New: per-branch storage keys
   OZ.AUTO = {
     OPEN_KEY: `ozqr_open:${BRANCH_KEY}`,
     SEED_KEY: `ozqr_seed:${BRANCH_KEY}`,
   };
-
 
   OZ.saveOpenState=(seed='')=>{ try{ sessionStorage.setItem(OZ.AUTO.OPEN_KEY,'1'); if(seed) sessionStorage.setItem(OZ.AUTO.SEED_KEY,seed);}catch(_){ } };
   OZ.clearOpenState=()=>{ try{ sessionStorage.removeItem(OZ.AUTO.OPEN_KEY); sessionStorage.removeItem(OZ.AUTO.SEED_KEY);}catch(_){ } };
 
   document.addEventListener('click',(e)=>{
     const openEl=e.target.closest('[data-open="#'+OZ.MODAL_ID+'"]');
-    if(openEl){ e.preventDefault(); const seed=openEl.getAttribute('data-qr')||''; OZ.saveOpenState(seed); OZ.build(seed).then(()=>OZ.setOpen(true)); return; }
-    const closeEl=e.target.closest('[data-close]'); if(closeEl && closeEl.closest('#'+OZ.MODAL_ID)){ e.preventDefault(); OZ.clearOpenState(); OZ.setOpen(false); window.OZQR.stopTimer?.(); }
+    if(openEl){
+      e.preventDefault();
+      const seed=openEl.getAttribute('data-qr')||'';
+      OZ.saveOpenState(seed);
+      OZ.build(seed).then(()=>OZ.setOpen(true));
+      return;
+    }
+    const closeEl=e.target.closest('[data-close]');
+    if(closeEl && closeEl.closest('#'+OZ.MODAL_ID)){
+      e.preventDefault();
+      OZ.clearOpenState();
+      OZ.setOpen(false);
+      window.OZQR.stopTimer?.();
+    }
   });
 
   document.getElementById('qrRefresh')?.addEventListener('click',(e)=>{ e.preventDefault(); OZ.refresh(); });
 
-  async function autoOpenIfNeeded(){ if(sessionStorage.getItem(OZ.AUTO.OPEN_KEY)!=='1') return; const seed=sessionStorage.getItem(OZ.AUTO.SEED_KEY)||''; await OZ.build(seed); OZ.setOpen(true); }
+  async function autoOpenIfNeeded(){
+    if(sessionStorage.getItem(OZ.AUTO.OPEN_KEY)!=='1') return;
+    const seed=sessionStorage.getItem(OZ.AUTO.SEED_KEY)||'';
+    await OZ.build(seed);
+    OZ.setOpen(true);
+  }
   document.addEventListener('DOMContentLoaded', autoOpenIfNeeded);
   window.addEventListener('pageshow', (e)=>{ if(e.persisted) autoOpenIfNeeded(); });
 })();

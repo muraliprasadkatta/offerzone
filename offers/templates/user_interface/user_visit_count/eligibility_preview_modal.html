@@ -265,69 +265,132 @@
     const okBtn    = document.getElementById('epOkBtn');
 
     function open(){
+      if (!overlay) return;
       overlay.classList.add('is-open');
       overlay.setAttribute('aria-hidden','false');
     }
-    function close(){
+
+    // ✅ close supports "keepMain" option (OK click ki use avthadi)
+    function close(opts){
+      const keepMain = !!opts?.keepMain;
+
+      if (!overlay) return;
       overlay.classList.remove('is-open');
       overlay.setAttribute('aria-hidden','true');
+
       // reset checkbox + ok
-      ackChk.checked = false;
-      okBtn.disabled = true;
+      if (ackChk) ackChk.checked = false;
+      if (okBtn) okBtn.disabled = true;
+
+      // ✅ cancel/close lo main checkbox OFF
+      if (!keepMain && window.__setMainEligibilityBox){
+        window.__setMainEligibilityBox(false);
+      }
     }
 
-    closeBtn.addEventListener('click', close);
-    okBtn.addEventListener('click', close);
+    // ✅ Close button = cancel
+    closeBtn?.addEventListener('click', () => close({ keepMain:false }));
 
-    // click outside card closes
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) close();
+    // ✅ Outside click = cancel
+    overlay?.addEventListener('click', (e) => {
+      if (e.target === overlay) close({ keepMain:false });
     });
 
-    // checkbox enables OK
-    ackChk.addEventListener('change', () => {
-      okBtn.disabled = !ackChk.checked;
+    // ✅ Sub checkbox change: only OK enable/disable
+    ackChk?.addEventListener('change', () => {
+      if (okBtn) okBtn.disabled = !ackChk.checked;
+    });
+
+    // ✅ OK click = confirm -> main checkbox ON -> close without turning it OFF
+    okBtn?.addEventListener('click', () => {
+      if (!ackChk?.checked) return;
+
+      if (window.__setMainEligibilityBox){
+        window.__setMainEligibilityBox(true);
+      }
+
+      close({ keepMain:true });
     });
 
     window.EligibilityPreviewModal = {
       showLoading(){
         open();
-        emoji.textContent = "⏳";
-        title.textContent = "Checking…";
-        sub.textContent   = "Please wait mava";
-        badge.style.display = "none";
-        pillsWrap.style.display = "none";
-        note.style.display = "none";
-        checkRow.style.display = "none";
-        loading.style.display = "block";
-        okBtn.disabled = true;
-        ackChk.checked = false;
+        if (emoji) emoji.textContent = "⏳";
+        if (title) title.textContent = "Checking…";
+        if (sub)   sub.textContent   = "Please wait mava";
+
+        if (badge) badge.style.display = "none";
+        if (pillsWrap) pillsWrap.style.display = "none";
+        if (note) note.style.display = "none";
+        if (checkRow) checkRow.style.display = "none";
+        if (loading) loading.style.display = "block";
+
+        if (okBtn) okBtn.disabled = true;
+        if (ackChk) ackChk.checked = false;
+      },
+
+      showEligible(payload){
+        open();
+        if (loading) loading.style.display = "none";
+
+        if (emoji) emoji.textContent = "😊";
+        if (title) title.textContent = payload?.title || "Eligible ✅";
+        if (sub)   sub.textContent   = payload?.sub || "Ee visit verify chesthe complimentary unlock avvachu mava.";
+
+        if (badge){
+          badge.style.display = "inline-flex";
+          badge.textContent = "ELIGIBLE";
+          badge.style.background = "rgba(34,197,94,.15)";
+          badge.style.border = "1px solid rgba(34,197,94,.35)";
+          badge.style.color = "#bbf7d0";
+        }
+
+        if (pillsWrap) pillsWrap.style.display = "flex";
+        if (visitText) visitText.textContent = payload?.visitText || "";
+        if (ruleText)  ruleText.textContent  = payload?.ruleText  || "";
+
+        if (note){
+          note.style.display = "block";
+          note.textContent = payload?.noteText || "Count will be added only after PIN verification.";
+        }
+
+        if (checkRow) checkRow.style.display = "flex";
+        if (ackChk) ackChk.checked = false;
+        if (okBtn) okBtn.disabled = true;
       },
 
       showNotYet(payload){
         open();
-        loading.style.display = "none";
+        if (loading) loading.style.display = "none";
 
-        emoji.textContent = "🙂";
-        title.textContent = payload?.title || "Almost there 👀";
-        sub.textContent   = payload?.sub || "One more visit to unlock your complimentary.";
+        if (emoji) emoji.textContent = "🙂";
+        if (title) title.textContent = payload?.title || "Almost there 👀";
+        if (sub)   sub.textContent   = payload?.sub || "One more visit to unlock your complimentary.";
 
-        badge.style.display = "inline-flex";
-        badge.textContent = "NOT YET";
+        if (badge){
+          badge.style.display = "inline-flex";
+          badge.textContent = "NOT YET";
+          // (optional) reset eligible styles if previously set
+          badge.style.background = "rgba(255,76,106,.10)";
+          badge.style.border = "1px solid rgba(255,76,106,.30)";
+          badge.style.color = "#ffd4dc";
+        }
 
-        pillsWrap.style.display = "flex";
-        visitText.textContent = payload?.visitText || "Visit: 4 / 5";
-        ruleText.textContent  = payload?.ruleText  || "Every 5th visit";
+        if (pillsWrap) pillsWrap.style.display = "flex";
+        if (visitText) visitText.textContent = payload?.visitText || "";
+        if (ruleText)  ruleText.textContent  = payload?.ruleText  || "";
 
-        note.style.display = "block";
-        note.textContent = payload?.noteText || "Count will be added only after PIN verification.";
+        if (note){
+          note.style.display = "block";
+          note.textContent = payload?.noteText || "Count will be added only after PIN verification.";
+        }
 
-        checkRow.style.display = "flex";
-        ackChk.checked = false;
-        okBtn.disabled = true;
+        if (checkRow) checkRow.style.display = "flex";
+        if (ackChk) ackChk.checked = false;
+        if (okBtn) okBtn.disabled = true;
       },
 
-      close
+      close: () => close({ keepMain:false }) // external close = cancel
     };
   })();
 </script>

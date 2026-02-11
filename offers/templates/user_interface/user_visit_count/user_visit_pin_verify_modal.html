@@ -209,39 +209,39 @@
 
       <div id="vcStatus" class="vcStatus"></div>
 
-      {# ✅ SHOW ONLY WHEN BACKEND SAYS ELIGIBLE (e.g., 10th visit) #}
-{% if show_offer_ui %}
-<div class="vcMiniLinkRow" style="display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;">
+{# ✅ SHOW ONLY WHEN offer-day + pending AND eligible #}
+{% if show_offer_ui and show_check_eligibility %}
+  <div class="vcMiniLinkRow" style="display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;">
 
-  <a href="#"
-     id="checkEligibilityLink"
-     class="vcMiniLink"
-     data-title="{{ eligibility_title|default:'Eligible ✅'|escape }}"
-     data-sub="{{ eligibility_sub|default:''|escape }}"
-     data-visit="{{ eligibility_visit_text|default:''|escape }}"
-     data-rule="{{ eligibility_rule_text|default:''|escape }}">
-    Check offer eligibility
-  </a>
+    <label style="display:flex;align-items:center;gap:8px;font-size:11px;font-weight:900;color:#b9c4ff;cursor:pointer;">
+      <input type="checkbox"
+             id="checkEligibilityBox"
+             style="width:15px;height:15px;accent-color:#4c74ff;cursor:pointer;"
+             data-title="{{ eligibility_title|default:'Eligible ✅'|escape }}"
+             data-sub="{{ eligibility_sub|default:''|escape }}"
+             data-visit="{{ eligibility_visit_text|default:''|escape }}"
+             data-rule="{{ eligibility_rule_text|default:''|escape }}">
+      <span>Check offer eligibility</span>
+    </label>
 
-  <span style="font-size:11px;font-weight:900;color:#b9c4ff;opacity:.95;">
-    Next: {{ next_visit_no }}
-  </span>
-
-  {% if first_milestone %}
     <span style="font-size:11px;font-weight:900;color:#b9c4ff;opacity:.95;">
-      First milestone: {{ first_milestone }}{{ first_milestone_suffix|default:"th" }} visit
+      Next: {{ next_visit_no }}
     </span>
-  {% endif %}
 
-  {% if milestone_summary %}
-    <span style="font-size:11px;font-weight:800;color:#b9c4ff;opacity:.85;">
-      {{ milestone_summary }}
-    </span>
-  {% endif %}
+    {% if first_milestone %}
+      <span style="font-size:11px;font-weight:900;color:#b9c4ff;opacity:.95;">
+        First milestone: {{ first_milestone }}{{ first_milestone_suffix|default:"th" }} visit
+      </span>
+    {% endif %}
 
-</div>
+    {% if milestone_summary %}
+      <span style="font-size:11px;font-weight:800;color:#b9c4ff;opacity:.85;">
+        {{ milestone_summary }}
+      </span>
+    {% endif %}
+
+  </div>
 {% endif %}
-
 
 
       <button type="button" id="vcVerifyBtn" class="vcPrimaryBtn" onclick="vcVerifyPin()">
@@ -299,9 +299,17 @@
   document.addEventListener('DOMContentLoaded', () => {
     wirePinBoxes();
     document.getElementById('p1')?.focus();
+    window.OZShake?.init?.();
   });
 
   async function vcVerifyPin(){
+    // ✅ 1) Eligibility checkbox gate (if exists)
+    if (window.OZShake && !window.OZShake.mustCheckEligibilityOrShake()){
+      setStatus("Mava, offer eligibility checkbox tick cheyyali.", "bad");
+      return;
+    }
+
+    // ✅ 2) PIN validation
     const pin = getPin();
     if (!/^\d{4}$/.test(pin)){
       setStatus('4 digits correct ga enter cheyyi mava.', 'bad');
@@ -353,36 +361,109 @@
   }
 </script>
 
-<script>
-  // ✅ Only binds if link exists (and link exists only when eligible)
-  document.getElementById('checkEligibilityLink')?.addEventListener('click', function(e){
-    e.preventDefault();
 
-    // Open preview modal
+
+<!--===== OZ Shake Helper (one-time)========== */ -->
+<script>
+/* =========================
+   OZ Shake Helper (one-time)
+   ========================= */
+(function () {
+  function injectShakeCSS() {
+    if (document.getElementById("ozShakeCSS")) return;
+    const s = document.createElement("style");
+    s.id = "ozShakeCSS";
+    s.textContent = `
+      .ozShakeWarn{
+        outline:2px solid rgba(255,76,106,.85);
+        outline-offset:6px;
+        border-radius:14px;
+        animation: ozShake 0.55s ease;
+        background: rgba(255,76,106,.08); /* ✅ light red tint (optional) */
+      }
+      @keyframes ozShake{
+        0%{ transform: translateX(0); }
+        15%{ transform: translateX(-6px); }
+        30%{ transform: translateX(6px); }
+        45%{ transform: translateX(-5px); }
+        60%{ transform: translateX(5px); }
+        75%{ transform: translateX(-3px); }
+        100%{ transform: translateX(0); }
+      }
+    `;
+    document.head.appendChild(s);
+  }
+
+  function getEligibilityBox() {
+    return document.getElementById("checkEligibilityBox"); // exists only when eligible UI shown
+  }
+
+  function getEligibilityRow(box) {
+    return box?.closest(".vcMiniLinkRow") || box?.parentElement || null;
+  }
+
+  function shakeRow(row) {
+    if (!row) return;
+    row.classList.remove("ozShakeWarn");
+    void row.offsetWidth; // restart animation
+    row.classList.add("ozShakeWarn");
+    setTimeout(() => row.classList.remove("ozShakeWarn"), 650);
+  }
+
+  // expose tiny API
+  window.OZShake = {
+    init: injectShakeCSS,
+    mustCheckEligibilityOrShake() {
+      injectShakeCSS();
+      const box = getEligibilityBox();
+      if (!box) return true;          // checkbox not shown => no gating
+      if (box.checked) return true;   // checked => ok
+      shakeRow(getEligibilityRow(box));
+      return false;                   // not checked
+    }
+  };
+
+  injectShakeCSS();
+})();
+</script>
+
+
+<script>
+(() => {
+  const box = document.getElementById('checkEligibilityBox');
+  if (!box) return;
+
+  let syncing = false;
+
+  // modal -> main checkbox sync helper
+  window.__setMainEligibilityBox = (val) => {
+    syncing = true;
+    box.checked = !!val;
+    syncing = false;
+  };
+
+  function openModalFromBox(){
     if (!window.EligibilityPreviewModal) return;
 
-    // Read details from data-attrs (set by template context)
-    const a = e.currentTarget;
-    const title = a.getAttribute('data-title') || "Eligible ✅";
-    const sub   = a.getAttribute('data-sub')   || "This visit can unlock your complimentary.";
-    const visitText = a.getAttribute('data-visit') || "";
-    const ruleText  = a.getAttribute('data-rule')  || "";
+    const title = box.getAttribute('data-title') || "Eligible ✅";
+    const sub   = box.getAttribute('data-sub') || "";
+    const visitText = box.getAttribute('data-visit') || "";
+    const ruleText  = box.getAttribute('data-rule') || "";
 
-    EligibilityPreviewModal.showLoading();
+    // open eligible modal
+    window.EligibilityPreviewModal.showEligible({ title, sub, visitText, ruleText });
+  }
 
-    // If you want immediate render (no API), show eligible state directly:
-    setTimeout(() => {
-      // If you have showEligible API, use that.
-      // Else reuse existing method (change as per your modal helper).
-      if (EligibilityPreviewModal.showEligible){
-        EligibilityPreviewModal.showEligible({ title, sub, visitText, ruleText });
-      } else if (EligibilityPreviewModal.showNotYet){
-        // fallback (just in case) - but since link shows only when eligible,
-        // you probably want "Eligible" UI in your modal helper.
-        EligibilityPreviewModal.showNotYet({ title, sub, visitText, ruleText });
-      }
-    }, 250);
+  box.addEventListener('change', () => {
+    if (syncing) return;
+
+    if (box.checked) {
+      openModalFromBox();
+    } else {
+      window.EligibilityPreviewModal?.close?.();
+    }
   });
+})();
 </script>
 
 </body>

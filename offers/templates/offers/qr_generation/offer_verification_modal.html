@@ -1,0 +1,175 @@
+<!-- ===== Offer Verification Modal ===== -->
+<div id="offerVerificationModal"
+     class="ov-modal"
+     aria-hidden="true"
+     role="dialog"
+     aria-modal="true">
+
+  <div class="ov-card" role="document">
+
+    <div class="ov-head">
+      <strong>Offer Verification</strong>
+      <button class="ov-close" onclick="OV.close()">✕</button>
+    </div>
+
+    <div class="ov-body">
+      <p class="ov-text">
+        Ivala customer ki offer conditions complete ayyayi.
+        Mee side nunchi verify chesi complimentary ivvandi.
+      </p>
+
+      <label class="ov-check">
+        <input type="checkbox" id="ovConfirmCheck">
+        <span>
+          Customer eligibility verify chesanu
+        </span>
+      </label>
+
+      <div class="ov-warn">
+        Continue cheyyadam mundu checkbox mark cheyyali.
+      </div>
+    </div>
+
+    <div class="ov-foot">
+      <button class="ov-btn"
+              id="ovConfirmBtn"
+              disabled
+              onclick="OV.confirm()">
+        Confirm & Proceed
+      </button>
+    </div>
+
+  </div>
+</div>
+
+
+<style>
+    /* ===== Offer Verification Modal ===== */
+
+.ov-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  display: none;
+  place-items: center;
+  z-index: 10050;;
+}
+
+.ov-modal[aria-hidden="false"] {
+  display: grid;
+}
+
+.ov-card {
+  width: min(420px, 92vw);
+  background: #ffffff;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0,0,0,.2);
+  font-family: system-ui, sans-serif;
+}
+
+/* Header */
+.ov-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 16px;
+}
+
+.ov-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* Body */
+.ov-body {
+  padding: 16px;
+}
+
+.ov-text {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 14px;
+  color: #111827;
+}
+
+.ov-check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ov-check input {
+  margin-top: 3px;
+}
+
+.ov-warn {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #b45309;
+}
+
+/* Footer */
+.ov-foot {
+  padding: 14px 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.ov-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: #4c74ff;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.ov-btn:disabled {
+  background: #c7d2fe;
+  cursor: not-allowed;
+}
+
+</style>
+
+
+<script>
+const OV = {
+  open() {
+    document.getElementById('offerVerificationModal')
+      .setAttribute('aria-hidden', 'false');
+  },
+
+  close() {
+    document.getElementById('offerVerificationModal')
+      .setAttribute('aria-hidden', 'true');
+
+    document.getElementById('ovConfirmCheck').checked = false;
+    document.getElementById('ovConfirmBtn').disabled = true;
+  },
+
+  // ✅ THIS WAS MISSING
+  confirm() {
+    // future lo API call / logic ikkada pedathav
+    // ippudu just close
+    OV.close();
+  }
+};
+
+// checkbox → enable / disable button
+document.addEventListener('change', (e) => {
+  if (e.target.id === 'ovConfirmCheck') {
+    document.getElementById('ovConfirmBtn').disabled = !e.target.checked;
+  }
+});
+</script>
+
