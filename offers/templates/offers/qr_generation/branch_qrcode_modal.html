@@ -5,7 +5,7 @@
       <div>
         <strong id="qrTitle">Branch · QR</strong>
 
-        <!-- NEW: identity chips row (single source of truth) -->
+        <!-- identity chips row -->
         <div class="qr-meta" aria-live="polite">
           <span class="chip" id="qrMetaBranch" title="Branch">—</span>
           <span class="chip" id="qrMetaUID" title="Branch UID">UID: ----</span>
@@ -19,7 +19,7 @@
     </div>
 
     <div class="oz-body qr-body">
-      <!-- Left: QR (mobile: sticky) -->
+      <!-- Left -->
       <div class="qr-left">
         <div class="qr-box" id="qrCanvasHolder" aria-live="polite" aria-label="QR area"></div>
 
@@ -32,36 +32,30 @@
         </div>
       </div>
 
+      <!-- Right -->
       <div class="qr-right">
 
-        <!-- ✅ MODIFIED: Manual PIN (PIN top, button below) -->
+        <!-- Manual PIN -->
         <div class="qr-pin" aria-live="polite">
           <div class="label">Manual PIN</div>
 
-          <!-- ✅ PIN on top (center) -->
           <div class="pin-top">
             <strong id="qrPin">————</strong>
           </div>
 
-          
-  <!-- ✅ NEW: checkbox + link row -->
-  <div class="pin-elig-row">
-    <label class="pin-check">
-      <input type="checkbox" id="pinOfferCheck" />
-      <span>Offer eligibility</span>
-    </label>
-  </div>
+          <div class="pin-actions pin-actions-row">
+            <button type="button"
+                    class="btn outline"
+                    id="visitorPinGenerator">
+              Visit PIN generate
+            </button>
 
-<!-- ✅ button below -->
-<div class="pin-actions">
-  <button type="button"
-          class="btn outline"
-          id="visitorPinGenerator">
-    Visit PIN generated
-  </button>
-
-</div>
-
+            <button type="button"
+                    class="btn outline"
+                    data-open="#offerVerificationModal">
+              Verify Offer PIN
+            </button>
+          </div>
 
           <small class="muted">
             If camera fails, customer can enter this 4-digit PIN on their phone.
@@ -89,223 +83,118 @@
 {% include "offers/qr_generation/visitor_pin_generatemodal.html" %}
 {% include "offers/qr_generation/offer_verification_modal.html" %}
 
-
 <style>
-
-  /* ✅ checkbox + link row under Visit PIN button */
-.pin-elig-row{
-  width:100%;
-  max-width:260px;
-  margin-top:10px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-}
-
-.pin-check{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  font-size:12px;
-  font-weight:800;
-  color:#47507a;
-  user-select:none;
-}
-
-.pin-check input{
-  width:16px;
-  height:16px;
-  accent-color:#4c74ff;
-  cursor:pointer;
-}
-
-.pin-link{
-  font-size:12px;
-  font-weight:900;
-  color:#4c74ff;
-  text-decoration:underline;
-  cursor:pointer;
-}
-.pin-link:hover{ opacity:.9; }
-
-
-
-/* Shell (desktop as-is) */
-#qrcodeModal[aria-hidden="true"]{ display:none !important; }
-#qrcodeModal{ position:fixed; inset:0; display:grid; place-items:center; background:rgba(0,0,0,.68); z-index:9999; }
-#qrcodeModal .oz-card{
-  width:min(880px,96vw); max-height:92vh; background:#fff; color:#1b2249;
-  border:1px solid #e3e9ff; border-radius:14px; box-shadow:0 18px 48px rgba(27,34,73,.08);
-  display:flex; flex-direction:column; overflow:hidden;
-}
-#qrcodeModal .oz-head, #qrcodeModal .oz-foot{
-  background:#fff; flex:0 0 auto; padding:12px 16px; display:flex; align-items:center; justify-content:space-between;
-  border-bottom:1px solid #e3e9ff;
-}
-#qrcodeModal .oz-foot{ border-top:1px solid #e3e9ff; border-bottom:none; justify-content:flex-end; gap:10px; }
-
-/* NEW: identity chips */
-.qr-meta{ display:flex; gap:8px; margin-top:6px; flex-wrap:wrap; }
-.qr-meta .chip{
-  display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border:1px solid #e3e9ff;
-  border-radius:999px; font-size:12px; color:#47507a; background:#f7f9ff;
-}
-.qr-meta .chip.dev{ background:#fff7f0; border-color:#ffd7b8; color:#8a4a00; }
-
-.qr-body{ padding:16px; overflow:auto; display:grid; grid-template-columns: 1fr 1fr; gap:18px; }
-.qr-left{ display:flex; flex-direction:column; align-items:center; gap:12px; }
-.qr-box{
-  width:260px; height:260px; border:1px dashed #cfd8ff; border-radius:12px;
-  display:grid; place-items:center; background:#f8faff;
-}
-.qr-box img{ width:240px; height:240px; image-rendering:pixelated; }
-.qr-count{ font-weight:700; font-size:16px; }
-.qr-actions{ display:flex; gap:10px; }
-
-.qr-right{ display:flex; flex-direction:column; gap:14px; }
-
-/* ✅ UPDATED: qr-pin layout */
-.qr-pin .label{ font-weight:700; margin-bottom:6px; }
-.qr-help p{ margin:0 0 8px; }
-.qr-help .muted, .qr-pin .muted{ color:#6b7280; font-size:12px; }
-
-#qrcodeModal .btn{
-  background:#4c74ff; color:#fff; border:1px solid #3e63e6;
-  padding:10px 14px; border-radius:10px; font-weight:600; cursor:pointer;
-}
-#qrcodeModal .btn.outline{ background:#fff; color:#1b2249; border:1px solid #d6defc; }
-
-/* ✅ Manual PIN layout: PIN top, button below */
-.qr-pin .pin-top{
-  width:100%;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  padding:10px 0 6px;
-}
-.qr-pin .pin-top strong#qrPin{
-  font-size:22px;
-  font-weight:900;
-  letter-spacing:0.25em;
-}
-.qr-pin .pin-actions{
-  width:100%;
-  display:flex;
-  justify-content:center;
-  margin:6px 0 6px;
-}
-.qr-pin .pin-actions .btn{
-  width:100%;
-  max-width:260px;
-}
-
-@media (max-width:720px){
-  .qr-body{ grid-template-columns:1fr; }
-  .qr-right{ order:2; }
-  .qr-left{
-    position:sticky; top:8px;
-    z-index:1;
-    background:linear-gradient(#fff 60%, rgba(255,255,255,0));
-    padding-bottom:6px;
+  /* two buttons row */
+  .qr-pin .pin-actions-row{
+    width:100%;
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:10px;
+    justify-content:center;
+    margin:6px 0 6px;
   }
-  .qr-box{ width:min(320px, 86vw); height:min(320px, 86vw); }
-  .qr-box img{ width:calc(100% - 20px); height:calc(100% - 20px); }
-  .qr-count{ font-size:15px; }
-}
-@media (prefers-reduced-motion:reduce){ #qrcodeModal{ transition:none; } }
+  .qr-pin .pin-actions-row .btn{
+    width:100%;
+    max-width:none;
+  }
+  @media (max-width:720px){
+    .qr-pin .pin-actions-row{
+      grid-template-columns:1fr;
+    }
+  }
 </style>
 
-<script>
-(() => {
-  const qrBox    = document.getElementById("pinOfferCheck");   // QR modal checkbox
-  const modalBox = document.getElementById("ovConfirmCheck");  // Offer modal checkbox
-  const btn      = document.getElementById("ovConfirmBtn");
+<style>
+  /* Shell */
+  #qrcodeModal[aria-hidden="true"]{ display:none !important; }
+  #qrcodeModal{ position:fixed; inset:0; display:grid; place-items:center; background:rgba(0,0,0,.68); z-index:9999; }
+  #qrcodeModal .oz-card{
+    width:min(880px,96vw); max-height:92vh; background:#fff; color:#1b2249;
+    border:1px solid #e3e9ff; border-radius:14px; box-shadow:0 18px 48px rgba(27,34,73,.08);
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  #qrcodeModal .oz-head, #qrcodeModal .oz-foot{
+    background:#fff; flex:0 0 auto; padding:12px 16px; display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid #e3e9ff;
+  }
+  #qrcodeModal .oz-foot{ border-top:1px solid #e3e9ff; border-bottom:none; justify-content:flex-end; gap:10px; }
 
-  let syncing = false;
+  /* identity chips */
+  .qr-meta{ display:flex; gap:8px; margin-top:6px; flex-wrap:wrap; }
+  .qr-meta .chip{
+    display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border:1px solid #e3e9ff;
+    border-radius:999px; font-size:12px; color:#47507a; background:#f7f9ff;
+  }
+  .qr-meta .chip.dev{ background:#fff7f0; border-color:#ffd7b8; color:#8a4a00; }
 
-  // --------- helper: enable/disable confirm button ----------
-  function updateBtn(){
-    if (!btn || !modalBox) return;
-    btn.disabled = !modalBox.checked;
+  .qr-body{ padding:16px; overflow:auto; display:grid; grid-template-columns: 1fr 1fr; gap:18px; }
+  .qr-left{ display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .qr-box{
+    width:260px; height:260px; border:1px dashed #cfd8ff; border-radius:12px;
+    display:grid; place-items:center; background:#f8faff;
+  }
+  .qr-box img{ width:240px; height:240px; image-rendering:pixelated; }
+  .qr-count{ font-weight:700; font-size:16px; }
+  .qr-actions{ display:flex; gap:10px; }
+
+  .qr-right{ display:flex; flex-direction:column; gap:14px; }
+
+  .qr-pin .label{ font-weight:700; margin-bottom:6px; }
+  .qr-help p{ margin:0 0 8px; }
+  .qr-help .muted, .qr-pin .muted{ color:#6b7280; font-size:12px; }
+
+  #qrcodeModal .btn{
+    background:#4c74ff; color:#fff; border:1px solid #3e63e6;
+    padding:10px 14px; border-radius:10px; font-weight:600; cursor:pointer;
+  }
+  #qrcodeModal .btn.outline{ background:#fff; color:#1b2249; border:1px solid #d6defc; }
+
+  /* Manual PIN layout */
+  .qr-pin .pin-top{
+    width:100%;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:10px 0 6px;
+  }
+  .qr-pin .pin-top strong#qrPin{
+    font-size:22px;
+    font-weight:900;
+    letter-spacing:0.25em;
+  }
+  .qr-pin .pin-actions{
+    width:100%;
+    display:flex;
+    justify-content:center;
+    margin:6px 0 6px;
+  }
+  .qr-pin .pin-actions .btn{
+    width:100%;
+    max-width:260px;
   }
 
-  // --------- 1) QR checkbox -> open modal ----------
-  qrBox?.addEventListener("change", () => {
-    if (syncing) return;
-
-    if (qrBox.checked) {
-      // optional: keep unchecked until confirmed (recommended)
-      syncing = true;
-      qrBox.checked = false;
-      syncing = false;
-
-      window.OV?.open?.();
+  @media (max-width:720px){
+    .qr-body{ grid-template-columns:1fr; }
+    .qr-right{ order:2; }
+    .qr-left{
+      position:sticky; top:8px;
+      z-index:1;
+      background:linear-gradient(#fff 60%, rgba(255,255,255,0));
+      padding-bottom:6px;
     }
-  });
-
-  // --------- 2) Modal checkbox -> enable button + sync QR checkbox ----------
-  modalBox?.addEventListener("change", () => {
-    updateBtn();
-
-    syncing = true;
-    if (qrBox) qrBox.checked = !!modalBox.checked;
-    syncing = false;
-  });
-
-  // --------- 3) Confirm button -> NO alert, close modal, keep QR checked ----------
-  window.OV = window.OV || {};
-  const oldOpen = window.OV.open;
-  const oldClose = window.OV.close;
-
-  window.OV.open = function(){
-    const m = document.getElementById("offerVerificationModal");
-    if (!m) return;
-    m.setAttribute("aria-hidden", "false");
-    updateBtn();
-  };
-
-  window.OV.close = function(){
-    const m = document.getElementById("offerVerificationModal");
-    if (!m) return;
-    m.setAttribute("aria-hidden", "true");
-
-    if (modalBox) modalBox.checked = false;
-    updateBtn();
-
-    // if modal closed manually, also uncheck QR (optional)
-    syncing = true;
-    if (qrBox) qrBox.checked = false;
-    syncing = false;
-  };
-
-  window.OV.confirm = function(){
-    if (!modalBox?.checked) return;
-
-    // ✅ Keep QR checkbox checked (final state)
-    syncing = true;
-    if (qrBox) qrBox.checked = true;
-    syncing = false;
-
-    // ✅ small non-popup message (console or you can build toast)
-    // console.log("Offer verified successfully ✅");
-
-    window.OV.close();
-  };
-
-  // initialize
-  updateBtn();
-})();
-</script>
-
-
+    .qr-box{ width:min(320px, 86vw); height:min(320px, 86vw); }
+    .qr-box img{ width:calc(100% - 20px); height:calc(100% - 20px); }
+    .qr-count{ font-size:15px; }
+  }
+  @media (prefers-reduced-motion:reduce){ #qrcodeModal{ transition:none; } }
+</style>
 
 <script>
 /* Config */
 window.OZQR = {
   MODAL_ID: 'qrcodeModal',
   START_URL: '/qrg/start',
-  flags: { SHOW_DEBUG: true },      // set to false to hide TTL chip later
+  flags: { SHOW_DEBUG: true },
   state: { countdown:180, tickTimer:null, payload:'', pin:'', branch:'—', desk:'—', tag:'----', uid:'', seed:'', staffName: '', staffCode: '' }
 };
 </script>
@@ -317,20 +206,8 @@ window.OZQR = {
   OZ.$ = (s)=>document.querySelector(s);
   OZ.setText=(s,t)=>{const e=OZ.$(s); if(e) e.textContent=t;};
 
-  // Base36 + 2-char checksum from branch id (or name fallback)
-  function shortTag({id, name}){
-    function b36(n){ if(!n) return "0"; const c="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"; let x=Math.abs(n|0), o=""; while(x){o=c[x%36]+o; x=(x/36)|0;} return o; }
-    const base = id ? b36(id) : (String(name||"").length? b36([...String(name)].reduce((a,ch)=>a+ch.charCodeAt(0),0)) : "0");
-    const src = String(id||name||"-");
-    let h=0; for(let i=0;i<src.length;i++){ h=(h*131 + src.charCodeAt(i))>>>0; }
-    const chk = b36(h).padStart(2,'0').slice(0,2);
-    return (base+chk).toUpperCase();
-  }
-
-  // Stable short tag from UID (public_id)
   function shortTagFromUID(uid){
     if(!uid) return '----';
-    // tiny FNV-ish hash → base36 6 chars
     let h = 2166136261 >>> 0;
     for (let i = 0; i < uid.length; i++) {
       h ^= uid.charCodeAt(i);
@@ -342,7 +219,12 @@ window.OZQR = {
     return o;
   }
 
-  OZ.setOpen=(open)=>{const m=OZ.$('#'+OZ.MODAL_ID); if(!m) return; m.setAttribute('aria-hidden',open?'false':'true'); document.body.classList.toggle('modal-open',!!open);};
+  OZ.setOpen=(open)=>{
+    const m=OZ.$('#'+OZ.MODAL_ID);
+    if(!m) return;
+    m.setAttribute('aria-hidden',open?'false':'true');
+    document.body.classList.toggle('modal-open',!!open);
+  };
 
   OZ.renderHead = () => {
     OZ.setText('#qrTitle', (S.branch || 'Branch') + ' · QR');
@@ -370,8 +252,7 @@ window.OZQR = {
     OZ.setText('#qrPin', raw || '————');
   };
 
-  const mmss = s =>
-    `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  const mmss = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
   OZ.updateCountdown = () => {
     const nowSec = Math.floor(Date.now() / 1000);
@@ -416,9 +297,9 @@ window.OZQR = {
     const out={};
     try{
       if(seed && seed.includes('://')){
-        const qp = seed.split('://')[1];           // "branch=XYZ123&desk=A1"
+        const qp = seed.split('://')[1];
         const usp = new URLSearchParams(qp);
-        const b = usp.get('branch');               // this is public_id now
+        const b = usp.get('branch');
         if (b) out.branchPid = String(b);
         const d = usp.get('desk');
         if (d) out.desk = d;
@@ -458,16 +339,8 @@ window.OZQR = {
     S.uid = (data.branch_public_id || data.uid || params.branchPid || '').toString();
 
     const label = (data.branch || '').toString();
-    if (label.includes('#')) {
-      S.branch = label.replace(/\s*·\s*#.*$/, '').trim();
-      S.tag    = label.split('#').pop().trim();
-    } else {
-      S.branch = label || '—';
-      S.tag    = (data.branch_tag || '').toString().trim();
-      if (!S.tag) {
-        S.tag = S.uid ? tagFromUID(S.uid) : tagFromUID(S.branch);
-      }
-    }
+    S.branch = label || '—';
+    S.tag    = (data.branch_tag || '').toString().trim() || (S.uid ? tagFromUID(S.uid) : tagFromUID(S.branch));
 
     OZ.renderHead();
     OZ.renderQR();
@@ -503,18 +376,14 @@ window.OZQR = {
 </script>
 
 <script>
-/* Events + auto-open persistence */
+/* Events + auto-open persistence (QR modal ONLY) */
 (() => {
   const OZ = window.OZQR;
 
   function getBranchKey() {
     const b = document.body;
     if (!b || !b.dataset) return "default";
-    return (
-      b.dataset.branchUid ||
-      b.dataset.branchId  ||
-      "default"
-    );
+    return (b.dataset.branchUid || b.dataset.branchId || "default");
   }
 
   const BRANCH_KEY = getBranchKey();
@@ -555,5 +424,52 @@ window.OZQR = {
   }
   document.addEventListener('DOMContentLoaded', autoOpenIfNeeded);
   window.addEventListener('pageshow', (e)=>{ if(e.persisted) autoOpenIfNeeded(); });
+})();
+</script>
+
+<!-- ✅ GLOBAL modal open/close for included sub-modals (nested allowed) -->
+<script>
+(function(){
+  function openModal(sel){
+    const m = document.querySelector(sel);
+    if(!m) return;
+    m.classList.add('is-open');
+    m.setAttribute('aria-hidden','false');
+  }
+  function closeModal(m){
+    if(!m) return;
+    m.classList.remove('is-open');
+    m.setAttribute('aria-hidden','true');
+  }
+
+  document.addEventListener('click', (e) => {
+    // open any modal by selector
+    const openEl = e.target.closest('[data-open]');
+    if(openEl){
+      const sel = openEl.getAttribute('data-open');
+      // ✅ avoid double-handling qrcodeModal (QR has its own logic)
+      if(sel === '#qrcodeModal') return;
+      if(sel && sel.startsWith('#')){
+        e.preventDefault();
+        openModal(sel);
+      }
+      return;
+    }
+
+    // close any modal
+    const closeEl = e.target.closest('[data-close]');
+    if(closeEl){
+      const m = closeEl.closest('.oz-modal');
+      if(m){
+        // ✅ allow QR modal close logic to run for QR modal
+        if(m.id === 'qrcodeModal') return;
+        e.preventDefault();
+        closeModal(m);
+      }
+    }
+  });
+
+  // optional API
+  window.OZModal = { open: openModal, close: closeModal };
 })();
 </script>

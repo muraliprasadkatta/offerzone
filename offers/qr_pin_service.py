@@ -1,4 +1,4 @@
-# offers/qr_pin_service.py
+# offers/qr_pin_service.py /visit pin generation logic (staff side)
 from datetime import timedelta
 import random
 

@@ -639,6 +639,8 @@ class UserVisitEvent(models.Model):
     VISIT_METHOD_CHOICES = (
         ("qr_screenshot", "QR Screenshot Scan"),
         ("qr_pin", "QR PIN Entry"),
+        ("offer_day_pin", "Offer Day PIN"),
+
     )
 
     user = models.ForeignKey(
@@ -853,4 +855,35 @@ class UserOfferClaim(models.Model):
 
     def __str__(self):
         return f"Claim({self.user_id}, {self.branch_id}, {self.milestone_kind}:{self.milestone_n})"
+
+
+
+
+
+# offers/models.py
+from django.conf import settings
+from django.db import models
+
+class OfferDayPin(models.Model):
+    branch = models.ForeignKey("offers.Branch", on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    token = models.CharField(max_length=128)      # pending_qr_token snapshot
+    desk = models.CharField(max_length=32, blank=True, default="")
+    pin_hash = models.CharField(max_length=128)
+    expires_at = models.DateTimeField()
+    used = models.BooleanField(default=False)
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    # ✅ staff snapshot (optional but very useful)
+    used_by_staff_id = models.IntegerField(null=True, blank=True)
+    used_by_staff_name = models.CharField(max_length=64, blank=True, default="")
+    used_by_staff_code = models.CharField(max_length=32, blank=True, default="")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["branch", "user", "used", "expires_at"]),
+            models.Index(fields=["branch", "used", "expires_at"]),
+        ]
 

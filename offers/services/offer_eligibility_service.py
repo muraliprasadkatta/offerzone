@@ -1,8 +1,7 @@
-# offers/services/offer_eligibility_service.py
+# offers/services/offer_eligibility_service.py for the check box in user interface
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from django.db.models import Q
@@ -20,7 +19,6 @@ def _to_pos_int(v) -> Optional[int]:
 
 
 def _suffix(n: Optional[int]) -> str:
-    # 1st, 2nd, 3rd, 4th... (11/12/13 -> th)
     if not n:
         return "th"
     if 11 <= (n % 100) <= 13:
@@ -30,19 +28,19 @@ def _suffix(n: Optional[int]) -> str:
 
 def build_offer_eligibility_context(
     *,
-    user,
     branch_id: int,
+    user=None,
     now_ts=None,
     pending_started: bool = False,
 ) -> Dict[str, Any]:
     """
-    Single source of truth for:
+    USER-SIDE single source of truth for:
     - active offer pick for a branch
-    - visit counts
+    - visit counts (logged-in user within branch)
     - milestone/eligibility calculation
     - template helper strings
 
-    Returns a dict you can directly merge into ctx.
+    ✅ Eligibility UI should appear ONLY after QR scan (pending_started=True)
     """
     if now_ts is None:
         now_ts = timezone.now()
@@ -68,8 +66,11 @@ def build_offer_eligibility_context(
     # Visit counts (CONFIRMED ONLY) from UserVisitEvent
     # ---------------------------------------------------------
     qs = UserVisitEvent.objects.filter(branch_id=branch_id)
+
     if getattr(user, "is_authenticated", False):
         qs = qs.filter(user=user)
+    else:
+        qs = qs.none()
 
     total_visits = qs.count()
     today_visits = qs.filter(created_at__gte=start_of_day).count()
@@ -92,7 +93,7 @@ def build_offer_eligibility_context(
     first_milestone = None
     milestones_sorted: List[int] = []
     offer_repeat = False
-    nth_int = None
+    nth_int: Optional[int] = None
     extra_nths_int: List[int] = []
 
     if offer_is_active:
@@ -101,6 +102,7 @@ def build_offer_eligibility_context(
 
         raw_extra = getattr(offer, "extra_nths", []) or []
         extra_nths_int = [xi for xi in (_to_pos_int(x) for x in raw_extra) if xi]
+        extra_set = set(extra_nths_int)
 
         milestones: List[int] = []
         if nth_int:
@@ -114,9 +116,9 @@ def build_offer_eligibility_context(
 
         repeat_hit = False
         if nth_int and offer_repeat:
-            repeat_hit = (next_visit_no % nth_int == 0)
+            repeat_hit = (next_visit_no % nth_int == 0) and (next_visit_no != nth_int)
 
-        extra_hit = next_visit_no in set(extra_nths_int)
+        extra_hit = next_visit_no in extra_set
 
         if main_hit or repeat_hit or extra_hit:
             show_check_eligibility = True
@@ -132,7 +134,7 @@ def build_offer_eligibility_context(
                 eligibility_rule_text = f"Repeat milestone: every {nth_int}{_suffix(nth_int)} visit"
 
     # ---------------------------------------------------------
-    # UI helper strings (anchor pakkana)
+    # UI helper strings
     # ---------------------------------------------------------
     first_milestone_suffix = _suffix(first_milestone) if first_milestone else "th"
 
@@ -149,8 +151,16 @@ def build_offer_eligibility_context(
     else:
         milestone_summary = repeat_text or ""
 
-    # FINAL: show row ONLY when offer-day + scan/pin started
+    # ✅ user-side: offer UI only after QR scan
     show_offer_ui = bool(offer_is_active and pending_started)
+
+    # ✅ if pending not started, hide eligibility
+    if not pending_started:
+        show_check_eligibility = False
+        eligibility_title = ""
+        eligibility_sub = ""
+        eligibility_visit_text = ""
+        eligibility_rule_text = ""
 
     return {
         "offer_is_active": offer_is_active,

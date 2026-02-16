@@ -429,32 +429,39 @@
 
 
 <script>
-(() => {
-  const box = document.getElementById('checkEligibilityBox');
+document.addEventListener("DOMContentLoaded", () => {
+  const box = document.getElementById("checkEligibilityBox");
   if (!box) return;
 
   let syncing = false;
 
-  // modal -> main checkbox sync helper
+  // modal -> checkbox sync (modal close)
   window.__setMainEligibilityBox = (val) => {
     syncing = true;
     box.checked = !!val;
     syncing = false;
   };
 
-  function openModalFromBox(){
-    if (!window.EligibilityPreviewModal) return;
+  function openModalFromBox() {
+    let tries = 0;
 
-    const title = box.getAttribute('data-title') || "Eligible ✅";
-    const sub   = box.getAttribute('data-sub') || "";
-    const visitText = box.getAttribute('data-visit') || "";
-    const ruleText  = box.getAttribute('data-rule') || "";
+    const t = setInterval(() => {
+      tries++;
 
-    // open eligible modal
-    window.EligibilityPreviewModal.showEligible({ title, sub, visitText, ruleText });
+      const modal = window.EligibilityPreviewModal;
+      const overlay = document.getElementById("eligibilityPreviewOverlay");
+
+      if (modal && overlay) {
+        clearInterval(t);
+        modal.open();   // ✅ CORRECT API
+      } else if (tries >= 15) {
+        clearInterval(t);
+        console.warn("[Eligibility] Modal not ready");
+      }
+    }, 100);
   }
 
-  box.addEventListener('change', () => {
+  box.addEventListener("change", () => {
     if (syncing) return;
 
     if (box.checked) {
@@ -463,8 +470,9 @@
       window.EligibilityPreviewModal?.close?.();
     }
   });
-})();
+});
 </script>
+
 
 </body>
 </html>

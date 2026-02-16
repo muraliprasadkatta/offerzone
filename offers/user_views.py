@@ -1558,3 +1558,5 @@ def user_verify_visit_pin(request):
         "branch_name": qt.branch.name,
         "redirect_url": reverse("offers:user_status"),
     })
+
+

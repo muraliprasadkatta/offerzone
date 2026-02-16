@@ -8,6 +8,8 @@
     --ep-text:#e8ecff;
     --ep-muted:#b9c4ff;
     --ep-prim:#4c74ff;
+    --ep-good:#22c55e;
+    --ep-bad:#ff4c6a;
   }
 
   /* overlay */
@@ -93,10 +95,13 @@
     border-radius:999px;
     font-weight:950;
     font-size:12px;
-    background: rgba(255,76,106,.10);
-    border:1px solid rgba(255,76,106,.30);
-    color:#ffd4dc;
+    background: rgba(34,197,94,.15);
+    border:1px solid rgba(34,197,94,.35);
+    color:#bbf7d0;
     white-space:nowrap;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
   }
 
   .epPills{
@@ -128,35 +133,89 @@
     text-align:left;
   }
 
-  /* checkbox row */
-  .epCheckRow{
+  /* Offer PIN box */
+  .epPinBox{
     margin-top:12px;
+    padding:12px 12px;
+    border-radius:18px;
+    background: rgba(255,255,255,.05);
+    border:1px solid rgba(190,220,255,.18);
+  }
+
+  .epPinHead{
     display:flex;
+    align-items:center;
+    justify-content:space-between;
     gap:10px;
-    align-items:flex-start;
-    padding:10px 10px;
-    border-radius:16px;
-    background: rgba(255,255,255,.04);
-    border:1px solid rgba(190,220,255,.16);
+    margin-bottom:8px;
   }
-  .epCheckRow input[type="checkbox"]{
-    margin-top:3px;
-    width:18px;
-    height:18px;
-    accent-color: var(--ep-prim);
-    cursor:pointer;
-  }
-  .epCheckText{
+
+  .epPinTitle{
     font-size:12px;
-    line-height:1.4;
-    color: rgba(232,236,255,.92);
-    font-weight:800;
+    font-weight:950;
+    color: rgba(232,236,255,.95);
+    letter-spacing:.02em;
   }
-  .epCheckHint{
-    margin-top:4px;
+
+  .epPinTtl{
+    font-size:11px;
+    font-weight:900;
+    color: rgba(185,196,255,.92);
+  }
+
+  .epPinRow{
+    margin-top:8px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+
+  .epPinDisplay{
+    min-width:160px;
+    text-align:center;
+    padding:12px 14px;
+    border-radius:16px;
+    border:1px solid rgba(190,220,255,.22);
+    background: rgba(255,255,255,.06);
+    font-size:26px;
+    font-weight:950;
+    letter-spacing:0.35em;
+  }
+
+  .epPinMeta{
+    flex:1;
+    font-size:11px;
+    color: rgba(185,196,255,.92);
+    font-weight:800;
+    line-height:1.35;
+  }
+
+  .epPinHint{
+    margin-top:10px;
     font-size:11px;
     color: rgba(185,196,255,.9);
     font-weight:700;
+  }
+
+  .epPinErr{
+    margin-top:10px;
+    font-size:11px;
+    font-weight:900;
+    color: rgba(255,212,220,.95);
+    background: rgba(255,76,106,.12);
+    border: 1px solid rgba(255,76,106,.28);
+    padding:10px 10px;
+    border-radius:14px;
+    display:none;
+  }
+
+  .epLoading{
+    margin-top:12px;
+    font-size:12px;
+    color: rgba(185,196,255,.92);
+    text-align:left;
+    display:none;
   }
 
   .epActions{
@@ -176,221 +235,274 @@
     cursor:pointer;
   }
   .epBtn:active{ transform:translateY(1px); }
+  .epBtn[disabled]{ opacity:.55; cursor:not-allowed; }
 
   .epBtnPrimary{
     border:1px solid rgba(39,49,100,.95);
     background: var(--ep-prim);
     box-shadow:0 10px 26px rgba(76,116,255,.22);
   }
-  .epBtnPrimary[disabled]{
-    opacity:.55;
-    cursor:not-allowed;
-    box-shadow:none;
-  }
-
-  /* loading state */
-  .epLoading{
-    margin-top:12px;
-    font-size:12px;
-    color: rgba(185,196,255,.92);
-    text-align:left;
-  }
 
   @media (max-width: 420px){
     .epCard{ padding:16px; }
-    .epBadge{ font-size:11px; padding:7px 10px; }
     .epBtn{ padding:12px 12px; font-size:14px; }
+    .epPinDisplay{ min-width:150px; }
   }
 </style>
 
 <div id="eligibilityPreviewOverlay" aria-hidden="true">
   <div class="epCard" role="dialog" aria-modal="true" aria-labelledby="epTitle">
+
     <div class="epHeader">
       <div class="epLeft">
-        <div class="epEmoji" id="epEmoji">🙂</div>
+        <div class="epEmoji" id="epEmoji">🎁</div>
         <div>
-          <div class="epTitle" id="epTitle">Checking…</div>
-          <div class="epSub" id="epSub">Please wait mava</div>
+          <div class="epTitle" id="epTitle">Offer Day PIN</div>
+          <div class="epSub" id="epSub">PIN auto-generate avthundi mava…</div>
         </div>
       </div>
-      <div class="epBadge" id="epBadge" style="display:none;">NOT YET</div>
+
+      <div class="epBadge" id="epBadge">✅ ELIGIBLE</div>
     </div>
 
-    <div class="epPills" id="epPills" style="display:none;">
+    <div class="epPills" id="epPills">
       <div class="epPill" id="epVisitText">Visit: —</div>
       <div class="epPill" id="epRuleText">—</div>
     </div>
 
-    <div class="epNote" id="epNote" style="display:none;">
-      Count will be added only after PIN verification.
+    <div class="epNote" id="epNote">
+      Ee PIN ni branch staff ki cheppandi. Staff verify ayyaka ne complimentary count add avthundi.
     </div>
 
-    <!-- ✅ Checkbox + OK (Enter PIN removed) -->
-    <div class="epCheckRow" id="epCheckRow" style="display:none;">
-      <input type="checkbox" id="epAckChk" />
-      <div>
-        <div class="epCheckText">Understood mava. PIN verify ayyaka ne count add avthundi.</div>
-        <div class="epCheckHint">Checkbox tick cheste OK enable avtundi.</div>
+    <!-- Offer PIN -->
+    <div class="epPinBox" id="epPinBox"
+         data-offer-pin-api="{% url 'offers:user_generate_offer_pin' %}">
+      <div class="epPinHead">
+        <div class="epPinTitle">Offer PIN</div>
+        <div class="epPinTtl" id="epOfferPinTTL">TTL: —</div>
       </div>
+
+      <div class="epPinRow">
+        <div class="epPinDisplay" id="epOfferPinDisplay">----</div>
+        <div class="epPinMeta" id="epOfferPinMeta">Ready…</div>
+      </div>
+
+      <div class="epPinHint" id="epOfferPinHint">
+        PIN expire ayyaka malli open cheste new PIN generate avthundi.
+      </div>
+
+      <div class="epPinErr" id="epOfferPinErr"></div>
     </div>
 
-    <div class="epLoading" id="epLoading" style="display:none;">Loading…</div>
+    <div class="epLoading" id="epLoading">Loading…</div>
 
     <div class="epActions">
       <button type="button" class="epBtn" id="epCloseBtn">Close</button>
-      <button type="button" class="epBtn epBtnPrimary" id="epOkBtn" disabled>OK</button>
+      <button type="button" class="epBtn epBtnPrimary" id="epCopyBtn" disabled>Copy PIN</button>
     </div>
   </div>
 </div>
 
 <script>
-  (function(){
-    const overlay = document.getElementById('eligibilityPreviewOverlay');
-    const badge   = document.getElementById('epBadge');
-    const emoji   = document.getElementById('epEmoji');
-    const title   = document.getElementById('epTitle');
-    const sub     = document.getElementById('epSub');
+/* ✅ cookie helper */
+function getCookie(name){
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return '';
+}
+</script>
 
-    const pillsWrap = document.getElementById('epPills');
-    const visitText = document.getElementById('epVisitText');
-    const ruleText  = document.getElementById('epRuleText');
+<script>
+/* ✅ Modal controller */
+(function(){
+  const overlay = document.getElementById('eligibilityPreviewOverlay');
+  const closeBtn = document.getElementById('epCloseBtn');
+  const copyBtn  = document.getElementById('epCopyBtn');
+  const pinDisp  = document.getElementById("epOfferPinDisplay");
 
-    const note    = document.getElementById('epNote');
-    const loading = document.getElementById('epLoading');
+  function open(){
+    if (!overlay) return;
+    overlay.classList.add('is-open');
+    overlay.setAttribute('aria-hidden','false');
 
-    const checkRow = document.getElementById('epCheckRow');
-    const ackChk   = document.getElementById('epAckChk');
+    window.OfferPin?.autoGenerate?.();
+  }
 
-    const closeBtn = document.getElementById('epCloseBtn');
-    const okBtn    = document.getElementById('epOkBtn');
+  function close(){
+    if (!overlay) return;
+    overlay.classList.remove('is-open');
+    overlay.setAttribute('aria-hidden','true');
+  }
 
-    function open(){
-      if (!overlay) return;
-      overlay.classList.add('is-open');
-      overlay.setAttribute('aria-hidden','false');
+  closeBtn?.addEventListener('click', close);
+  overlay?.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+  copyBtn?.addEventListener('click', async () => {
+    const pin = (pinDisp?.textContent || "").trim();
+    if (!pin || pin === "----") return;
+    try{
+      await navigator.clipboard.writeText(pin);
+      copyBtn.textContent = "Copied ✅";
+      setTimeout(() => (copyBtn.textContent = "Copy PIN"), 900);
+    }catch(e){}
+  });
+
+  window.EligibilityPreviewModal = { open, close };
+})();
+</script>
+
+<script>
+/*
+  ✅ Offer Day PIN client
+  - modal open avvagane user_generate_offer_pin hit avthundi
+  - response JSON kaakapothe safe
+  - better error mapping
+*/
+(function(){
+  let generating = false;
+  let ttlTimer = null;
+
+  function qs(id){ return document.getElementById(id); }
+
+  function apiUrl(){
+    const box = qs("epPinBox");
+    return box?.getAttribute("data-offer-pin-api") || "/offers/offer-pin/generate/";
+  }
+
+  function setErr(msg){
+    const err = qs("epOfferPinErr");
+    if (!err) return;
+    if (!msg){
+      err.style.display = "none";
+      err.textContent = "";
+      return;
     }
+    err.style.display = "block";
+    err.textContent = msg;
+  }
 
-    // ✅ close supports "keepMain" option (OK click ki use avthadi)
-    function close(opts){
-      const keepMain = !!opts?.keepMain;
+  function setPin(pin){
+    const el = qs("epOfferPinDisplay");
+    if (el) el.textContent = pin || "----";
+    const copyBtn = qs("epCopyBtn");
+    if (copyBtn) copyBtn.disabled = !(pin && pin !== "----");
+  }
 
-      if (!overlay) return;
-      overlay.classList.remove('is-open');
-      overlay.setAttribute('aria-hidden','true');
+  function setMeta(msg){
+    const el = qs("epOfferPinMeta");
+    if (el) el.textContent = msg || "";
+  }
 
-      // reset checkbox + ok
-      if (ackChk) ackChk.checked = false;
-      if (okBtn) okBtn.disabled = true;
+  function setTTL(sec){
+    const el = qs("epOfferPinTTL");
+    if (!el) return;
+    if (sec == null) el.textContent = "TTL: —";
+    else el.textContent = `TTL: ${String(sec).padStart(2,"0")}s`;
+  }
 
-      // ✅ cancel/close lo main checkbox OFF
-      if (!keepMain && window.__setMainEligibilityBox){
-        window.__setMainEligibilityBox(false);
+  function stopTTL(){
+    if (ttlTimer) clearInterval(ttlTimer);
+    ttlTimer = null;
+  }
+
+  function startTTL(seconds){
+    stopTTL();
+    let left = Math.max(0, parseInt(seconds || 0, 10) || 0);
+    setTTL(left);
+
+    ttlTimer = setInterval(() => {
+      left -= 1;
+      if (left <= 0){
+        setTTL(0);
+        stopTTL();
+        setMeta("Expired. Modal malli open cheste new PIN generate avthundi.");
+        return;
       }
+      setTTL(left);
+    }, 1000);
+  }
+
+  function humanError(code){
+    switch(code){
+      case "login_required":
+        return "Login avvali mava. Page refresh chesi try chey.";
+      case "no_pending_qr":
+        return "Scan pending ledu mava. Mundu QR scan cheyali.";
+      case "branch_not_found":
+        return "Branch dorakaledu. Malli scan chey.";
+      case "no_active_offer":
+        return "Ippudu active offer ledu mava.";
+      case "not_eligible":
+        return "Ippudu eligible kaadu mava.";
+      case "csrf_failed":
+        return "Security (CSRF) issue. Page refresh chesi try chey.";
+      default:
+        return "Offer PIN generate avvaledu. (Pending QR / Eligibility / Login check avvali)";
     }
+  }
 
-    // ✅ Close button = cancel
-    closeBtn?.addEventListener('click', () => close({ keepMain:false }));
+  async function autoGenerate(){
+    if (generating) return;
+    generating = true;
 
-    // ✅ Outside click = cancel
-    overlay?.addEventListener('click', (e) => {
-      if (e.target === overlay) close({ keepMain:false });
-    });
+    setErr("");
+    setPin("----");
+    setTTL(null);
+    setMeta("Generating…");
 
-    // ✅ Sub checkbox change: only OK enable/disable
-    ackChk?.addEventListener('change', () => {
-      if (okBtn) okBtn.disabled = !ackChk.checked;
-    });
+    try{
+      const res = await fetch(apiUrl(), {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"),
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        body: JSON.stringify({}),
+      });
 
-    // ✅ OK click = confirm -> main checkbox ON -> close without turning it OFF
-    okBtn?.addEventListener('click', () => {
-      if (!ackChk?.checked) return;
+      const ct = (res.headers.get("content-type") || "").toLowerCase();
 
-      if (window.__setMainEligibilityBox){
-        window.__setMainEligibilityBox(true);
+      // ✅ If CSRF fails, Django sometimes returns HTML
+      let data = {};
+      if (ct.includes("application/json")){
+        data = await res.json().catch(() => ({}));
+      } else {
+        // non-json response (likely 403 csrf page)
+        data = {};
       }
 
-      close({ keepMain:true });
-    });
+      if (!res.ok || !data.ok){
+        // Map common CSRF status
+        const errCode = data?.error || (res.status === 403 ? "csrf_failed" : ("http_" + res.status));
+        throw new Error(errCode);
+      }
 
-    window.EligibilityPreviewModal = {
-      showLoading(){
-        open();
-        if (emoji) emoji.textContent = "⏳";
-        if (title) title.textContent = "Checking…";
-        if (sub)   sub.textContent   = "Please wait mava";
+      setPin(data.pin);
+      setMeta(
+        (`Share this PIN with staff` +
+         (data.branch_name ? (" • Branch: " + data.branch_name) : "") +
+         (data.desk ? (" • Desk: " + data.desk) : "")
+        ).trim()
+      );
+      startTTL(data.expires_in || 120);
 
-        if (badge) badge.style.display = "none";
-        if (pillsWrap) pillsWrap.style.display = "none";
-        if (note) note.style.display = "none";
-        if (checkRow) checkRow.style.display = "none";
-        if (loading) loading.style.display = "block";
+    }catch(e){
+      console.error("[OfferDayPin]", e);
+      const code = (e && e.message) ? String(e.message) : "offer_pin_failed";
+      setMeta("PIN generate avvaledu mava 😕");
+      setErr(humanError(code));
+      stopTTL();
+      setTTL(null);
+      setPin("----");
+    }finally{
+      generating = false;
+    }
+  }
 
-        if (okBtn) okBtn.disabled = true;
-        if (ackChk) ackChk.checked = false;
-      },
-
-      showEligible(payload){
-        open();
-        if (loading) loading.style.display = "none";
-
-        if (emoji) emoji.textContent = "😊";
-        if (title) title.textContent = payload?.title || "Eligible ✅";
-        if (sub)   sub.textContent   = payload?.sub || "Ee visit verify chesthe complimentary unlock avvachu mava.";
-
-        if (badge){
-          badge.style.display = "inline-flex";
-          badge.textContent = "ELIGIBLE";
-          badge.style.background = "rgba(34,197,94,.15)";
-          badge.style.border = "1px solid rgba(34,197,94,.35)";
-          badge.style.color = "#bbf7d0";
-        }
-
-        if (pillsWrap) pillsWrap.style.display = "flex";
-        if (visitText) visitText.textContent = payload?.visitText || "";
-        if (ruleText)  ruleText.textContent  = payload?.ruleText  || "";
-
-        if (note){
-          note.style.display = "block";
-          note.textContent = payload?.noteText || "Count will be added only after PIN verification.";
-        }
-
-        if (checkRow) checkRow.style.display = "flex";
-        if (ackChk) ackChk.checked = false;
-        if (okBtn) okBtn.disabled = true;
-      },
-
-      showNotYet(payload){
-        open();
-        if (loading) loading.style.display = "none";
-
-        if (emoji) emoji.textContent = "🙂";
-        if (title) title.textContent = payload?.title || "Almost there 👀";
-        if (sub)   sub.textContent   = payload?.sub || "One more visit to unlock your complimentary.";
-
-        if (badge){
-          badge.style.display = "inline-flex";
-          badge.textContent = "NOT YET";
-          // (optional) reset eligible styles if previously set
-          badge.style.background = "rgba(255,76,106,.10)";
-          badge.style.border = "1px solid rgba(255,76,106,.30)";
-          badge.style.color = "#ffd4dc";
-        }
-
-        if (pillsWrap) pillsWrap.style.display = "flex";
-        if (visitText) visitText.textContent = payload?.visitText || "";
-        if (ruleText)  ruleText.textContent  = payload?.ruleText  || "";
-
-        if (note){
-          note.style.display = "block";
-          note.textContent = payload?.noteText || "Count will be added only after PIN verification.";
-        }
-
-        if (checkRow) checkRow.style.display = "flex";
-        if (ackChk) ackChk.checked = false;
-        if (okBtn) okBtn.disabled = true;
-      },
-
-      close: () => close({ keepMain:false }) // external close = cancel
-    };
-  })();
+  window.OfferPin = { autoGenerate };
+})();
 </script>

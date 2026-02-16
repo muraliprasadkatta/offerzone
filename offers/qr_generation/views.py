@@ -1,4 +1,4 @@
-# offers/qr_generation/views.py
+# offers/qr_generation and pin/views.py
 import hashlib
 from datetime import timedelta
 from random import randint
