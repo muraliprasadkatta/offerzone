@@ -343,7 +343,7 @@
       setStatus("Visit recorded successfully! Taking you to your status... 🚀", "ok");
 
       setTimeout(() => {
-        if (data.redirect_url) window.location.href = data.redirect_url;
+        if (data.redirect_url) window.location.replace(data.redirect_url);
       }, 1500);
 
     }catch(e){

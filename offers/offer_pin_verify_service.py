@@ -1,4 +1,5 @@
 # offers/offer_pin_verify_service.py
+
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -10,17 +11,34 @@ from django.db.utils import IntegrityError
 
 from offers.models import OfferDayPin, UserVisitEvent, UserOfferClaim, ComplementaryOffer
 
+
 @require_POST
 @csrf_protect
 @never_cache
 @cache_control(no_cache=True, no_store=True, must_revalidate=True)
 def branch_verify_offer_pin(request):
+    """
+    BRANCH SIDE:
+      - Staff enters 4-digit OfferDay PIN
+      - Burns OfferDayPin
+      - Creates UserVisitEvent (offer_day_pin)
+      - Issues UserOfferClaim when milestone hits
+
+    ✅ NEW:
+      - Per-branch ONE-PER-DAY enforcement (like your other flows)
+      - If already visited today: we still burn this OfferDayPin (so it can't be reused)
+        and return ok=True with already_claimed_today=True (no new visit event created)
+    """
     branch_id = request.session.get("branch_id")
     if not branch_id:
         return JsonResponse({"ok": False, "error": "branch_login_required"}, status=401)
 
+    # -------------------------
+    # read pin (POST or JSON)
+    # -------------------------
     pin = (request.POST.get("pin") or "").strip()
-    if not pin and request.content_type and "application/json" in request.content_type:
+
+    if (not pin) and request.content_type and ("application/json" in request.content_type.lower()):
         try:
             import json
             payload = json.loads(request.body.decode("utf-8") or "{}")
@@ -33,16 +51,17 @@ def branch_verify_offer_pin(request):
 
     now_ts = timezone.now()
 
-    cand = OfferDayPin.objects.filter(
-        branch_id=branch_id,
-        used=False,
-        expires_at__gt=now_ts,
-    ).order_by("-id")[:80]
+    # small window scan (fast enough)
+    cand = (
+        OfferDayPin.objects
+        .filter(branch_id=branch_id, used=False, expires_at__gt=now_ts)
+        .order_by("-id")[:80]
+    )
 
     match = None
-    for row in cand:
-        if check_password(pin, row.pin_hash):
-            match = row
+    for r in cand:
+        if check_password(pin, r.pin_hash):
+            match = r
             break
 
     if not match:
@@ -54,17 +73,56 @@ def branch_verify_offer_pin(request):
     claim_issued = False
     claim_ids = []
 
+    # ✅ local day start (IST if your timezone is IST)
+    now_local = timezone.localtime(now_ts)
+    start_of_day = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+
     with transaction.atomic():
+        # lock pin row
         row = OfferDayPin.objects.select_for_update().filter(pk=match.pk).first()
-        if not row or row.used or row.expires_at <= now_ts:
+        if not row:
+            return JsonResponse({"ok": False, "error": "pin_not_found_or_expired"}, status=404)
+
+        # re-check
+        if row.used or row.expires_at <= now_ts:
             return JsonResponse({"ok": False, "error": "already_used_or_expired"}, status=409)
 
+        # ✅ ONE-PER-DAY per-branch enforcement
+        already_today = UserVisitEvent.objects.filter(
+            user=row.user,
+            branch_id=int(branch_id),
+            created_at__gte=start_of_day,
+        ).exists()
+
+        if already_today:
+            # burn pin so it can't be reused / shared
+            row.used = True
+            row.used_at = now_ts
+            row.used_by_staff_name = staff_name
+            row.used_by_staff_code = staff_code
+            row.save(update_fields=["used", "used_at", "used_by_staff_name", "used_by_staff_code"])
+
+            return JsonResponse({
+                "ok": True,
+                "already_claimed_today": True,
+                "user_id": row.user_id,
+                "branch_id": int(branch_id),
+                "desk": row.desk,
+                "claim_issued": False,
+                "claim_ids": [],
+                "msg": "Already counted today ✅ (PIN consumed)",
+            })
+
+        # -------------------------
+        # burn pin row (normal path)
+        # -------------------------
         row.used = True
         row.used_at = now_ts
         row.used_by_staff_name = staff_name
         row.used_by_staff_code = staff_code
-        row.save(update_fields=["used","used_at","used_by_staff_name","used_by_staff_code"])
+        row.save(update_fields=["used", "used_at", "used_by_staff_name", "used_by_staff_code"])
 
+        # create visit event
         ve = UserVisitEvent.objects.create(
             user=row.user,
             branch_id=int(branch_id),
@@ -75,7 +133,7 @@ def branch_verify_offer_pin(request):
             staff_code=staff_code,
         )
 
-        # ✅ active offer for this branch (all_branches OR eligible_branches)
+        # active offer for this branch (global OR eligible)
         offer = (
             ComplementaryOffer.objects
             .filter(is_active=True, start_at__lte=now_ts)
@@ -86,7 +144,7 @@ def branch_verify_offer_pin(request):
             .first()
         )
 
-        # count visits after this event
+        # count visits after this event (includes newly created ve)
         visit_count = UserVisitEvent.objects.filter(user=row.user, branch_id=int(branch_id)).count()
 
         hit_main = bool(offer and offer.nth and offer.nth > 0 and (visit_count % offer.nth == 0))
@@ -103,35 +161,53 @@ def branch_verify_offer_pin(request):
         try:
             if offer and hit_main:
                 c = UserOfferClaim.objects.create(
-                    user=row.user, branch_id=int(branch_id), visit_event=ve, offer=offer,
-                    milestone_kind="main", milestone_n=offer.nth,
-                    offer_nth=offer.nth or None, offer_repeat=offer.repeat,
+                    user=row.user,
+                    branch_id=int(branch_id),
+                    visit_event=ve,
+                    offer=offer,
+                    milestone_kind="main",
+                    milestone_n=offer.nth,
+                    offer_nth=offer.nth or None,
+                    offer_repeat=offer.repeat,
                     offer_extra_nths=offer.extra_nths or [],
-                    offer_start_at=offer.start_at, offer_end_at=offer.end_at,
-                    token=row.token or "", desk=row.desk or "",
-                    staff_name=staff_name, staff_code=staff_code,
+                    offer_start_at=offer.start_at,
+                    offer_end_at=offer.end_at,
+                    token=row.token or "",
+                    desk=row.desk or "",
+                    staff_name=staff_name,
+                    staff_code=staff_code,
                 )
                 claim_ids.append(c.id)
                 claim_issued = True
 
             for exn in hit_extra:
                 c = UserOfferClaim.objects.create(
-                    user=row.user, branch_id=int(branch_id), visit_event=ve, offer=offer,
-                    milestone_kind="extra", milestone_n=exn,
-                    offer_nth=offer.nth or None, offer_repeat=offer.repeat,
+                    user=row.user,
+                    branch_id=int(branch_id),
+                    visit_event=ve,
+                    offer=offer,
+                    milestone_kind="extra",
+                    milestone_n=exn,
+                    offer_nth=offer.nth or None,
+                    offer_repeat=offer.repeat,
                     offer_extra_nths=offer.extra_nths or [],
-                    offer_start_at=offer.start_at, offer_end_at=offer.end_at,
-                    token=row.token or "", desk=row.desk or "",
-                    staff_name=staff_name, staff_code=staff_code,
+                    offer_start_at=offer.start_at,
+                    offer_end_at=offer.end_at,
+                    token=row.token or "",
+                    desk=row.desk or "",
+                    staff_name=staff_name,
+                    staff_code=staff_code,
                 )
                 claim_ids.append(c.id)
                 claim_issued = True
 
         except IntegrityError:
+            # ignore duplicate-claim races safely
             pass
 
     return JsonResponse({
         "ok": True,
+        "already_claimed_today": False,
         "visit_event_id": ve.id,
         "user_id": row.user_id,
         "branch_id": int(branch_id),

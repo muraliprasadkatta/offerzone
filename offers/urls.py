@@ -7,6 +7,7 @@ from django.urls import include, path
 from . import qr_pin_service 
 from offers.offer_pin_service import user_generate_offer_pin
 from offers.offer_pin_verify_service import branch_verify_offer_pin
+from offers import offer_pin_status_service as opst
 
 
 
@@ -33,6 +34,7 @@ urlpatterns = [
     path("user-status/", uviews.user_status_view, name="user_status"),
     path("visit-pin/verify/",uviews.user_verify_visit_pin,name="user_verify_visit_pin"),
     path("offers/offer-pin/generate/", user_generate_offer_pin, name="user_generate_offer_pin"),
+    path("offer-pin/status/<int:offer_pin_id>/", opst.user_offer_pin_status, name="user_offer_pin_status"),
 
 
     path("branches/search/", aviews.branches_search, name="branches_search"),

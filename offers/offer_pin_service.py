@@ -1,7 +1,6 @@
 # offers/offer_pin_service.py
 from datetime import timedelta
 import random
-import json
 
 from django.conf import settings
 from django.http import JsonResponse
@@ -16,6 +15,7 @@ from offers.services.offer_eligibility_service import build_offer_eligibility_co
 
 OFFER_PIN_TTL = getattr(settings, "OFFER_PIN_TTL", 120)  # seconds
 
+
 def _gen_4_digit_pin() -> str:
     return f"{random.randint(0, 9999):04d}"
 
@@ -27,16 +27,17 @@ def _gen_4_digit_pin() -> str:
 def user_generate_offer_pin(request):
     """
     USER SIDE:
-      - Eligibility card (offer-day) lo click/OK/Generate pin button nunchi hit avthundi
+      - Eligibility preview modal open avvagane hit avthundi
       - Requires user login
-      - Requires pending QR context (so it's tied to scan)
-      - Generates 4-digit PIN (120s), stores in OfferDayPin
+      - Requires pending QR context (tied to scan/pin flow)
+      - Generates 4-digit PIN (TTL), stores in OfferDayPin
       - Branch staff will verify later
+      - Returns offer_pin_id (for user-side polling / redirect)
     """
     if not request.user.is_authenticated:
         return JsonResponse({"ok": False, "error": "login_required"}, status=401)
 
-    # ✅ pending QR context MUST (otherwise anyone can generate pin)
+    # ✅ pending QR context MUST
     pending_token = (request.session.get("pending_qr_token") or "").strip()
     branch_id = request.session.get("pending_qr_branch_id")
     desk = (request.session.get("pending_qr_desk") or "").strip()
@@ -50,16 +51,13 @@ def user_generate_offer_pin(request):
 
     now_ts = timezone.now()
 
-    # ✅ eligibility check (user-side: pending_started required)
-
-    # ✅ eligibility check
+    # ✅ eligibility check (pending_started required)
     offer_ctx = build_offer_eligibility_context(
         user=request.user,
         branch_id=int(branch_id),
         pending_started=True,
         now_ts=now_ts,
     )
-
 
     if not offer_ctx.get("offer_is_active"):
         return JsonResponse({"ok": False, "error": "no_active_offer"}, status=400)
@@ -75,12 +73,31 @@ def user_generate_offer_pin(request):
         expires_at__lte=now_ts,
     ).update(used=True, used_at=now_ts)
 
+    # ✅ (optional) prevent spamming: if already have a live unused pin, reuse it
+    live = (
+        OfferDayPin.objects
+        .filter(
+            branch_id=branch.id,
+            user_id=request.user.id,
+            token=pending_token,
+            used=False,
+            expires_at__gt=now_ts,
+        )
+        .order_by("-id")
+        .first()
+    )
+    if live:
+        # NOTE: we can't return plain pin because it's hashed; so we generate new only if you want pin always visible.
+        # To keep behaviour consistent (always show pin), comment this block if not needed.
+        # For now: create new each time (so user sees a pin).
+        pass
+
     # ✅ generate new pin
     pin = _gen_4_digit_pin()
     pin_hash = make_password(pin)
     expires_at = now_ts + timedelta(seconds=int(OFFER_PIN_TTL))
 
-    OfferDayPin.objects.create(
+    row = OfferDayPin.objects.create(
         branch=branch,
         user=request.user,
         token=pending_token,
@@ -93,7 +110,9 @@ def user_generate_offer_pin(request):
     return JsonResponse({
         "ok": True,
         "pin": pin,
+        "offer_pin_id": row.id,                 # ✅ NEW: for polling / auto-redirect
         "expires_in": int(OFFER_PIN_TTL),
+        "expires_at_iso": expires_at.isoformat(),  # ✅ helper (optional)
         "branch_name": branch.name,
         "desk": desk,
     })
