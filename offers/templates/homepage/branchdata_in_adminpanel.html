@@ -81,7 +81,7 @@
        class="btn is-disabled"
        aria-disabled="true"
        title="Checking offer status…"
-       data-open="#freeplateModal"
+       data-open="#freetreatModal"
        data-noreset="1"
        data-branch-id="{{ branch.id }}"
        data-branch-name="{{ branch.name|escapejs }}">
@@ -130,7 +130,6 @@
    data-branch-id="{{ branch.id }}">
   Delete
 </a>
-
 
   </div>
 
@@ -270,6 +269,33 @@
 })();
 </script>
 
+<script>
+(function(){
+  const btn = document.getElementById('editOfferBtn');
+  if (!btn) return;
+
+  btn.addEventListener('click', (e) => {
+    // disabled gate
+    if (btn.classList.contains('is-disabled') || btn.getAttribute('aria-disabled') === 'true') {
+      e.preventDefault();
+      return;
+    }
+
+    const sel = btn.getAttribute('data-open');
+    if (!sel) return;
+
+    const modal = document.querySelector(sel);
+    if (!modal) {
+      alert("Modal not found: " + sel);
+      return;
+    }
+
+    e.preventDefault();
+    modal.classList.add('is-open');          // your CSS uses is-open pattern
+    modal.setAttribute('aria-hidden','false');
+  });
+})();
+</script>
 
 
 </body>

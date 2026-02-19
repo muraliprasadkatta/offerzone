@@ -1,5 +1,5 @@
 <!-- SECOND MODAL: Complementary Offer form -->
-<div id="freeplateModal" class="freeplate-modal" aria-hidden="true" hidden  role="dialog" aria-modal="true">
+<div id="freetreatModal" class="freeplate-modal" aria-hidden="true" hidden  role="dialog" aria-modal="true">
 
 <div class="freeplate-modal__card freeplate-modal__card--fullscreen" role="document">
 <div class="freeplate-modal__head freeplate-sticky--top">
@@ -9,7 +9,7 @@
     Already visit start: <b id="visitStartedVal">No</b>
   </span>
 
-  <a href="#" class="freeplate-close" data-close="#freeplateModal" aria-label="Close">✕</a>
+  <a href="#" class="freeplate-close" data-close="#freetreatModal" aria-label="Close">✕</a>
 </div>
 
 
@@ -1017,12 +1017,12 @@
 
 <script>
 (function () {
-  const HASH    = '#freeplateModal';
+  const HASH    = '#freetreatModal';
   const baseUrl = location.pathname + location.search;
 
-  const freeplateModal = document.getElementById('freeplateModal');
+  const freetreatModal = document.getElementById('freetreatModal');
   const branchAddModal = document.getElementById('branchAddModal');
-  if (!freeplateModal) return;
+  if (!freetreatModal) return;
 
   // ---------------------------
   // Branch Add Modal helpers
@@ -1119,14 +1119,14 @@
   window.FreeplateModals = { setOpen: setModalOpenById };
 
   function showFreeplate(fromPopState) {
-    setModalOpenById(freeplateModal, true);
+    setModalOpenById(freetreatModal, true);
     if (!fromPopState && window.history && history.pushState) {
-      history.pushState({ freeplateModal: true }, '', baseUrl + HASH);
+      history.pushState({ freetreatModal: true }, '', baseUrl + HASH);
     }
   }
 
   function hideFreeplate(fromPopState) {
-    setModalOpenById(freeplateModal, false);
+    setModalOpenById(freetreatModal, false);
     if (!fromPopState && window.history && location.hash === HASH && history.length > 1) {
       history.back();
     }
@@ -1318,7 +1318,7 @@
   // Open freeplate modal
   // ---------------------------
   document.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-open="#freeplateModal"], [data-open="freeplateModal"]');
+    const btn = e.target.closest('[data-open="#freetreatModal"], [data-open="freetreatModal"]');
     if (!btn) return;
     e.preventDefault();
 
@@ -1382,7 +1382,7 @@
   function closeModal(modal, fromPopState=false){
     if (!modal) return;
 
-    if (modal === freeplateModal) hideFreeplate(fromPopState);
+    if (modal === freetreatModal) hideFreeplate(fromPopState);
     else setModalOpenById(modal, false);
 
     if (modal.id === 'branchAddModal') resetBranchAddModalForm();
@@ -1403,7 +1403,7 @@
   });
 
   // Backdrop click
-  [freeplateModal, branchAddModal].forEach((modal) => {
+  [freetreatModal, branchAddModal].forEach((modal) => {
     if (!modal) return;
     modal.addEventListener('click', (e) => {
       if (e.target === modal) closeModal(modal, false);
@@ -1420,13 +1420,13 @@
       return;
     }
 
-    if (freeplateModal.classList.contains('open')) closeModal(freeplateModal, false);
+    if (freetreatModal.classList.contains('open')) closeModal(freetreatModal, false);
   });
 
   // popstate
   window.addEventListener('popstate', () => {
     if (location.hash === HASH) showFreeplate(true);
-    else setModalOpenById(freeplateModal, false);
+    else setModalOpenById(freetreatModal, false);
   });
 
   if (location.hash === HASH) showFreeplate(true);
@@ -2007,7 +2007,7 @@
 
   // ✅ init again when opening modal (important)
   document.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-open="#freeplateModal"], [data-open="freeplateModal"]');
+    const btn = e.target.closest('[data-open="#freetreatModal"], [data-open="freetreatModal"]');
     if (!btn) return;
     setTimeout(() => window.initFreeplateBranchPicker(), 0);
   });
@@ -2066,7 +2066,7 @@
       toast('Offer saved 🎉');
 
       setTimeout(() => {
-        window.FreeplateModals?.setOpen('#freeplateModal', false);
+        window.FreeplateModals?.setOpen('#freetreatModal', false);
         const baseUrl = location.pathname + location.search;
         history.replaceState(null, '', baseUrl);
         window.location.reload();
