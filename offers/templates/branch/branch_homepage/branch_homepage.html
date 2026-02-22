@@ -160,6 +160,10 @@
       <div class="brand">Branch Home</div>
       <span class="badge">{{ request.session.branch_name|default:"—" }}</span>
 
+      <span class="badge" title="Current visit unit">
+        {{ visit_unit_label|default:"—" }}
+      </span>
+
             <!-- 🌟 Staff pill (login via staff email ayithe) -->
       {% if request.session.branch_staff_name %}
         <span class="badge badge--staff">

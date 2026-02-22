@@ -24,7 +24,25 @@ from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_protect
 from offers.services.offer_eligibility_service import build_offer_eligibility_context
+from django.http import JsonResponse
+from django.urls import reverse
+from django.utils import timezone
+from django.views.decorators.cache import never_cache, cache_control
+from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.hashers import check_password
+from django.http import JsonResponse
+from django.urls import reverse
+from django.utils import timezone
+from django.views.decorators.http import require_POST
+from django.views.decorators.cache import never_cache, cache_control
+from django.views.decorators.csrf import csrf_protect
 
+from offers.models import QRToken, UserVisitEvent
+from offers.qr_token_utils import parse_qr_token as verify_qr_token
+
+import json, re
 
 
 from .models import (
@@ -605,8 +623,17 @@ def verify_legacy_colon_token(token: str):
 # =========================
 
 
+from offers.services.visit_unit.visit_unit import get_active_visit_unit
+from offers.services.visit_unit.visit_confirm import (
+    confirm_qr_code_visit,
+    confirm_qr_code_visit_with_yashpin,
+    clear_pending_qr_session,
+    set_last_branch_session,
+)
+
 
 PIN_LEN = 4  # 4-digit
+
 
 @login_required
 @require_POST
@@ -622,7 +649,7 @@ def pin_verify(request):
     raw_pin = str(data.get("pin") or "").strip()
     pin = re.sub(r"\D", "", raw_pin)[:PIN_LEN]
 
-    if not re.fullmatch(r"\d{4}", pin):
+    if not re.fullmatch(rf"\d{{{PIN_LEN}}}", pin):
         return JsonResponse({"ok": False, "error": "Enter a valid 4-digit PIN."}, status=400)
 
     now_ts = timezone.now()
@@ -639,9 +666,6 @@ def pin_verify(request):
     )
 
     def _find_match(qs, limit=80):
-        """
-        Return matching YashPin row or None.
-        """
         for row in qs[:limit]:
             if check_password(pin, row.pin_hash):
                 return row
@@ -653,12 +677,11 @@ def pin_verify(request):
     if branch_hint:
         matched = _find_match(base_qs.filter(branch_id=branch_hint), limit=80)
 
-    # 2) fallback global (IMPORTANT for multi-branch same day)
+    # 2) fallback global
     if not matched:
         matched = _find_match(base_qs, limit=120)
 
     if not matched:
-        # (optional) you can’t know which row to increment attempts for.
         return JsonResponse({"ok": False, "error": "Invalid or expired PIN."}, status=400)
 
     # ✅ Early clear: if QRToken already used, don’t proceed
@@ -674,7 +697,6 @@ def pin_verify(request):
         branch=matched.branch,
         created_at__gte=start_of_day,
     ).exists()
-
     if already:
         return JsonResponse({
             "ok": True,
@@ -682,8 +704,7 @@ def pin_verify(request):
             "next": reverse("offers:user_status"),
         })
 
-    # ✅ light attempt tracking (since we found the row, mark last_attempt)
-    # (won't break anything even if you don't use it later)
+    # ✅ light attempt tracking
     try:
         matched.attempts = (matched.attempts or 0) + 1
         matched.last_attempt_at = now_ts
@@ -691,23 +712,64 @@ def pin_verify(request):
     except Exception:
         pass
 
-    # ✅ set branch context + TEMPORARY LOCK (no burn here)
+    # ✅ set branch context
     request.session["last_branch_id"] = matched.branch_id
     request.session["last_branch_name"] = matched.branch.name
     request.session["last_branch_desk"] = matched.desk or ""
 
     # =====================================================
-    # 🔒 TEMPORARY LOCK (MOST IMPORTANT PART for PIN flow)
+    # ✅ NEW: if branch visit_unit is qr_code => confirm immediately
     # =====================================================
-    request.session["pending_qr_token"] = matched.qr_token.token     # exact QRToken.token
-    request.session["pending_qr_method"] = "pin"                    # confirm_branch_visit checks "pin"
-    request.session["pending_pin_row_id"] = matched.id              # burn YashPin inside confirm
-    request.session["pending_qr_branch_name"] = matched.branch.name
+    vu = get_active_visit_unit(matched.branch_id, now_ts=now_ts)
 
+    if vu == "qr_code":
+        res = confirm_qr_code_visit_with_yashpin(
+            user=request.user,
+            yashpin_id=matched.id,
+            now_ts=now_ts,
+            used_via="pin",
+        )
+
+        if not res.ok:
+            return JsonResponse({"ok": False, "error": res.error or "Unable to confirm visit."}, status=400)
+
+        if res.already_claimed_today:
+            return JsonResponse({
+                "ok": True,
+                "already_claimed_today": True,
+                "next": reverse("offers:user_status"),
+            })
+
+        # ✅ clear any pending locks (safety)
+        for k in (
+            "pending_qr_token",
+            "pending_qr_branch_id",
+            "pending_qr_branch_name",
+            "pending_qr_desk",
+            "pending_qr_started_at",
+            "pending_pin_row_id",
+            "pending_qr_method",
+        ):
+            request.session.pop(k, None)
+
+        # ✅ success: go status directly (NO PIN modal)
+        return JsonResponse({
+            "ok": True,
+            "already_claimed_today": False,
+            "next": reverse("offers:user_status"),
+        })
+
+    # =====================================================
+    # ✅ NORMAL FLOW: qr_pin => keep your pending lock + go PIN modal
+    # =====================================================
+
+    request.session["pending_qr_token"] = matched.qr_token.token
+    request.session["pending_qr_method"] = "pin"
+    request.session["pending_pin_row_id"] = matched.id
+    request.session["pending_qr_branch_name"] = matched.branch.name
     request.session["pending_qr_branch_id"] = matched.branch_id
     request.session["pending_qr_desk"] = matched.desk or ""
     request.session["pending_qr_started_at"] = now_ts.isoformat()
-    # =====================================================
 
     return JsonResponse({
         "ok": True,
@@ -716,6 +778,9 @@ def pin_verify(request):
     })
 
 
+
+
+@login_required
 @require_POST
 @never_cache
 @csrf_protect
@@ -734,14 +799,13 @@ def scan_verify(request):
     if not token:
         return JsonResponse({"ok": False, "error": "Invalid QR token format."}, status=400)
 
-    # verify signed token validity
+    # ✅ verify signed token validity
     try:
         _ = verify_qr_token(token)
     except ValueError as e:
         return JsonResponse({"ok": False, "error": str(e)}, status=400)
 
     now_ts = timezone.now()
-    user = request.user if request.user.is_authenticated else None
 
     qt = (
         QRToken.objects
@@ -752,18 +816,17 @@ def scan_verify(request):
     if not qt:
         return JsonResponse({"ok": False, "error": "QR not found. Please generate again."}, status=400)
 
-    if qt.expires_at <= now_ts:
+    if qt.expires_at and qt.expires_at <= now_ts:
         return JsonResponse({"ok": False, "error": "QR expired."}, status=400)
 
-    # ✅ same-day visit check (final enforce later also)
-    if user:
+    # ✅ quick same-day check (still final confirm does it again)
+    if request.user.is_authenticated:
         start_of_day = now_ts.replace(hour=0, minute=0, second=0, microsecond=0)
         already = UserVisitEvent.objects.filter(
-            user=user,
-            branch=qt.branch,
+            user=request.user,
+            branch_id=qt.branch_id,
             created_at__gte=start_of_day,
         ).exists()
-
         if already:
             return JsonResponse({
                 "ok": True,
@@ -771,8 +834,40 @@ def scan_verify(request):
                 "next": reverse("offers:user_status"),
             })
 
+    # ✅ Decide mode from DB (offer.visit_unit)
+    vu = get_active_visit_unit(qt.branch_id, now_ts=now_ts)
+
     # =====================================================
-    # 🔒 TEMPORARY LOCK (MOST IMPORTANT PART)
+    # ✅ QR CODE MODE => Confirm immediately (skip PIN modal)
+    # =====================================================
+    if vu == "qr_code":
+        res = confirm_qr_code_visit(
+            user=request.user,
+            token=qt.token,
+            used_via="scan",
+            now_ts=now_ts,
+        )
+        if not res.ok:
+            return JsonResponse({"ok": False, "error": res.error}, status=400)
+
+        # session updates
+        clear_pending_qr_session(request)
+        set_last_branch_session(
+            request,
+            branch_id=qt.branch_id,
+            branch_name=qt.branch.name,
+            token=qt.token,
+            desk=qt.desk or "",
+        )
+
+        return JsonResponse({
+            "ok": True,
+            "already_claimed_today": res.already_claimed_today,
+            "next": reverse("offers:user_status"),
+        })
+
+    # =====================================================
+    # ✅ QR PIN MODE => Keep your existing pending lock flow
     # =====================================================
     request.session["pending_qr_token"] = qt.token
     request.session["pending_qr_method"] = "scan"
@@ -786,13 +881,14 @@ def scan_verify(request):
     request.session["last_branch_name"] = qt.branch.name
     request.session["last_branch_desk"] = qt.desk or ""
 
-    # =====================================================
-
     return JsonResponse({
         "ok": True,
         "already_claimed_today": False,
         "next": reverse("offers:user_visit_pin_page"),
     })
+
+
+
 
 @login_required
 @require_POST
@@ -1165,6 +1261,13 @@ def user_status_view(request):
     now_ts = timezone.localtime(timezone.now())
     start_of_day = now_ts.replace(hour=0, minute=0, second=0, microsecond=0)
 
+    # ✅ method label map (Admin dropdown labels la)
+    method_label_map = {
+        "qr_pin": "QR scan + PIN at outlet",
+        "qr_code": "QR code",
+        "offer_day_pin": "Offer Day PIN",
+    }
+
     if request.user.is_authenticated:
         base_all = UserVisitEvent.objects.filter(user=request.user)
         total_all = base_all.count()
@@ -1210,12 +1313,14 @@ def user_status_view(request):
         for d in sorted(buckets.keys(), reverse=True):
             items = []
             for e in buckets[d]:
+                method_raw = (e.visit_method or "").strip()
                 items.append({
                     "created_at": timezone.localtime(e.created_at),
                     "branch_id": e.branch_id,
                     "branch_name": getattr(e.branch, "name", "Branch"),
                     "desk": e.desk or "",
-                    "visit_method": e.visit_method or "",
+                    "visit_method": method_raw,  # raw (optional)
+                    "visit_method_label": method_label_map.get(method_raw) or (method_raw or "—"),
                     "staff_name": e.staff_name or "",
                     "staff_code": e.staff_code or "",
                     "state": "done",
@@ -1245,13 +1350,14 @@ def user_status_view(request):
             "branch_name": b.name if b else "Branch",
             "desk": pending_desk,
             "method": pending_method,
+            "method_label": "QR + PIN" if pending_method == "pin" else "QR Scan",
             "started_at": started_at_dt,
         })
 
     # -------------------
     # offer visit_unit (old logic)
     # -------------------
-    visit_unit = "qr_screenshot"
+    visit_unit = "qr_pin"
     if branch_id:
         offer = (
             ComplementaryOffer.objects
@@ -1299,9 +1405,9 @@ def user_status_view(request):
     }
 
     return render(request, "user_interface/user_status_view/user_status.html", ctx)
-
-
 # models
+
+
 # from .models import BranchGenerateVisitPin, UserVerifyVisitPin, UserVisitEvent
 
 
@@ -1430,7 +1536,7 @@ def user_verify_visit_pin(request):
             return JsonResponse({"ok": False, "error": "QR expired. Please scan again."}, status=400)
 
         if qt.used:
-            return JsonResponse({"ok": False, "error": "QR already used."}, status=400)
+            return JsonResponse({"ok": False, "error": "QR already used. Please generate again."}, status=400)
 
         # ✅ STRICT: QR branch and VisitPin branch must match
         if int(qt.branch_id) != int(matched_visit_pin.branch_id):

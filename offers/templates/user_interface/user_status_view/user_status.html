@@ -347,7 +347,7 @@
                 <div class="pending-meta">
                   <span>Started: {{ p.started_at|date:"d M, h:i A" }}</span>
                   {% if p.desk %}<span>Desk: {{ p.desk }}</span>{% endif %}
-                  {% if p.method %}<span>Method: {{ p.method }}</span>{% endif %}
+                  {% if p.method_label %}<span>Method: {{ p.method_label }}</span>{% endif %}
                 </div>
               </div>
 
@@ -488,7 +488,7 @@
 
                       <div class="tl-meta">
                         {% if e.desk %}<span>Desk: {{ e.desk }}</span>{% endif %}
-                        {% if e.visit_method %}<span>Method: {{ e.visit_method }}</span>{% endif %}
+                        {% if e.visit_method_label %}<span>Method: {{ e.visit_method_label }}</span>{% endif %}
                         {% if e.staff_name or e.staff_code %}
                           <span>Staff: {{ e.staff_name }} {{ e.staff_code }}</span>
                         {% endif %}

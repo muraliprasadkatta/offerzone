@@ -93,6 +93,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "offers.apps.OffersConfig",
+        
 ]
 
 MIDDLEWARE = [

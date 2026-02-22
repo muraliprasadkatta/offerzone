@@ -264,7 +264,7 @@
   <div class="oz-sep">or enter PIN</div>
   <label class="oz-label" for="qrPinInput">Enter 4-digit PIN</label>
   <input id="qrPinInput" class="oz-input" type="tel" inputmode="numeric"
-        pattern="[0-9]*" maxlength="4" placeholder="1234" />
+        pattern="[0-9]*" data-pin-len="4"  maxlength="4" placeholder="1234" />
 
 
   <button id="qrPinSubmit" class="btn" type="button"
@@ -340,7 +340,7 @@ window.OZScan = window.OZScan || {};
     d.modal         = document.getElementById('scanModal');
     d.closeBtn      = document.getElementById('scanCloseBtn');
     d.statusEl      = document.getElementById('qrStatus');
-    d.scanEdge      = document.querySelector('.qr-edge');
+    d.scanEdge = d.modal ? d.modal.querySelector('.qr-edge') : null;
     d.scanChip      = document.getElementById('scanVerifyingChip');
     d.pinInput      = document.getElementById('qrPinInput');
     d.pinBtn        = document.getElementById('qrPinSubmit');
@@ -923,53 +923,70 @@ window.OZScan = window.OZScan || {};
     return m ? decodeURIComponent(m[1]) : null;
   }
 
-  async function onScanSuccess(token) {
-    ns.hideStatus();
+async function onScanSuccess(token) {
+  ns.hideStatus();
 
-    try {
-      const res = await fetch("/qrg/scan-verify/", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": ns.getCookie("csrftoken") || "",
-        },
-        body: JSON.stringify({ token }),
-      });
+  try {
+    const res = await fetch("/qrg/scan-verify/", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": ns.getCookie("csrftoken") || "",
+      },
+      body: JSON.stringify({ token }),
+    });
 
-      const data = await res.json().catch(() => ({}));
+    const data = await res.json().catch(() => ({}));
 
-      if (!res.ok || data.ok === false) {
-        const err = data.error || "QR verification failed.";
-        const low = String(err).toLowerCase();
+    if (!res.ok || data.ok === false) {
+      const err = data.error || "QR verification failed.";
+      const low = String(err).toLowerCase();
 
-        if (low.includes("expired")) {
-          ns.openPopup("QR Expired", "Ee QR expire ayyindi mava. Staff daggara new QR tiskondi.");
-        } else if (low.includes("already used")) {
-          ns.openPopup("QR Already Used", "Ee QR already use ayyindi mava. Staff daggara new QR tiskondi.");
-        } else {
-          ns.openPopup("Scan Failed", err);
-        }
-        return;
+      if (low.includes("expired")) {
+        ns.openPopup("QR Expired", "Ee QR expire ayyindi mava. Staff daggara new QR tiskondi.");
+      } else if (low.includes("already used")) {
+        ns.openPopup("QR Already Used", "Ee QR already use ayyindi mava. Staff daggara new QR tiskondi.");
+      } else {
+        ns.openPopup("Scan Failed", err);
       }
-
-      // ✅ NEW FLOW: backend decides next (status page OR visit pin modal page)
-      const next = data.next || "/";
-
-      ns.setVerifying(true);
-      ns.stopScanner?.();
-
-      setTimeout(() => {
-        window.location.replace(next);
-      }, 120);
-
-    } catch (err) {
-      console.error("QR verify error", err);
-      ns.openPopup("Network error", "Try again mava.");
-      ns.setVerifying(false);
+      return;
     }
-  }
 
+    const next = data.next || "/";
+    const already = !!data.already_claimed_today;
+
+    ns.setVerifying(true);
+    ns.stopScanner?.();
+
+    // ✅ NEW: if already counted today, show popup before redirect
+    if (already) {
+      ns.openPopup(
+        "Already Counted Today ✅",
+        "Ee branch lo today visit already count ayyindi mava. Status page lo details untayi."
+      );
+
+      // OK click -> redirect (one-time)
+      const d = ns.dom;
+      const go = () => {
+        d.scanPopOkBtn?.removeEventListener("click", go);
+        window.location.replace(next);
+      };
+      d.scanPopOkBtn?.addEventListener("click", go);
+
+      return; // stop normal auto-redirect
+    }
+
+    setTimeout(() => {
+      window.location.replace(next);
+    }, 120);
+
+  } catch (err) {
+    console.error("QR verify error", err);
+    ns.openPopup("Network error", "Try again mava.");
+    ns.setVerifying(false);
+  }
+}
   // public: scanner calls this
   ns.handlePayload = async function (v) {
     if (st.isVerifying) return;
@@ -1001,16 +1018,61 @@ window.OZScan = window.OZScan || {};
   function initPinVerify() {
     const d = ns.dom;
 
-    d.pinBtn?.addEventListener("click", async () => {
-      let pin = (d.pinInput?.value || "").trim();
-      pin = pin.replace(/\D/g, "").slice(0, 4);
+    if (!d || !d.pinBtn || !d.pinInput) return;
 
-      if (!/^\d{4}$/.test(pin)) {
-        ns.showStatus(false, "Enter a valid 4-digit PIN.");
+    function getPinLen() {
+      const v = Number(d.pinInput?.dataset?.pinLen || 4);
+      return (Number.isFinite(v) && v > 0 && v <= 12) ? v : 4;
+    }
+
+    function setPinEnabled(on) {
+      if (d.pinBtn) d.pinBtn.disabled = !on;
+      if (d.pinInput) d.pinInput.disabled = !on;
+    }
+
+    function normalizePin(raw) {
+      const PIN_LEN = getPinLen();
+      let pin = String(raw || "").trim();
+      pin = pin.replace(/\D/g, "").slice(0, PIN_LEN);
+      return pin;
+    }
+
+    function showAlreadyPopupThenRedirect(nextUrl) {
+      // If popup infra exists, use it; else just redirect.
+      if (typeof ns.openPopup !== "function") {
+        window.location.replace(nextUrl);
+        return;
+      }
+
+      ns.openPopup(
+        "Already Counted Today ✅",
+        "Ee branch lo today visit already count ayyindi mava. Status page lo details untayi."
+      );
+
+      const go = () => {
+        d.scanPopOkBtn?.removeEventListener("click", go);
+        window.location.replace(nextUrl);
+      };
+
+      // one-time click handler
+      d.scanPopOkBtn?.addEventListener("click", go);
+    }
+
+    async function submitPin() {
+      // prevent double submit (scan-verify/pin-verify overlap)
+      if (ns.state?.isVerifying) return;
+
+      const PIN_LEN = getPinLen();
+      const pin = normalizePin(d.pinInput.value);
+
+      const pinRe = new RegExp("^\\d{" + PIN_LEN + "}$");
+      if (!pinRe.test(pin)) {
+        ns.showStatus(false, "Enter a valid " + PIN_LEN + "-digit PIN.");
         return;
       }
 
       ns.setVerifying(true);
+      setPinEnabled(false);
       ns.showStatus(true, "Verifying PIN…");
 
       try {
@@ -1030,15 +1092,25 @@ window.OZScan = window.OZScan || {};
         if (!res.ok || data.ok === false) {
           ns.showStatus(false, data.error || "PIN verification failed.");
           ns.setVerifying(false);
+          setPinEnabled(true);
           return;
         }
 
-        // ✅ NEW FLOW: backend decides next (status page OR visit pin modal page)
+        // backend decides next (status page OR visit pin page)
         const next = data.next || "/";
+        const already = !!data.already_claimed_today;
 
+        // lock UI, stop scanner
         ns.setVerifying(true);
-        ns.stopScanner?.();
+        try { ns.stopScanner?.(); } catch {}
 
+        // ✅ NEW: already counted today -> popup then redirect on OK
+        if (already) {
+          showAlreadyPopupThenRedirect(next);
+          return; // stop auto redirect
+        }
+
+        // normal success redirect
         setTimeout(() => {
           window.location.replace(next);
         }, 80);
@@ -1047,20 +1119,30 @@ window.OZScan = window.OZScan || {};
         console.error("PIN verify error", err);
         ns.showStatus(false, "Network error. Please try again.");
         ns.setVerifying(false);
+        setPinEnabled(true);
+      }
+    }
+
+    d.pinBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      submitPin();
+    });
+
+    d.pinInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        submitPin();
       }
     });
 
-    d.pinInput?.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        d.pinBtn?.click();
-      }
+    // keep only digits + enforce length while typing
+    d.pinInput.addEventListener("input", () => {
+      const PIN_LEN = getPinLen();
+      const cleaned = String(d.pinInput.value || "").replace(/\D/g, "").slice(0, PIN_LEN);
+      if (d.pinInput.value !== cleaned) d.pinInput.value = cleaned;
     });
   }
 
   document.addEventListener("DOMContentLoaded", initPinVerify);
 })(window.OZScan);
 </script>
-
-
-

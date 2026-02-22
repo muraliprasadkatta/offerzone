@@ -101,6 +101,7 @@
   .divider{ border:0; border-top:1px solid var(--border); margin:14px 0; opacity:.9; }
   .hidden{ display:none; }
 </style>
+  {% include "pwa_install_process/_pwa_tags.html" %}
 
 
 </head>
@@ -161,6 +162,7 @@
       {% if request.GET.next %}<input type="hidden" name="next" value="{{ request.GET.next|urlencode }}">{% endif %}
     </form>
   </div>
+
 
   <script>
   document.getElementById('link-branch').addEventListener('click', function (e) {

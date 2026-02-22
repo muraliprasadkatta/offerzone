@@ -445,9 +445,8 @@ class ComplementaryOffer(models.Model):
 
     # 🔥 New visit unit choices – ONLY qr modes
     VISIT_UNIT_CHOICES = [
-        ("qr_screenshot", "QR scan + screenshot upload"),
+        ("qr_code", "QR code"),
         ("qr_pin", "QR scan + PIN at outlet"),
-        ("qr_payment_proof", "QR scan + payment proof (bill amount / screenshot)"),
     ]
 
     DEDUPE_UNIT_CHOICES = [

@@ -107,22 +107,13 @@
       <div class="freeplate-2col">
 <label class="freeplate-field">
   <span>Visit unit</span>
-  <select name="visit_unit">
-    <!-- Existing -->
-    <option value="qr_screenshot">
-      QR scan + screenshot upload
-    </option>
+<select name="visit_unit">
+  <option value="qr_code">QR code</option>
 
-    <!-- Default & Most Secure -->
-    <option value="qr_pin" selected>
-      QR scan + PIN at outlet
-    </option>
-
-    <!-- 🔥 NEW OPTION – నీ ఐడియా ప్రకారం 🔥 -->
-    <option value="qr_payment_proof">
-      QR scan + payment proof (bill amount / screenshot)
-    </option>
-  </select>
+  <option value="qr_pin" selected>
+    QR scan + PIN at outlet
+  </option>
+</select>
 
   <!-- Simple Static Hint (నీకు కావాల్సినట్టు) -->
   <small class="freeplate-hint" id="visitUnitHint">

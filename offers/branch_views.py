@@ -22,10 +22,10 @@ import hashlib
 from django.db import transaction
 from datetime import timedelta
 from random import randint
-
+from offers.models import ComplementaryOffer
+from django.db import models
 from .models import QRToken, YashPin, Branch
 from .qr_token_utils import mint_qr_token
-
 
 
 
@@ -360,12 +360,47 @@ def branch_home_view(request):
         pk=bid,
     )
 
+    # ✅ NEW: active offer visit_unit for this branch (debug chip)
+    now = timezone.localtime(timezone.now())
+
+    base = (
+        ComplementaryOffer.objects
+        .filter(kind="complementary_offer", is_active=True)
+        .filter(start_at__lte=now)
+        .filter(models.Q(end_at__isnull=True) | models.Q(end_at__gte=now))
+        .only("id", "visit_unit", "all_branches", "start_at")
+    )
+
+    # branch-specific override first
+    offer = (
+        base.filter(all_branches=False, eligible_branches__id=branch.id)
+            .order_by("-start_at", "-id")
+            .first()
+    )
+
+    # fallback to global
+    if not offer:
+        offer = (
+            base.filter(all_branches=True)
+                .order_by("-start_at", "-id")
+                .first()
+        )
+
+    visit_unit = (offer.visit_unit or "qr_pin") if offer else "qr_pin"
+    if visit_unit not in ("qr_pin", "qr_code"):
+        visit_unit = "qr_pin"
+
+    visit_unit_label = "QR scan + PIN" if visit_unit == "qr_pin" else "QR code"
+
     return render(
         request,
         "branch/branch_homepage/branch_homepage.html",
-        {"branch": branch},
+        {
+            "branch": branch,
+            "visit_unit": visit_unit,
+            "visit_unit_label": visit_unit_label,
+        },
     )
-
 
 
 
