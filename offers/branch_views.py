@@ -2,32 +2,39 @@
 
 import json
 import re
+import hashlib
 from datetime import timedelta
 from random import randint
 
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
+from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
+from django.core.validators import validate_email
+from django.db import transaction, models
+from django.db.models import Max
 from django.http import HttpRequest, JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.cache import cache_control, never_cache
+from django.views.decorators.cache import never_cache, cache_control
+from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
-from .models import Branch,BranchStaff  # 👈 LoginVisit import important
-from .models import Branch, BranchOTP, BranchStaff
-from django.core.validators import validate_email
-from django.core.exceptions import ValidationError
-import hashlib
-from django.db import transaction
-from datetime import timedelta
-from random import randint
+
 from offers.models import ComplementaryOffer
-from django.db import models
-from .models import QRToken, YashPin, Branch
+
+from .models import (
+    Branch,
+    BranchOTP,
+    BranchStaff,
+    QRToken,
+    YashPin,
+    UserVisitEvent,
+    Profile,
+    LoginVisit,
+)
+
 from .qr_token_utils import mint_qr_token
-
-
 
 
 # ===== Config =====
@@ -341,14 +348,6 @@ def branch_otp_verify(request: HttpRequest):
 
 
 
-from django.shortcuts import render, redirect, get_object_or_404
-from django.urls import reverse
-from django.views.decorators.cache import never_cache
-from django.utils import timezone
-
-from .models import Branch, LoginVisit   # 👈 LoginVisit import important
-
-
 @never_cache
 def branch_home_view(request):
     bid = request.session.get("branch_id")
@@ -420,13 +419,6 @@ def branch_logout_view(request):
 
 
 
-
-
-import json
-from django.views.decorators.http import require_POST
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_protect
-
 @require_POST
 @csrf_protect
 
@@ -488,19 +480,6 @@ def branch_staff_create_view(request):
 
 
 # offers/branch_views.py (or a separate api_views.py)
-
-from django.http import JsonResponse
-from django.utils import timezone
-from django.db.models import Max
-
-from .models import UserVisitEvent, Profile  # Profile optional, if you use it
-
-
-from django.http import JsonResponse
-from django.utils import timezone
-from django.db.models import Max
-
-from .models import UserVisitEvent, Profile
 
 
 def branch_user_visit_list(request):

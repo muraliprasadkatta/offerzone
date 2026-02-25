@@ -11,8 +11,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.cache import never_cache, cache_control
 
 from offers.models import Branch, OfferDayPin
-from offers.services.offer_eligibility_service import build_offer_eligibility_context
-
+from offers.services.offer_eligibility.offer_eligibility_service import build_offer_eligibility_context
 OFFER_PIN_TTL = getattr(settings, "OFFER_PIN_TTL", 120)  # seconds
 
 

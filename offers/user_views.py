@@ -1,10 +1,12 @@
 # offers/user_views.py
 
-from datetime import timedelta
-from decimal import Decimal, InvalidOperation
+from __future__ import annotations
+
 import json
 import re
 import urllib.parse
+from datetime import timedelta
+from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, login, logout as auth_logout
@@ -13,6 +15,7 @@ from django.contrib.auth.hashers import check_password
 from django.core import signing
 from django.core.mail import send_mail
 from django.db import transaction, models
+from django.db.models import Q, Count, Max
 from django.db.models.functions import Lower
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.shortcuts import render, redirect, get_object_or_404
@@ -22,28 +25,10 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache, cache_control
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
-from django.views.decorators.csrf import csrf_protect
-from offers.services.offer_eligibility_service import build_offer_eligibility_context
-from django.http import JsonResponse
-from django.urls import reverse
-from django.utils import timezone
-from django.views.decorators.cache import never_cache, cache_control
-from django.views.decorators.csrf import csrf_protect
-from django.views.decorators.http import require_POST
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.hashers import check_password
-from django.http import JsonResponse
-from django.urls import reverse
-from django.utils import timezone
-from django.views.decorators.http import require_POST
-from django.views.decorators.cache import never_cache, cache_control
-from django.views.decorators.csrf import csrf_protect
 
-from offers.models import QRToken, UserVisitEvent
 from offers.qr_token_utils import parse_qr_token as verify_qr_token
-
-import json, re
-
+from offers.services.offer_eligibility.offer_eligibility_service import build_offer_eligibility_context
+import offers.services.offer_eligibility.offers_progress_modal_helper as progress_helper
 
 from .models import (
     QRToken,
@@ -205,15 +190,6 @@ def get_client_ip(request):
         ip = request.META.get("REMOTE_ADDR")
     return ip
 
-
-
-from django.db import models
-from django.db.models.functions import Lower
-from django.utils import timezone
-from django.views.decorators.cache import never_cache
-from django.views.decorators.csrf import csrf_protect
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect, render
 
 
 @csrf_protect
@@ -558,10 +534,6 @@ def user_logout_view(request):
 # =========================
 # QR token generaton helpers (scan / visit count)
 # =========================
-
-
-
-from offers.qr_token_utils import parse_qr_token as verify_qr_token
 
 
 TOKEN_PATH_RE = re.compile(r"/qrg/(?:redeem|t)/(?P<tok>[^/?#]+)")
@@ -1029,9 +1001,6 @@ def confirm_branch_visit(request):
 # branch offers  view in user interface
 # =============================================
 
-from django.db.models import Max
-from django.utils import timezone
-from offers.services.offers_progress_modal_helper import offers_progress_modal_context
 
 
 def branch_offers_in_userinterface(request, branch_id):
@@ -1092,13 +1061,13 @@ def branch_offers_in_userinterface(request, branch_id):
         window_days = (free_plate_offer.end_at.date() - free_plate_offer.start_at.date()).days + 1
         max_preview = max(15, min(60, window_days))
         
-        progress = offers_progress_modal_context(
+        progress = progress_helper.offers_progress_modal_context(
             total_visits=branch_total_visits,
             nth=getattr(free_plate_offer, "nth", None),
             repeat=bool(getattr(free_plate_offer, "repeat", True)),
-            extra_nths=getattr(free_plate_offer, "extra_nths", []) or [],
-            max_preview=max_preview,                 # ✅ dynamic
-            include_repeat_multiples=True,           # ✅ repeats show 10/15/20...
+            extra_nths=list(getattr(free_plate_offer, "extra_nths", []) or []),
+            max_preview=max_preview,
+            include_repeat_multiples=True,
         )
         context.update(progress)
 
@@ -1114,10 +1083,6 @@ def branch_offers_in_userinterface(request, branch_id):
 # =========================
 
 
-from django.views.decorators.cache import cache_control
-from django.shortcuts import redirect
-from django.utils import timezone
-from django.db import models
 
 @cache_control(no_store=True, no_cache=True, must_revalidate=True)
 @never_cache
@@ -1159,17 +1124,6 @@ def user_visit_intake_redirect_view(request):
         return redirect("offers:user_home")
 
 
-
-from django.db.models import Q
-from django.views.decorators.cache import cache_control, never_cache
-from django.shortcuts import redirect, render
-from django.utils import timezone
-
-from django.db.models import Q
-from django.views.decorators.cache import cache_control, never_cache
-from django.shortcuts import redirect, render
-from django.utils import timezone
-
 @cache_control(no_store=True, no_cache=True, must_revalidate=True)
 @never_cache
 def user_visit_pin_page_view(request):
@@ -1209,12 +1163,6 @@ def user_visit_pin_page_view(request):
     )
 
 
-from django.utils import timezone
-from django.db import models
-from django.db.models import Count, Max
-from django.shortcuts import render
-
-from .models import UserVisitEvent, ComplementaryOffer, Branch
 
 
 def _parse_iso_dt(v):
