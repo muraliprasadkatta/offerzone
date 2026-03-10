@@ -25,6 +25,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache, cache_control
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
+from urllib3 import request
 
 from offers.qr_token_utils import parse_qr_token as verify_qr_token
 from offers.services.offer_eligibility.offer_eligibility_service import build_offer_eligibility_context
@@ -192,73 +193,64 @@ def get_client_ip(request):
 
 
 
-@csrf_protect
-@login_required
-@csrf_protect
+
 @never_cache
 def user_home_page(request):
-    # Superusers shouldn’t see user home
-    if request.user.is_superuser:
+    if request.user.is_authenticated and request.user.is_superuser:
         return redirect("offers:admin_home")
 
     client_ip = get_client_ip(request)
-    ua = request.META.get("HTTP_USER_AGENT", "")
-
-    today = timezone.localdate()
-
-    # ✅ daily login stamp
-    LoginVisit.objects.update_or_create(
-        user=request.user,
-        visit_date=today,
-        defaults={
-            "source": "login",
-            "ip_address": client_ip,
-            "user_agent": ua,
-        },
-    )
-
     now_ts = timezone.now()
-    start_of_day = now_ts.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    # ✅ ONE-PER-DAY global flag (any branch today)
-    already_claimed_today = UserVisitEvent.objects.filter(
-        user=request.user,
-        created_at__gte=start_of_day,
-    ).exists()
+    already_claimed_today = False
+    disp = ""
+    need_name = False
 
-    # Profile
-    prof = getattr(request.user, "profile", None)
-    if prof is None:
-        prof, _ = Profile.objects.get_or_create(user=request.user)
+    if request.user.is_authenticated:
+        ua = request.META.get("HTTP_USER_AGENT", "")
+        today = timezone.localdate()
 
-    disp = (prof.display_name or "").strip()
-    need_name = (disp == "")
+        LoginVisit.objects.update_or_create(
+            user=request.user,
+            visit_date=today,
+            defaults={
+                "source": "login",
+                "ip_address": client_ip,
+                "user_agent": ua,
+            },
+        )
 
-    # Branches for “Branches” card
+        start_of_day = now_ts.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        already_claimed_today = UserVisitEvent.objects.filter(
+            user=request.user,
+            created_at__gte=start_of_day,
+        ).exists()
+
+        prof = getattr(request.user, "profile", None)
+        if prof is None:
+            prof, _ = Profile.objects.get_or_create(user=request.user)
+
+        disp = (prof.display_name or "").strip()
+        need_name = (disp == "")
+
     LIMIT = 12
     all_branches_qs = Branch.objects.order_by(Lower("name"))
     branch_count = all_branches_qs.count()
-
-    # We still take first LIMIT for now (then reorder within these)
     branches = list(all_branches_qs[:LIMIT])
 
-    # =====================================================
-    # ✅ PER-BRANCH active offer start/end (for each tile)
-    # =====================================================
     branch_ids = [b.id for b in branches]
-    offers_by_branch = {}  # {branch_id: {"start": dt, "end": dt|None}}
+    offers_by_branch = {}
 
     if branch_ids:
-        now = now_ts  # reuse
-
         active_offer_qs = (
             ComplementaryOffer.objects
             .filter(
                 kind="complementary_offer",
                 is_active=True,
-                start_at__lte=now,
+                start_at__lte=now_ts,
             )
-            .filter(models.Q(end_at__isnull=True) | models.Q(end_at__gte=now))
+            .filter(models.Q(end_at__isnull=True) | models.Q(end_at__gte=now_ts))
             .filter(
                 models.Q(all_branches=True) |
                 models.Q(eligible_branches__id__in=branch_ids)
@@ -268,7 +260,6 @@ def user_home_page(request):
             .only("id", "start_at", "end_at", "all_branches")
         )
 
-        # 1) latest global offer applies to all branches
         global_offer = (
             active_offer_qs
             .filter(all_branches=True)
@@ -282,15 +273,14 @@ def user_home_page(request):
                     "end": global_offer.end_at,
                 }
 
-        # 2) override with latest branch-specific offers
         specific_qs = (
             ComplementaryOffer.objects
             .filter(
                 kind="complementary_offer",
                 is_active=True,
-                start_at__lte=now,
+                start_at__lte=now_ts,
             )
-            .filter(models.Q(end_at__isnull=True) | models.Q(end_at__gte=now))
+            .filter(models.Q(end_at__isnull=True) | models.Q(end_at__gte=now_ts))
             .filter(all_branches=False, eligible_branches__id__in=branch_ids)
             .values("eligible_branches__id", "start_at", "end_at", "id")
             .order_by("eligible_branches__id", "-start_at", "-id")
@@ -301,22 +291,20 @@ def user_home_page(request):
             bid = row["eligible_branches__id"]
             if bid in seen:
                 continue
-            offers_by_branch[bid] = {"start": row["start_at"], "end": row["end_at"]}
+            offers_by_branch[bid] = {
+                "start": row["start_at"],
+                "end": row["end_at"],
+            }
             seen.add(bid)
 
-    # attach offer info to branch objects
     for b in branches:
         info = offers_by_branch.get(b.id) or {}
         b.offer_start = info.get("start")
         b.offer_end = info.get("end")
 
-    # =====================================================
-    # ✅ ACTIVE FIRST, INACTIVE LAST (single grid reorder)
-    # =====================================================
     active_branches = [b for b in branches if b.offer_start]
     inactive_branches = [b for b in branches if not b.offer_start]
     branches = active_branches + inactive_branches
-    # =====================================================
 
     return render(
         request,
@@ -328,11 +316,11 @@ def user_home_page(request):
             "branches": branches,
             "branches_has_more": branch_count > LIMIT,
             "client_ip": client_ip,
-
-            # 🔥 already claimed today?
             "oz_already_claimed_today": already_claimed_today,
+            "is_guest": not request.user.is_authenticated,
         },
     )
+
 
 
 @login_required
@@ -528,7 +516,7 @@ def otp_verify(request):
 
 def user_logout_view(request):
     auth_logout(request)
-    return redirect("offers:user_login")
+    return redirect("offers:user_home")
 
 
 # =========================
@@ -613,6 +601,8 @@ PIN_LEN = 4  # 4-digit
 @csrf_protect
 @cache_control(no_cache=True, no_store=True, must_revalidate=True)
 def pin_verify(request):
+    print("RUN -> user_views.py -> pin_verify")
+
     try:
         data = json.loads(request.body.decode("utf-8") or "{}")
     except Exception:
@@ -685,10 +675,13 @@ def pin_verify(request):
         pass
 
     # ✅ set branch context
-    request.session["last_branch_id"] = matched.branch_id
-    request.session["last_branch_name"] = matched.branch.name
-    request.session["last_branch_desk"] = matched.desk or ""
-
+    set_last_branch_session(
+        request,
+        branch_id=matched.branch_id,
+        branch_name=matched.branch.name,
+        token=matched.qr_token.token,
+        desk=matched.desk or "",
+    )
     # =====================================================
     # ✅ NEW: if branch visit_unit is qr_code => confirm immediately
     # =====================================================
@@ -712,24 +705,21 @@ def pin_verify(request):
                 "next": reverse("offers:user_status"),
             })
 
-        # ✅ clear any pending locks (safety)
-        for k in (
-            "pending_qr_token",
-            "pending_qr_branch_id",
-            "pending_qr_branch_name",
-            "pending_qr_desk",
-            "pending_qr_started_at",
-            "pending_pin_row_id",
-            "pending_qr_method",
-        ):
-            request.session.pop(k, None)
+        clear_pending_qr_session(request)
+        set_last_branch_session(
+            request,
+            branch_id=matched.branch_id,
+            branch_name=matched.branch.name,
+            token=matched.qr_token.token,
+            desk=matched.desk or "",
+        )
 
-        # ✅ success: go status directly (NO PIN modal)
         return JsonResponse({
             "ok": True,
             "already_claimed_today": False,
             "next": reverse("offers:user_status"),
         })
+
 
     # =====================================================
     # ✅ NORMAL FLOW: qr_pin => keep your pending lock + go PIN modal
@@ -758,6 +748,7 @@ def pin_verify(request):
 @csrf_protect
 @cache_control(no_cache=True, no_store=True, must_revalidate=True)
 def scan_verify(request):
+    print("RUN -> user_views.py -> scan_verify")
     try:
         data = json.loads(request.body.decode("utf-8") or "{}")
     except Exception:
@@ -974,22 +965,16 @@ def confirm_branch_visit(request):
         )
 
     # ✅ confirmed session for status page
-    request.session["last_branch_id"] = qt.branch_id
-    request.session["last_branch_name"] = qt.branch.name
-    request.session["last_qr_ok_at"] = now_ts.isoformat()
-    request.session["last_branch_desk"] = qt.desk or ""
-    request.session["last_visit_token"] = qt.token
-
+    set_last_branch_session(
+        request,
+        branch_id=qt.branch_id,
+        branch_name=qt.branch.name,
+        token=qt.token,
+        desk=desk,
+    )
     # ✅ clear pending (include pin extras also)
-    for k in (
-        "pending_qr_token",
-        "pending_qr_branch_id",
-        "pending_qr_desk",
-        "pending_qr_started_at",
-        "pending_pin_row_id",
-        "pending_qr_method",
-    ):
-        request.session.pop(k, None)
+    clear_pending_qr_session(request)
+    request.session.pop("pending_qr_branch_name", None)  # optional safety if old sessions exist
 
     return JsonResponse({
         "ok": True,
@@ -1124,6 +1109,7 @@ def user_visit_intake_redirect_view(request):
         return redirect("offers:user_home")
 
 
+@login_required
 @cache_control(no_store=True, no_cache=True, must_revalidate=True)
 @never_cache
 def user_visit_pin_page_view(request):
@@ -1181,6 +1167,9 @@ def _parse_iso_dt(v):
         return None
 
 
+@login_required
+@never_cache
+@cache_control(no_store=True, no_cache=True, must_revalidate=True)
 def user_status_view(request):
     branch_id = request.session.get("last_branch_id") or request.session.get("pending_qr_branch_id")
     branch_name = request.session.get("last_branch_name") or request.session.get("pending_qr_branch_name") or "This Branch"
@@ -1305,18 +1294,7 @@ def user_status_view(request):
     # -------------------
     # offer visit_unit (old logic)
     # -------------------
-    visit_unit = "qr_pin"
-    if branch_id:
-        offer = (
-            ComplementaryOffer.objects
-            .filter(kind="complementary_offer", is_active=True)
-            .filter(models.Q(all_branches=True) | models.Q(eligible_branches=branch_id))
-            .only("visit_unit")
-            .first()
-        )
-        if offer:
-            visit_unit = offer.visit_unit
-
+    visit_unit = get_active_visit_unit(branch_id, now_ts=timezone.now()) if branch_id else "qr_pin"
     # -------------------
     # ✅ Dummy offers claimed (for now)
     # -------------------
@@ -1368,6 +1346,7 @@ def user_status_view(request):
 # from .models import BranchGenerateVisitPin, UserVisitEvent, UserVerifyVisitPin, QRToken, YashPin
 
 
+@login_required
 @require_POST
 @csrf_protect
 @never_cache
@@ -1590,22 +1569,14 @@ def user_verify_visit_pin(request):
     # -------------------------
     # 5) session update + clear pending locks
     # -------------------------
-    request.session["last_branch_id"] = qt.branch_id
-    request.session["last_branch_name"] = qt.branch.name
-    request.session["last_branch_desk"] = qt.desk or ""
-    request.session["last_visit_token"] = qt.token
-    request.session["last_qr_ok_at"] = timezone.now().isoformat()
-
-    for k in (
-        "pending_qr_token",
-        "pending_qr_branch_id",
-        "pending_qr_desk",
-        "pending_qr_started_at",
-        "pending_pin_row_id",
-        "pending_qr_method",
-    ):
-        request.session.pop(k, None)
-
+    set_last_branch_session(
+        request,
+        branch_id=qt.branch_id,
+        branch_name=qt.branch.name,
+        token=qt.token,
+        desk=final_desk,
+    )
+    clear_pending_qr_session(request)
     return JsonResponse({
         "ok": True,
         "message": "Visit verified successfully ✅",

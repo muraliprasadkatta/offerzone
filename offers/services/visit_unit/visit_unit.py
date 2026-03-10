@@ -9,6 +9,7 @@ ALLOWED_VISIT_UNITS = ("qr_pin", "qr_code")
 
 
 def get_active_visit_unit(branch_id: int, now_ts=None) -> str:
+    print("RUN -> visit_unit.py -> get_active_visit_unit")
     """
     Decide the active visit_unit for a branch at this moment.
 

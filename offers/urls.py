@@ -49,7 +49,7 @@ urlpatterns = [
     path("admin/branch/<int:branch_id>/visit-started-json/", aviews.branch_visit_started_json, name="branch_visit_started_json"),
     path("admin/branch/<int:branch_id>/json/", aviews.branch_json, name="branch_json"),
     path("admin/branch/<int:branch_id>/delete/", aviews.branch_delete, name="branch_delete"),
-
+    path("admin/branches/without-branch-offer/", aviews.branches_without_branch_offer_json, name="branches_without_branch_offer_json"),
 
     path("qrg/", include(("offers.qr_generation.urls", "qrgen"), namespace="qrgen")),
 

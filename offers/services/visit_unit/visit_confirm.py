@@ -26,6 +26,7 @@ def confirm_qr_code_visit(
     used_via: str = "scan",   # "scan" | "pin"
     now_ts=None,
 ) -> ConfirmResult:
+    print("RUN -> visit_confirm.py -> confirm_qr_code_visit")
     """
     Confirm visit immediately for visit_unit="qr_code".
 

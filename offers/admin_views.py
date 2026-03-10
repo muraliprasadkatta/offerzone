@@ -4,7 +4,6 @@ import json
 import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from django.db.models import Q
 
 from django.conf import settings
 from django.contrib import messages
@@ -53,6 +52,32 @@ def _parse_dt_local(s: str):
         return None
     dt = datetime.strptime(s, "%Y-%m-%dT%H:%M")
     return dt.replace(tzinfo=IST)
+
+
+# This helper is used to prevented the data save to existing offer when editing if there is history (visits) 
+def pick_offer_for_branch(branch):
+    now = timezone.now()
+
+    offer = (
+        ComplementaryOffer.objects
+        .filter(kind="complementary_offer", is_active=True, all_branches=False, eligible_branches=branch)
+        .filter(start_at__lte=now)
+        .filter(Q(end_at__isnull=True) | Q(end_at__gte=now))
+        .order_by("-id")
+        .first()
+    )
+    if offer:
+        return offer
+
+    return (
+        ComplementaryOffer.objects
+        .filter(kind="complementary_offer", is_active=True, all_branches=True)
+        .filter(start_at__lte=now)
+        .filter(Q(end_at__isnull=True) | Q(end_at__gte=now))
+        .order_by("-id")
+        .first()
+    )
+
 
 
 
@@ -113,8 +138,6 @@ def parse_positive_int(val, default=None, min_value=None):
 
 
 
-
-
 def _is_superuser(user):
     return user.is_authenticated and user.is_superuser
 
@@ -170,13 +193,7 @@ def admin_home(request):
     now = timezone.now()
 
     for b in branches:
-        offer = (
-            ComplementaryOffer.objects
-            .filter(kind="complementary_offer")
-            .filter(Q(all_branches=True) | Q(eligible_branches=b))
-            .order_by("-id")
-            .first()
-        )
+        offer = pick_offer_for_branch(b)
 
         # default: not active
         b.offer_is_active = False
@@ -270,6 +287,26 @@ def complementary_offer_save(request):
             branch_ids = list(dict.fromkeys(branch_ids))[:200]
         except Exception:
             branch_ids = []
+        mode = (p.get("mode") or "").strip().lower()
+
+        if mode == "new_only" and (not all_branches) and branch_ids:
+            existing_ids = set(
+                ComplementaryOffer.objects
+                .filter(kind="complementary_offer", is_active=True, all_branches=False)
+                .filter(start_at__lte=now)
+                .filter(Q(end_at__isnull=True) | Q(end_at__gte=now))
+                .values_list("eligible_branches__id", flat=True)
+                .distinct()
+            )
+            existing_ids.discard(None)
+
+            bad = sorted(set(branch_ids) & existing_ids)
+            if bad:
+                return JsonResponse({
+                    "ok": False,
+                    "error": "Selected branch already has an active offer. Only NEW branches allowed here."
+                }, status=400)
+    
 
         # ✅ fallback source branch id (branch detail edit case)
         source_branch_id = parse_positive_int(
@@ -277,9 +314,8 @@ def complementary_offer_save(request):
             default=None,
             min_value=1
         )
-        if (not all_branches) and (not branch_ids) and source_branch_id:
+        if mode != "new_only" and (not all_branches) and (not branch_ids) and source_branch_id:
             branch_ids = [source_branch_id]
-
         # ---------- offer kwargs (common for create/update) ----------
         offer_kwargs = dict(
             kind="complementary_offer",
@@ -435,13 +471,7 @@ def branch_visit_started_json(request, branch_id: int):
     now = timezone.now()
 
     # latest offer for this branch
-    offer = (
-        ComplementaryOffer.objects
-        .filter(kind="complementary_offer")
-        .filter(Q(all_branches=True) | Q(eligible_branches=branch))
-        .order_by("-id")
-        .first()
-    )
+    offer = pick_offer_for_branch(branch)
 
     if not offer or not offer.start_at:
         return JsonResponse({
@@ -481,12 +511,7 @@ def branch_visit_started_json(request, branch_id: int):
 def offer_json_for_branch(request, branch_id):
     branch = Branch.objects.get(id=branch_id)
 
-    offer = (ComplementaryOffer.objects
-        .filter(kind="complementary_offer")
-        .filter(Q(all_branches=True) | Q(eligible_branches=branch))
-        .order_by("-id")
-        .first()
-    )
+    offer = pick_offer_for_branch(branch)
 
     if not offer:
         return JsonResponse({"ok": True, "offer": None})
@@ -503,6 +528,7 @@ def offer_json_for_branch(request, branch_id):
         "repeat": bool(offer.repeat),
         "extra_nths": getattr(offer, "extra_nths", []) or [],
         "all_branches": bool(offer.all_branches),
+        "branches": list(offer.eligible_branches.values("id", "name")),
         "branch_ids": list(offer.eligible_branches.values_list("id", flat=True)),
     }})
 
@@ -733,7 +759,32 @@ def branch_delete(request, branch_id: int):
 
 
 
+@require_GET
+@login_required(login_url="offers:admin_login")
+@user_passes_test(_is_superuser, login_url="offers:admin_login")
+def branches_search(request):
+    q = (request.GET.get("q") or "").strip()
+    only_new = (request.GET.get("only_new") or "").lower() in ("1", "true", "on", "yes")
 
+    qs = Branch.objects.all()
+    if q:
+        qs = qs.filter(name__icontains=q)
+
+    if only_new:
+        now = timezone.now()
+        existing_ids = set(
+            ComplementaryOffer.objects
+            .filter(kind="complementary_offer", is_active=True, all_branches=False)
+            .filter(start_at__lte=now)
+            .filter(Q(end_at__isnull=True) | Q(end_at__gte=now))
+            .values_list("eligible_branches__id", flat=True)
+            .distinct()
+        )
+        existing_ids.discard(None)
+        qs = qs.exclude(id__in=existing_ids)
+
+    data = [{"id": b.id, "name": b.name} for b in qs.order_by("name")[:20]]
+    return JsonResponse(data, safe=False)
 
 
 
@@ -741,12 +792,33 @@ def branch_delete(request, branch_id: int):
 @require_GET
 @login_required(login_url="offers:admin_login")
 @user_passes_test(_is_superuser, login_url="offers:admin_login")
-def branches_search(request):
-    q = (request.GET.get("q") or "").strip()
-    qs = Branch.objects.all()
-    if q:
-        qs = qs.filter(name__icontains=q)
-    data = [{"id": b.id, "name": b.name} for b in qs.order_by("name")[:20]]
-    return JsonResponse(data, safe=False)
+def branches_without_branch_offer_json(request):
+    now = timezone.now()
 
+    existing_ids = set(
+        ComplementaryOffer.objects
+        .filter(kind="complementary_offer", is_active=True, all_branches=False)
+        .filter(start_at__lte=now)
+        .filter(Q(end_at__isnull=True) | Q(end_at__gte=now))
+        .values_list("eligible_branches__id", flat=True)
+        .distinct()
+    )
+    existing_ids.discard(None)
 
+    all_ids = set(Branch.objects.values_list("id", flat=True))
+    new_ids = sorted(all_ids - existing_ids)
+
+    new_branches = list(
+        Branch.objects.filter(id__in=new_ids)
+        .values("id", "name")
+        .order_by("name")
+    )
+
+    return JsonResponse({
+        "ok": True,
+        "new_branch_ids": new_ids,          # optional keep
+        "new_branches": new_branches,       # ✅ IMPORTANT
+        "new_count": len(new_ids),
+        "existing_count": len(existing_ids),
+    })
+    

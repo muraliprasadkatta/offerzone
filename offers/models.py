@@ -506,7 +506,7 @@ class ComplementaryOffer(models.Model):
     visit_unit = models.CharField(
         max_length=16,
         choices=VISIT_UNIT_CHOICES,
-        default="qr_screenshot",
+        default="qr_pin",
     )
 
     dedupe_value = models.PositiveIntegerField(default=1)

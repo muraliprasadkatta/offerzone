@@ -75,6 +75,8 @@
   <div class="topbar">
     <a href="{% url 'offers:admin_home' %}" class="back">← Back</a>
 
+    <input type="hidden" name="mode" value="normal">
+
     <!-- ✅ Default disabled until status check completes -->
     <a href="#"
        id="editOfferBtn"
@@ -87,8 +89,6 @@
        data-branch-name="{{ branch.name|escapejs }}">
       Edit Offer
     </a>
-
-
 
 
   </div>
@@ -130,6 +130,7 @@
    data-branch-id="{{ branch.id }}">
   Delete
 </a>
+
 
   </div>
 

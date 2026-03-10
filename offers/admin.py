@@ -373,7 +373,7 @@ class OfferDayPinAdmin(admin.ModelAdmin):
     ordering = ("-id",)
     list_per_page = 50
 
-    # ✅ full read-only
+    # ✅ full read-only (but delete allowed)
     readonly_fields = (
         "branch","user","token","desk","pin_hash",
         "expires_at","used","used_at",
@@ -393,8 +393,8 @@ class OfferDayPinAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None):
-        return False
-
+        # ✅ allow delete only for superuser
+        return bool(request.user and request.user.is_superuser)
 
 
 @admin.register(UserOfferClaim)

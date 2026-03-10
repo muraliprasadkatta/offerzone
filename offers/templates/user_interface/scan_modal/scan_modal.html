@@ -761,6 +761,7 @@ window.OZScan = window.OZScan || {};
 
 <!-- 3) scan-modal.js  (open/close modal + history + triggers) -->
 
+
 <script>
   // ozscan/scan-modal.js
   window.OZScan = window.OZScan || {};
@@ -773,14 +774,19 @@ window.OZScan = window.OZScan || {};
       return location.hash === cfg.SCAN_HASH;
     }
 
+    function canOpenScan() {
+      return !(window.OZ_AUTH && window.OZ_AUTH.isGuest);
+    }
+
     ns.openModal = function (opts = {}) {
       const { fromHash = false } = opts || {};
       const d = ns.dom;
 
       d.modal.classList.add('show');
+      d.modal.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
 
-      ns.startScanner();   // 🔥 scanner STARTS here
+      ns.startScanner();
 
       if (!fromHash && !st.scanPushed) {
         history.pushState({ ozScan: true }, '', cfg.SCAN_HASH);
@@ -806,15 +812,16 @@ window.OZScan = window.OZScan || {};
       if (force) {
         try {
           const r = document.getElementById('qr-reader');
-          r && (r.innerHTML = '');
+          if (r) r.innerHTML = '';
         } catch {}
       }
 
       d.modal.classList.remove('show');
+      d.modal.setAttribute('aria-hidden', 'true');
       document.body.style.overflow = '';
       ns.hideStatus();
       ns.setVerifying(false);
-      ns.closePopup?.();   // 🔥 popup cleanup
+      ns.closePopup?.();
 
       if (st.scanPushed && !fromPop) {
         st.scanPushed = false;
@@ -824,12 +831,32 @@ window.OZScan = window.OZScan || {};
 
     function initModalTriggers() {
       ns.initDom();
-      const d = ns.dom;   // ✅ FIX: declare FIRST
+      const d = ns.dom;
 
-      // 🔥 popup OK button
+      function goUserLogin() {
+        const auth = window.OZ_AUTH || {};
+        const loginUrl = auth.loginUrl || "/user/login/";
+        const nextUrl = auth.nextUrl || window.location.pathname || "/";
+
+        if (window.location.hash === cfg.SCAN_HASH && window.history?.replaceState) {
+          window.history.replaceState(null, "", window.location.pathname + window.location.search);
+        }
+
+        window.location.href = `${loginUrl}?next=${nextUrl}`;
+      }
+
+      function handleTileOpen(e) {
+        if (!canOpenScan()) {
+          e?.preventDefault?.();
+          goUserLogin();
+          return;
+        }
+        ns.openModal();
+      }
+
       d.scanPopOkBtn?.addEventListener('click', (e) => {
         e.preventDefault();
-        ns.closePopup();        // unlock scanner
+        ns.closePopup();
       });
 
       d.closeBtn?.addEventListener('click', (e) => {
@@ -848,11 +875,11 @@ window.OZScan = window.OZScan || {};
         }
       });
 
-      d.tile?.addEventListener('click', () => ns.openModal());
+      d.tile?.addEventListener('click', handleTileOpen);
       d.tile?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          ns.openModal();
+          handleTileOpen(e);
         }
       });
 
@@ -860,7 +887,7 @@ window.OZScan = window.OZScan || {};
         if (d.modal.classList.contains('show')) {
           ns.closeModal({ fromPop: true });
           st.scanPushed = false;
-        } else if (isScanHash()) {
+        } else if (isScanHash() && canOpenScan()) {
           ns.openModal({ fromHash: true });
           st.scanPushed = true;
         } else {
@@ -868,17 +895,17 @@ window.OZScan = window.OZScan || {};
         }
       });
 
-      if (isScanHash()) {
+      if (isScanHash() && canOpenScan()) {
         ns.openModal({ fromHash: true });
         st.scanPushed = true;
+      } else if (isScanHash() && !canOpenScan() && window.history?.replaceState) {
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
       }
     }
 
     document.addEventListener('DOMContentLoaded', initModalTriggers);
   })(window.OZScan);
 </script>
-
-
 
 <!-- 4) scan-qr.js  (token helpers + QR → /qrg/scan-verify/) -->
 <script>
